@@ -13,4 +13,6 @@ gate: pretooluse-destructivo
 gate_descripcion: PreToolUse que bloquea escrituras SQL contra hosts de producción sin plan aprobado en el contrato.
 existe_hoy: no
 existe_hoy_detalle: solo la regla en memoria y en CLAUDE.md.
-spike_cubre: no
+spike_cubre: "no"
+clase: T
+senal_al_stop: "ninguna al Stop: la escritura ocurre al ejecutar el comando"

@@ -13,4 +13,6 @@ gate: pretooluse-destructivo
 gate_descripcion: PreToolUse sobre Bash que bloquea -x, set -x, printenv y /proc/PID/environ.
 existe_hoy: sí
 existe_hoy_detalle: werixo-no-trace-secrets.sh, conectado el mismo día.
-spike_cubre: no
+spike_cubre: "no"
+clase: T
+senal_al_stop: "ninguna al Stop: el secreto ya estaba impreso al ejecutar el comando"

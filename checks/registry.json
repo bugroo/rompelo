@@ -1,0 +1,12 @@
+{
+  "_ayuda": "Único sitio donde viven comandos. El contrato solo lleva ids. argv se ejecuta sin shell; cwd: repo | assure.",
+  "assure.tests":                 {"argv": ["bash", "tests/assure-stop-test.sh"],        "cwd": "assure", "descripcion": "batería del gate, vista en rojo y en verde"},
+  "assure.cruce-settings-claude": {"argv": ["bash", "tests/cruce-settings-claude.sh"],   "cwd": "assure", "descripcion": "ejecuta la línea Stop tal cual está en settings.json"},
+  "claveon.test":                 {"argv": ["pnpm", "test"],                             "cwd": "repo"},
+  "claveon.typecheck":            {"argv": ["pnpm", "typecheck"],                        "cwd": "repo"},
+  "claveon.typecheck-functions":  {"argv": ["pnpm", "typecheck:functions"],              "cwd": "repo"},
+  "claveon.build":                {"argv": ["pnpm", "build"],                            "cwd": "repo"},
+  "claveon.humo-navegador":       {"argv": ["node", "scripts/humo-navegador.mjs"],       "cwd": "repo", "descripcion": "91 páginas en navegador real con axe; caza lo que 964 pruebas de texto no ven (INC-0005)"},
+  "claveon.comprobar-newsletter": {"argv": ["bash", "scripts/comprobar-newsletter.sh"],  "cwd": "repo", "descripcion": "cruce real del doble opt-in (INC-0004)"},
+  "claveon.comprobar-deriva":     {"argv": ["bash", "scripts/comprobar-deriva.sh"],      "cwd": "repo", "descripcion": "desplegado frente a origin/main (INC-0002)"}
+}

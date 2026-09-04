@@ -13,4 +13,6 @@ gate: instrumento-control-positivo
 gate_descripcion: Todo guardián lleva una prueba que lo hace fallar a propósito antes de aceptarlo.
 existe_hoy: sí
 existe_hoy_detalle: arreglado de raíz el 31-08 y probado con VENTANA=1.
-spike_cubre: no
+spike_cubre: "parcial"
+clase: M
+senal_al_stop: "un control positivo del vigilante (VENTANA=1) lo habría delatado al escribirlo"

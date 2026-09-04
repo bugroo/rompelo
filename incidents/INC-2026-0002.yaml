@@ -13,4 +13,6 @@ gate: deriva-generada
 gate_descripcion: Detector que compara fichero a fichero lo desplegado contra origin/main y sale con 1.
 existe_hoy: sí
 existe_hoy_detalle: scripts/comprobar-deriva.sh, probado en las dos direcciones.
-spike_cubre: no
+spike_cubre: "parcial"
+clase: M
+senal_al_stop: "solo si un check compara lo desplegado con origin/main (no existía); la prueba unitaria daba verde"

@@ -13,4 +13,6 @@ gate: stop-junta
 gate_descripcion: Contrato con toca_junta y cruce real registrado DESPUÉS del último cambio, no antes.
 existe_hoy: no
 existe_hoy_detalle: regla escrita al final de N72.
-spike_cubre: sí
+spike_cubre: "no"
+clase: R
+senal_al_stop: "el ciclo de verificación pasó; el token caducó 15 minutos después"

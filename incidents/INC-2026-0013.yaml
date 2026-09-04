@@ -12,4 +12,6 @@ gate: instrumento-control-positivo
 gate_descripcion: Aviso en el momento cuando una búsqueda sale vacía; la afirmación lleva el ámbito.
 existe_hoy: parcial
 existe_hoy_detalle: werixo-medir-de-verdad.sh avisa; no bloquea ni obliga a nombrar el ámbito.
-spike_cubre: no
+spike_cubre: "no"
+clase: C
+senal_al_stop: "ninguna: búsqueda en un ámbito y afirmación sobre otro"

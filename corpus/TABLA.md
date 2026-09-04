@@ -4,9 +4,13 @@ Generado desde `incidents/` (15 incidentes). No editar a mano: `python3 bin/assu
 
 ## Lo que decide
 
+Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta (PreToolUse) · **C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **M** mixto.
+
 | Pregunta | Recuento |
 |---|---|
-| ¿Cuántos habría cazado el Stop gate de la Fase 1? | **sí: 5** · parcial: 1 · no: 9 de 15 |
+| Reparto por clase | **A**: 2 · **C**: 3 · **M**: 2 · **R**: 2 · **S**: 3 · **T**: 3 (de 15) |
+| recall del Stop gate sobre la clase S | **3 de 3** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 4 · parcial: 3 · no: 8 |
 | ¿Cuántos tienen ya un control hoy? | sí: 4 · parcial: 5 · **no: 6** |
 
 ## Por tipo de gate que lo habría cazado
@@ -25,23 +29,23 @@ Generado desde `incidents/` (15 incidentes). No editar a mano: `python3 bin/assu
 
 ## Los incidentes
 
-| Id | Fecha | Tipo | Qué parecía verde | Gate | Existe hoy | Spike |
+| Id | Fecha | Clase | Señal disponible al Stop | Gate | Existe hoy | Spike |
 |---|---|---|---|---|---|---|
-| 0001 | 2026-08-13 | destructivo | La regla que lo prohibía existía por escrito en env-bootstrap.md y el CLAUDE.md global describía un guardián de Bash como activo. | `pretooluse-destructivo` | sí | no |
-| 0002 | 2026-08-13 | prueba-ciega | test/backup-script.test.mjs en verde durante meses. Comparaba el repositorio consigo mismo: exigía un remoto r2-claveon que no existe en el servidor. | `deriva-generada` | sí | no |
-| 0003 | 2026-08-13 | contexto-perdido | 177 documentos describían el sistema. INVENTARIO.md decía que todo pasaba por Caddy; CLAUDE.md decía que dos guardianes estaban activos. Leídos, no medidos. | `deriva-generada` | parcial | no |
-| 0004 | 2026-08-31 | junta | Código correcto en los dos lados, pruebas en verde, despliegue sin error, revisión sin hallazgos. El borde mandaba CRM_API_KEY y el servidor comparaba NEWSLETTER_API_KEY. | `stop-junta` | parcial | sí |
-| 0005 | 2026-09-04 | prueba-ciega | pnpm build 0 errores, astro check 0 errores, 964 pruebas en verde. Todas leen el fichero fuente o el HTML servido. | `stop-checks` | parcial | sí |
-| 0006 | 2026-08-31 | instrumento | El aviso semanal llegaba y parecía trabajar. Comparaba por nombre contra un campo que cada envío sobreescribe; los leads sí estaban. | `instrumento-control-positivo` | sí | no |
-| 0007 | 2026-08-31 | destructivo | Mensaje de «no hice nada» y ningún stash creado. Pérdida de datos disfrazada de no-op. | `pretooluse-destructivo` | no | no |
-| 0008 | 2026-08-24 | destructivo | Los datos resultantes eran correctos por casualidad. psql confirmó cada UPDATE porque iban antes del begin, no dentro. | `pretooluse-destructivo` | no | no |
-| 0009 | 2026-08-27 | contexto-perdido | La auditoría del 22-08 lo anotó como aviso de tipado y el plan lo cerró con «ya señalado, no ampliado hoy». Nadie preguntó a dónde apuntaba el 2. | `stop-hallazgos` | no | sí |
-| 0010 | 2026-08-27 | silencio-operacional | Los workflows estaban activos y el panel no mostraba nada rojo salvo leyendo la API a mano ejecución por ejecución. | `alerta-operacional` | sí | no |
-| 0011 | 2026-09-03 | prueba-ciega | «Tests en verde» era cierto. Ninguno ejercitaba el código añadido. | `stop-prueba-toca-diff` | no | sí |
-| 0012 | 2026-09-03 | ambito | git diff limpio entre las ramas. Publicar desde ahí habría borrado el rediseño entero, porque producción no sigue a main. | `deriva-generada` | parcial | no |
-| 0013 | 2026-08-14 | resultado-nulo | Una búsqueda vacía leída como negativo. C3 quedó mal enunciado dos días. | `instrumento-control-positivo` | parcial | no |
-| 0014 | 2026-08-27 | junta | Ciclo 2583 en verde, borrador creado, dado por cerrado. Desde las 19:15 todos los ciclos fallaban con INVALID_TOKEN. | `stop-junta` | no | sí |
-| 0015 | 2026-09-03 | contexto-perdido | Auditoría cerrada con las páginas marcadas como revisadas. Misma entrada, distinta conclusión un día después. | `ledger-auditoria` | no | parcial |
+| 0001 | 2026-08-13 | T | ninguna al Stop: el secreto ya estaba impreso al ejecutar el comando | `pretooluse-destructivo` | sí | no |
+| 0002 | 2026-08-13 | M | solo si un check compara lo desplegado con origin/main (no existía); la prueba unitaria daba verde | `deriva-generada` | sí | parcial |
+| 0003 | 2026-08-13 | C | ninguna: el error vive en documentos leídos como verdad | `deriva-generada` | parcial | no |
+| 0004 | 2026-08-31 | S | una petición real al endpoint desplegado devolvía 403 desde el primer día | `stop-junta` | parcial | sí |
+| 0005 | 2026-09-04 | S | abrir la página en un navegador lanzaba el ReferenceError | `stop-checks` | parcial | sí |
+| 0006 | 2026-08-31 | M | un control positivo del vigilante (VENTANA=1) lo habría delatado al escribirlo | `instrumento-control-positivo` | sí | parcial |
+| 0007 | 2026-08-31 | T | ninguna al Stop: el borrado ocurre al ejecutar el comando | `pretooluse-destructivo` | no | no |
+| 0008 | 2026-08-24 | T | ninguna al Stop: la escritura ocurre al ejecutar el comando | `pretooluse-destructivo` | no | no |
+| 0009 | 2026-08-27 | A | el hallazgo existía por escrito desde el 22-08 sin disposición | `stop-hallazgos` | no | sí |
+| 0010 | 2026-08-27 | R | ninguna al Stop: los fallos ocurren días después en producción | `alerta-operacional` | sí | no |
+| 0011 | 2026-09-03 | S | el diff añadía código y ningún fichero de prueba cambiaba | `stop-prueba-toca-diff` | no | sí |
+| 0012 | 2026-09-03 | C | ninguna medible en el árbol: la afirmación era sobre otro ámbito (el despliegue) | `deriva-generada` | parcial | no |
+| 0013 | 2026-08-14 | C | ninguna: búsqueda en un ámbito y afirmación sobre otro | `instrumento-control-positivo` | parcial | no |
+| 0014 | 2026-08-27 | R | el ciclo de verificación pasó; el token caducó 15 minutos después | `stop-junta` | no | no |
+| 0015 | 2026-09-03 | A | mismo commit, dos conclusiones; sin ledger no hay señal comparable | `ledger-auditoria` | no | parcial |
 
 ## Títulos
 

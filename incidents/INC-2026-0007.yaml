@@ -12,4 +12,6 @@ gate: pretooluse-destructivo
 gate_descripcion: PreToolUse que bloquea stash -u con pathspec o exige mv a directorio temporal.
 existe_hoy: no
 existe_hoy_detalle: solo la regla escrita en memoria.
-spike_cubre: no
+spike_cubre: "no"
+clase: T
+senal_al_stop: "ninguna al Stop: el borrado ocurre al ejecutar el comando"

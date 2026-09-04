@@ -14,7 +14,7 @@ if not ficheros:
     sys.exit(2)
 
 CLAVES = ["id", "titulo", "fecha", "tipo", "evidencia_verde", "lo_que_faltaba",
-          "gate", "gate_descripcion", "existe_hoy", "spike_cubre", "fuente"]
+          "gate", "gate_descripcion", "existe_hoy", "spike_cubre", "fuente", "clase", "senal_al_stop"]
 inc = []
 for f in ficheros:
     d = yaml.safe_load(open(f))
@@ -35,9 +35,16 @@ existe = collections.Counter(d["existe_hoy"] for d in inc)
 out = []
 out.append("# Corpus de fallos reales · tabla generada\n")
 out.append(f"Generado desde `incidents/` ({len(inc)} incidentes). No editar a mano: `python3 bin/assure-corpus.py`.\n")
+por_clase = collections.Counter(d["clase"] for d in inc)
+S = [d for d in inc if d["clase"] == "S"]
+recall_S = sum(1 for d in S if d["spike_cubre"] == "sí")
 out.append("## Lo que decide\n")
+out.append("Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta (PreToolUse) · "
+           "**C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **M** mixto.\n")
 out.append("| Pregunta | Recuento |\n|---|---|")
-out.append(f"| ¿Cuántos habría cazado el Stop gate de la Fase 1? | **sí: {spike['sí']}** · parcial: {spike.get('parcial',0)} · no: {spike['no']} de {len(inc)} |")
+out.append("| Reparto por clase | " + " · ".join(f"**{c}**: {n}" for c, n in sorted(por_clase.items())) + f" (de {len(inc)}) |")
+out.append(f"| recall del Stop gate sobre la clase S | **{recall_S} de {len(S)}** |")
+out.append(f"| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: {spike['sí']} · parcial: {spike.get('parcial',0)} · no: {spike['no']} |")
 out.append(f"| ¿Cuántos tienen ya un control hoy? | sí: {existe['sí']} · parcial: {existe.get('parcial',0)} · **no: {existe['no']}** |")
 out.append("")
 out.append("## Por tipo de gate que lo habría cazado\n")
@@ -48,10 +55,9 @@ for g, n in por_gate.most_common():
     out.append(f"| `{g}` | {n} ({ids}) | {ex} |")
 out.append("")
 out.append("## Los incidentes\n")
-out.append("| Id | Fecha | Tipo | Qué parecía verde | Gate | Existe hoy | Spike |\n|---|---|---|---|---|---|---|")
+out.append("| Id | Fecha | Clase | Señal disponible al Stop | Gate | Existe hoy | Spike |\n|---|---|---|---|---|---|---|")
 for d in inc:
-    ev = " ".join(str(d["evidencia_verde"]).split())
-    out.append(f"| {d['id'][-4:]} | {d['fecha']} | {d['tipo']} | {ev} | `{d['gate']}` | {d['existe_hoy']} | {d['spike_cubre']} |")
+    out.append(f"| {d['id'][-4:]} | {d['fecha']} | {d['clase']} | {d['senal_al_stop']} | `{d['gate']}` | {d['existe_hoy']} | {d['spike_cubre']} |")
 out.append("")
 out.append("## Títulos\n")
 for d in inc:

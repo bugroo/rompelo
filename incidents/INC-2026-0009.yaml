@@ -13,4 +13,6 @@ gate: stop-hallazgos
 gate_descripcion: Stop bloqueado mientras exista un hallazgo del contrato sin disposición.
 existe_hoy: no
 existe_hoy_detalle: los hallazgos viven en prosa dentro de ledgers y auditorías en Markdown.
-spike_cubre: sí
+spike_cubre: "sí"
+clase: A
+senal_al_stop: "el hallazgo existía por escrito desde el 22-08 sin disposición"

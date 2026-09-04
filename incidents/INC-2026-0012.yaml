@@ -13,4 +13,6 @@ gate: deriva-generada
 gate_descripcion: deploy que mide el commit desplegado frente al que va a desplegar y aborta ante retroceso.
 existe_hoy: parcial
 existe_hoy_detalle: reference_claveon_deploy_verify cubre verificación posterior, no el retroceso previo.
-spike_cubre: no
+spike_cubre: "no"
+clase: C
+senal_al_stop: "ninguna medible en el árbol: la afirmación era sobre otro ámbito (el despliegue)"

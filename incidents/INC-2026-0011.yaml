@@ -12,4 +12,6 @@ gate: stop-prueba-toca-diff
 gate_descripcion: Stop bloqueado si el diff añade código y ninguna prueba nueva o modificada lo acompaña.
 existe_hoy: no
 existe_hoy_detalle: regla 4 de la memoria; nada la comprueba.
-spike_cubre: sí
+spike_cubre: "sí"
+clase: S
+senal_al_stop: "el diff añadía código y ningún fichero de prueba cambiaba"

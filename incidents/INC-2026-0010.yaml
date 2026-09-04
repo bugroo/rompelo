@@ -13,4 +13,6 @@ gate: alerta-operacional
 gate_descripcion: Observación posterior al despliegue con alerta que se ha visto dispararse una vez.
 existe_hoy: sí
 existe_hoy_detalle: N41 activo y visto funcionar con un fallo real el mismo día.
-spike_cubre: no
+spike_cubre: "no"
+clase: R
+senal_al_stop: "ninguna al Stop: los fallos ocurren días después en producción"

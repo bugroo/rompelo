@@ -13,4 +13,6 @@ gate: stop-junta
 gate_descripcion: Stop bloqueado si el contrato marca toca_junta y no hay registro de un cruce real con resultado.
 existe_hoy: parcial
 existe_hoy_detalle: medir-de-verdad avisa al escribir un secreto de panel; comprobar-newsletter.sh existe pero se escribió después. Nada bloquea.
-spike_cubre: sí
+spike_cubre: "sí"
+clase: S
+senal_al_stop: "una petición real al endpoint desplegado devolvía 403 desde el primer día"
