@@ -27,3 +27,7 @@ jobs:
         run: |
           python3 -m pip install --quiet pyyaml
           python3 "$HOME/rompelo/bin/rompelo-corpus.py"
+      - name: The gate judges this repo too (verify --ci)
+        run: |
+          cd "$HOME/rompelo"
+          ROMPELO_HOME="$PWD" bin/rompelo verify --ci

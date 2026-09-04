@@ -161,6 +161,22 @@ espera_bloqueo "cerrada con cambios posteriores" s10b "cambios posteriores al ci
 "$ASSURE" close >/dev/null && ok "se puede volver a cerrar tras rehacer la evidencia" || bad "re-close"
 espera_paso "re-cerrada: silencio" s10d
 
+echo "── verify --ci: juez independiente, no se cree la evidencia guardada"
+contrato 'checks=["hay-a","ok"]' 'toca_junta=true'
+rm -f .rompelo/evidence/T1/check-*.json
+"$ASSURE" verify --ci >"$T/ci.txt" 2>&1; rc=$?; [ $rc -eq 0 ] && grep -q 'ADVERTENCIA' "$T/ci.txt" && ok "--ci ejecuta los checks él mismo y deja la junta como advertencia" || bad "--ci" "rc=$rc $(cat "$T/ci.txt")"
+"$ASSURE" verify --ci --estricto >/dev/null 2>&1; [ $? -eq 1 ] && ok "--ci --estricto bloquea por la junta" || bad "--estricto"
+contrato 'checks=["hay-a","ko"]' 'toca_junta=false'
+"$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -eq 1 ] && grep -q 'FALLÓ' "$T/ci.txt" && ok "--ci en rojo con un check que falla" || bad "--ci ko" "$(cat "$T/ci.txt")"
+contrato 'checks=["hay-a","ok"]'
+"$ASSURE" verify --ci --json | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["ok"] and d["advertencias"]==[]' && ok "--ci --json bien formado" || bad "--ci --json"
+echo "── registro de respaldo en el repo cuando ROMPELO_HOME no tiene ninguno (runner de CI)"
+mkdir -p "$T/vacio"; printf '{"hay-a": {"argv": ["test","-f","src/a.txt"]}, "ok": {"argv": ["true"]}}' > .rompelo/registry.json
+ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >/dev/null 2>&1 && ok "sin registro en HOME, vale .rompelo/registry.json del repo" || bad "fallback"
+rm .rompelo/registry.json
+ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -eq 1 ] && grep -q 'no está en el registro' "$T/ci.txt" && ok "sin ningún registro: bloquea, no ejecuta" || bad "sin registro" "$(cat "$T/ci.txt")"
+"$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+
 echo "── fichero NUEVO: commitearlo no cambia la huella (mismo contenido)"
 echo n > src/nuevo.txt; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
 espera_paso "cerrada con fichero nuevo sin rastrear: silencio" s12

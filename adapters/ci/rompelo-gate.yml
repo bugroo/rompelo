@@ -1,0 +1,21 @@
+# Copia esto a .github/workflows/rompelo-gate.yml en TU repo.
+# El juez independiente: vuelve a ejecutar los checks del contrato en un runner donde el agente
+# no ha escrito nada. No se cree la evidencia guardada. El cruce real no se puede reproducir
+# aquí y sale como advertencia (o como bloqueo con --estricto).
+# El registro de checks lo lee de .rompelo/registry.json de tu repo (en CI no hay ~/rompelo).
+name: rompelo gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # la huella compara con el commit base del contrato
+      - name: rompelo
+        run: |
+          git clone --depth 1 https://github.com/bugroo/rompelo "$RUNNER_TEMP/rompelo"
+          # fija un commit concreto en cuanto lo tengas: git -C "$RUNNER_TEMP/rompelo" checkout <sha>
+          ROMPELO_HOME="$RUNNER_TEMP/rompelo" "$RUNNER_TEMP/rompelo/bin/rompelo" verify --ci

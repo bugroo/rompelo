@@ -79,11 +79,16 @@ def leer_json(f):
         return json.load(fh)
 
 
-def registro():
+def registro(root=None):
     """registry.json (versionado, checks genéricos) + registry.local.json (sin versionar,
-    checks de tus repos). Los locales ganan si repiten un id."""
+    checks de tus repos). Los locales ganan si repiten un id. Si ROMPELO_HOME no tiene ningún
+    registro (un runner de CI), vale `.rompelo/registry.json` del propio repo: ahí el repo es la
+    fuente de confianza, porque sus cambios pasan por revisión."""
+    fuentes = [REGISTRO, REGISTRO_LOCAL]
+    if root and not any(os.path.exists(f) for f in fuentes):
+        fuentes = [os.path.join(root, ".rompelo", "registry.json")]
     r = {}
-    for f in (REGISTRO, REGISTRO_LOCAL):
+    for f in fuentes:
         try:
             parte = leer_json(f)
         except FileNotFoundError:
@@ -120,7 +125,7 @@ def resolver_check(cid, root):
     """Devuelve (argv, cwd) de un id del registro. Nunca ejecuta texto del contrato."""
     if not isinstance(cid, str) or not ID_OK.match(cid):
         raise ValueError(f"id de check inválido (no se ejecuta): {cid!r}")
-    reg = registro()
+    reg = registro(root)
     if cid not in reg:
         raise ValueError(f"check desconocido, no está en {REGISTRO} (no se ejecuta): {cid}")
     e = reg[cid]
@@ -199,13 +204,17 @@ def casa(path, patron):
 
 
 # ── veredicto ───────────────────────────────────────────────────────────────
-def motivos_bloqueo(root, para_cerrar=False):
+def motivos_bloqueo(root, para_cerrar=False, ci=None):
+    """ci: {"evidencias": {id: evidencia recién producida}, "estricto": bool, "advertencias": []}.
+    En CI no se cree ninguna evidencia guardada (la pudo escribir el agente): los checks se
+    ejecutan de nuevo allí. El cruce real no se puede reproducir en CI: queda como advertencia,
+    o como bloqueo con --estricto."""
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
     hu = huella_arbol(root, c.get("base"))
     m = []
 
-    if str(c["estado"]) == "cerrada":
+    if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
         if cerr and cerr.get("huella") == hu:
             return []
@@ -217,12 +226,12 @@ def motivos_bloqueo(root, para_cerrar=False):
     if fuera:
         m.append("fuera de scope_paths: " + ", ".join(fuera[:8]) + (" …" if len(fuera) > 8 else ""))
 
-    reg = registro()
+    reg = registro(root)
     for cid in c["checks"]:
         if cid not in reg:
             m.append(f"check `{cid}` no está en el registro ({REGISTRO}); no se ejecuta ni cuenta")
             continue
-        e = leer_evidencia(ev, f"check-{cid}.json")
+        e = ci["evidencias"].get(cid) if ci else leer_evidencia(ev, f"check-{cid}.json")
         if e is None:
             m.append(f"check `{cid}` sin ejecutar (usa `rompelo check`)")
         elif e.get("argv") != reg[cid].get("argv"):
@@ -234,7 +243,10 @@ def motivos_bloqueo(root, para_cerrar=False):
         elif e.get("huella") != hu:
             m.append(f"check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)")
 
-    if c["toca_junta"]:
+    if c["toca_junta"] and ci:
+        txt = "toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`."
+        (m if ci.get("estricto") else ci["advertencias"]).append(txt)
+    elif c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json")
         if cr is None:
             m.append("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)")
@@ -306,7 +318,7 @@ def cmd_init(root, args):
         sys.exit(f"ya existe {f} (usa --force para sobrescribir)")
     os.makedirs(d, exist_ok=True)
     checks = valores(args, "--check")
-    reg = registro()
+    reg = registro(root)
     desconocidos = [x for x in checks if x not in reg]
     if desconocidos:
         sys.exit(f"checks que no están en el registro {REGISTRO}: {desconocidos}. Añádelos ahí primero (argv, no cadena).")
@@ -373,7 +385,28 @@ def cmd_cruce(root, args):
 
 
 def cmd_verify(root, args):
-    m = motivos_bloqueo(root)
+    ci = None
+    if "--ci" in args:
+        c = leer_contrato(root)
+        ci = {"evidencias": {}, "estricto": "--estricto" in args, "advertencias": []}
+        hu = huella_arbol(root, c.get("base"))
+        for cid in c["checks"]:
+            try:
+                argv, cwd = resolver_check(cid, root)
+            except ValueError:
+                continue  # lo reporta motivos_bloqueo como «no está en el registro»
+            e, _ = ejecutar(argv, cwd)
+            e["huella"] = hu
+            ci["evidencias"][cid] = e
+            if "--json" not in args:
+                print(f"[ci] {cid}: código {e['codigo']} en {e['segundos']} s, {e['lineas_salida']} líneas")
+    m = motivos_bloqueo(root, ci=ci)
+    if ci and ci["advertencias"] and "--json" not in args:
+        for a in ci["advertencias"]:
+            print("ADVERTENCIA: " + a)
+    if ci and "--json" in args:
+        print(json.dumps({"ok": not m, "motivos": m, "advertencias": ci["advertencias"]}, ensure_ascii=False))
+        return 0 if not m else 1
     if "--json" in args:
         print(json.dumps({"ok": not m, "motivos": m}, ensure_ascii=False))
     elif m:
@@ -464,7 +497,7 @@ def cmd_hook(agente, args):
 AYUDA = __doc__ + f"""
 uso:
   rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force]
-  rompelo status | verify [--json] | check | close | repos
+  rompelo status | verify [--json] [--ci [--estricto]] | check | close | repos
   rompelo cruce [--nota TXT] (--id ID | -- <argv>)
   rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}

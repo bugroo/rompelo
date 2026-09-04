@@ -19,9 +19,9 @@ Documentación en español: [README.es.md](README.es.md).
 
 ## The problem it is built around
 
-![Bar chart of 28 real incidents by class: blind instrument 8, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
+![Bar chart of 29 real incidents by class: blind instrument 9, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
 
-Twenty-eight real incidents from one month of agent-written code, each written down with what
+Twenty-nine real incidents from one month of agent-written code, each written down with what
 looked green at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md), generated
 from [incidents/](incidents/)). The largest class is not "the test failed". It is "the check
 could not fail": a validator run on the wrong artifact, a guard that crashed and exited with
@@ -40,7 +40,7 @@ and session; after that `rompelo` warns the user and lets go, so nobody gets tra
 
 ![Three steps: start from green, confirmed mutation turns it red, undo it and it is green again](docs/img/en/rojo-primero.png)
 
-The test battery (63 cases, run in CI on every push) applies this cycle to every condition of the
+The test battery (69 cases, run in CI on every push) applies this cycle to every condition of the
 gate itself. When a mutation is used to force red, the test first confirms the mutation actually
 happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
 
@@ -67,6 +67,15 @@ What it deliberately does not do:
 - It never reads command output, which could contain secrets.
 - It fails closed: an unreadable contract in an enrolled repo blocks.
 - It has no dependencies. Python 3.9 standard library and git.
+
+## The limit, said plainly
+
+The agent can edit its own contract and could write evidence files by hand. The gate stops
+carelessness, not a determined cheat. The independent judge is `rompelo verify --ci`: it
+re-runs every check on a runner where the agent has written nothing, ignores stored evidence,
+and reports the real boundary crossing as the one thing CI cannot reproduce. A ready-made
+workflow is in [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); this repository
+runs it on itself.
 
 ## Install
 
@@ -109,7 +118,7 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
 
 ## Verified, and not
 
-- 63 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
+- 69 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
   red with a confirmed mutation, then green. CI runs them on Ubuntu on every push.
 - The Claude Code side has been crossed live: ending a turn with an unmet contract returned the
   block with the right reasons, and the configured `settings.json` line is replayed by
@@ -124,7 +133,7 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
 1. Positive control per registered check: the instrument must detect a known-bad input before its green counts.
 2. Observation layer: three triggers (task risk, repeated error signature, claims about the world) that raise rigor with a warning first, and ask once before spending on external checks.
 3. Plain-language closing report: what was checked and seen failing, what could not be checked, what is the user's to decide.
-4. `rompelo verify --ci` as the independent judge in pull requests.
+4. English messages from the gate.
 5. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.
 
 ## Related work

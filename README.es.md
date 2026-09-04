@@ -16,9 +16,9 @@ English documentation: [README.md](README.md).
 
 ## El problema del que parte
 
-![Gráfico de barras de 28 incidentes reales por clase: instrumento ciego 8, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
+![Gráfico de barras de 29 incidentes reales por clase: instrumento ciego 9, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
 
-Veintiocho incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
+Veintinueve incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
 que parecía verde cuando el agente dijo «hecho» ([corpus/TABLA.md](corpus/TABLA.md), generado
 desde [incidents/](incidents/)). La clase mayor no es «la prueba falló». Es «la comprobación no
 podía fallar»: un validador sobre el artefacto equivocado, un guardián que muere y sale con el
@@ -37,7 +37,7 @@ por tarea y sesión; después `rompelo` avisa al usuario y suelta, para que nadi
 
 ![Tres pasos: verde de partida, mutación confirmada que lo pone en rojo, deshecha y verde otra vez](docs/img/es/rojo-primero.png)
 
-La batería (63 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
+La batería (69 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
 puerta. Cuando una mutación se usa para forzar el rojo, la prueba confirma primero que la
 mutación ocurrió. Una mutación que no se aplicó no prueba nada, y ese error está dos veces en el corpus.
 
@@ -64,6 +64,14 @@ Lo que no hace, a propósito:
 - No lee la salida de los comandos, que puede llevar secretos.
 - Falla cerrado: un contrato ilegible en un repo alistado bloquea.
 - Sin dependencias. Biblioteca estándar de Python 3.9 y git.
+
+## El límite, dicho claro
+
+El agente puede editar su propio contrato y podría escribir la evidencia a mano. La puerta frena
+el descuido, no la trampa deliberada. El juez independiente es `rompelo verify --ci`: vuelve a
+ejecutar cada check en un runner donde el agente no ha escrito nada, ignora la evidencia guardada
+y deja el cruce real como lo único que CI no puede reproducir. Hay un workflow listo en
+[`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); este repositorio lo corre sobre sí mismo.
 
 ## Instalar
 
@@ -105,7 +113,7 @@ cd tu-repo
 
 ## Verificado, y no
 
-- 63 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
+- 69 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
   en rojo con una mutación confirmada y luego en verde. CI los corre en Ubuntu en cada push.
 - El lado de Claude Code está cruzado en vivo: terminar un turno con el contrato sin cumplir
   devolvió el bloqueo con los motivos correctos, y la línea configurada en `settings.json` la
@@ -119,7 +127,7 @@ cd tu-repo
 1. Control positivo por check registrado: el instrumento tiene que detectar una entrada mala conocida antes de que su verde valga.
 2. Capa de observación: tres disparadores (riesgo de la tarea, firma de error repetida, afirmaciones sobre el mundo) que suben el rigor avisando antes, y piden permiso una vez antes de gastar en comprobaciones externas.
 3. Informe de cierre en llano: qué se comprobó y se vio fallar, qué no se pudo comprobar, qué queda a tu cargo.
-4. `rompelo verify --ci` como juez independiente en los pull requests.
+4. Mensajes de la puerta en inglés.
 5. Incidentes que se compilan en checks registrados: una lección como detector, no como prosa.
 
 ## Trabajo relacionado

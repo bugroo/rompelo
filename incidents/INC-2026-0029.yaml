@@ -1,0 +1,13 @@
+id: INC-2026-0029
+titulo: "La huella de rompelo cambiaba al commitear un fichero nuevo con el mismo contenido: el gate reabría la tarea sin que nada hubiera cambiado"
+fecha: 2026-09-05
+fuente: "propio; bloqueo en vivo del hook Stop de rompelo en ~/rompelo, commit c77ffcf"
+tipo: instrumento
+evidencia_verde: "63 casos en verde, incluido uno de «commit del mismo contenido no reabre» que solo cubría ficheros ya rastreados"
+lo_que_faltaba: "un caso con fichero NUEVO: sin rastrear entraba en la huella por un camino (untracked + hash) y una vez commiteado por otro (diff frente a la base); misma tinta, distinta firma"
+gate: instrumento-control-positivo
+gate_descripcion: "la huella hashea el contenido de cada ruta cambiada sin mirar si está rastreada; caso nuevo en la batería visto en rojo (62/63) antes del arreglo"
+existe_hoy: "sí"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: el propio hook bloqueó con «cambios posteriores al cierre» sobre un árbol limpio"

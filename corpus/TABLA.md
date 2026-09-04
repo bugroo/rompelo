@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (28 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
+Generado desde `incidents/` (29 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
 
 ## Lo que decide
 
@@ -8,16 +8,16 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 8 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 28) |
+| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 9 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 29) |
 | recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 5 · no: 15 |
-| ¿Cuántos tienen ya un control hoy? | sí: 9 · parcial: 7 · **no: 12** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 5 · no: 16 |
+| ¿Cuántos tienen ya un control hoy? | sí: 10 · parcial: 7 · **no: 12** |
 
 ## Por tipo de gate que lo habría cazado
 
 | Gate | Incidentes | Existe hoy |
 |---|---|---|
-| `instrumento-control-positivo` | 10 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025) | no, parcial, sí |
+| `instrumento-control-positivo` | 11 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029) | no, parcial, sí |
 | `deriva-generada` | 4 (0002, 0003, 0012, 0026) | parcial, sí |
 | `pretooluse-destructivo` | 3 (0001, 0007, 0008) | no, sí |
 | `stop-junta` | 3 (0004, 0014, 0027) | no, parcial |
@@ -59,6 +59,7 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | 0026 | 2026-09-04 | C | no: la señal es la ausencia de un check | `deriva-generada` | parcial | no |
 | 0027 | 2026-09-04 | M | no del todo: la señal está en el sistema, no en el árbol | `stop-junta` | no | parcial |
 | 0028 | 2026-09-04 | S | sí: ShellCheck instalado y no ejecutado | `stop-checks` | sí | sí |
+| 0029 | 2026-09-05 | I | sí: el propio hook bloqueó con «cambios posteriores al cierre» sobre un árbol limpio | `instrumento-control-positivo` | sí | no |
 
 ## Títulos
 
@@ -90,3 +91,4 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 - **0026** · cinco de los fallos del día estaban escritos en las reglas del proyecto antes de empezar; escribir la regla no es aplicarla (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0027** · se retiró el nodo que mandaba un SMS; el canon seguía diciendo que ese aviso sale por SMS, el workflow preparaba el texto y su guardián seguía en verde confirmando que los dos textos coincidían. Un guardián impecable vigilando algo que ya no ocurre (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0028** · se copió la convención de otro guardián del repo y se propagó su fallo con confianza; ShellCheck estaba instalado y no se había pasado (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0029** · La huella de rompelo cambiaba al commitear un fichero nuevo con el mismo contenido: el gate reabría la tarea sin que nada hubiera cambiado (`propio; bloqueo en vivo del hook Stop de rompelo en ~/rompelo, commit c77ffcf`)
