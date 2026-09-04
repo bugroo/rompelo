@@ -1,2 +1,5 @@
 .assure/evidence/
 __pycache__/
+config/repos.json
+checks/registry.local.json
+state/

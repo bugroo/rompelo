@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "id": "ASSURE-CODEX-01",
-  "estado": "abierta",
+  "estado": "cerrada",
   "base": "f9218b8dd27f42014caff83685425419967a0ff1",
   "descripcion": "Hook Stop de Codex instalado. Pendientes la confianza en la interfaz, el cruce en vivo y después control positivo y triestado.",
   "scope_paths": [

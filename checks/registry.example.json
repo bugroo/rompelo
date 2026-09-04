@@ -1,0 +1,26 @@
+{
+  "_ayuda": "Copia a registry.local.json y adapta. Un id por check; argv sin shell; min_lineas si el comando siempre imprime.",
+  "mi-proyecto.test": {
+    "argv": [
+      "pnpm",
+      "test"
+    ],
+    "cwd": "repo",
+    "min_lineas": 1
+  },
+  "mi-proyecto.typecheck": {
+    "argv": [
+      "pnpm",
+      "typecheck"
+    ],
+    "cwd": "repo"
+  },
+  "mi-proyecto.humo": {
+    "argv": [
+      "bash",
+      "scripts/humo.sh"
+    ],
+    "cwd": "repo",
+    "descripcion": "lo que las pruebas de texto no ven"
+  }
+}

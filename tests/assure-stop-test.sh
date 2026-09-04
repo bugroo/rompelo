@@ -123,6 +123,12 @@ contrato 'checks=["hay-a","ok","habla"]'; "$ASSURE" check >/dev/null; "$ASSURE" 
 espera_paso "check que informa de lo visto: verde" s7n
 contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
 
+echo "── registry.local.json se fusiona y gana"
+printf '{"local-ok": {"argv": ["true"]}, "ok": {"argv": ["true"], "descripcion": "sobrescrito"}}' > "$ASSURE_HOME/checks/registry.local.json"
+contrato 'checks=["hay-a","ok","local-ok"]'; "$ASSURE" check >/dev/null && ok "check local del overlay se ejecuta" || bad "overlay"
+"$ASSURE" cruce -- true >/dev/null; espera_paso "overlay: verde" s7o
+rm "$ASSURE_HOME/checks/registry.local.json"; contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
+
 echo "── registro cambiado tras ejecutar"
 python3 - "$ASSURE_HOME/checks/registry.json" <<'PY'
 import json,sys;f=sys.argv[1];r=json.load(open(f));r['ok']={'argv':['true','--otro']};json.dump(r,open(f,'w'))

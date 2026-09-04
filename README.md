@@ -1,50 +1,102 @@
-# assure · puerta de cierre por tarea para agentes de código
+# assure
 
-Spike de la Fase 1 del plan `~/.claude/plans/dictamen-no-necesitas-fizzy-bear.md`
-(04-09-2026), corregido el mismo día con el segundo dictamen y con los dos mensajes de
-la sesión `rootml-de`. Vive fuera de `ClaveON_B2C` y de `WERIXO` a propósito: sirve a
-los dos y no pertenece a ninguno.
+**Your coding agent cannot say "done" until a check that has been seen to fail says so.**
 
-**Qué hace.** Un repo se alista con `assure init`, que crea `.assure/task.json` (el
-contrato) y apunta el repo en `config/repos.json` (allowlist). Desde entonces el hook
-`Stop` de Claude Code o de Codex llama a `assure hook <agente>` y el agente no puede
-dar la tarea por terminada hasta que el contrato se cumple. Lo decide código normal,
-solo biblioteca estándar de Python 3.9; el modelo solo puede pedir.
+A completion gate for AI coding agents (Claude Code and Codex today, one adapter each).
+Rules files ask the agent to behave; `assure` checks that it did, with ordinary code, outside
+the model, and it refuses green results that could not have been red.
 
-| Condición | Cómo se cumple |
+Spanish documentation: [README.es.md](README.es.md). The design notes and the incident corpus
+are in Spanish too; the code and the test names are self-explanatory.
+
+## Why this exists
+
+Twenty-eight real incidents from one month of agent-written code, classified by what was
+visible at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md)):
+
+| Class | Count | What it means |
+|---|---|---|
+| **I · blind instrument** | 8 | the check could not fail: wrong artifact, crash exiting with the "finding" code, `0` after a timeout, "no tests" read as zero failures, a mutation that never applied |
+| S · signal at Stop | 6 | a real request, a browser, or the diff itself would have shown it |
+| C · context | 4 | measured one scope, claimed another |
+| T · tool time | 3 | `bash -x` leaking secrets, `git stash -u` deleting files, `UPDATE` on production |
+| A · audit | 2 | a finding archived without a decision; two audits of one commit disagreeing |
+| R · runtime | 2 | only visible days later in production |
+| M · mixed | 3 | |
+
+Most of them had green tests. That is the problem `assure` is built around: **a green result
+is not information until you have seen it go red.**
+
+## What the gate enforces
+
+A repo opts in with `assure init`, which writes `.assure/task.json` (the contract) and adds the
+repo to a local allowlist. From then on the agent's `Stop` hook calls `assure hook <agent>`,
+and the agent cannot end the task until:
+
+| Condition | How it is satisfied |
 |---|---|
-| checks ejecutados sobre el contenido actual del árbol | `assure check`. Los ids apuntan a `checks/registry.json`; argv sin shell; se guarda código, duración y hash de la salida, nunca la salida |
-| un check con código 0 pero sin la salida mínima del registro no es verde | `min_lineas` en el registro: «limpio» tiene que distinguirse de «no miré» |
-| junta cruzada DESPUÉS del último cambio | `assure cruce --nota '…' -- <argv real>` o `--id <check del registro>` |
-| hallazgos con disposición | editar `hallazgos` en el contrato |
-| afirmaciones sobre el mundo exterior con estado | `afirmaciones`: `verificado` exige fuente de primera mano y cita textual; `derivado` exige `de`; `no_verificado` exige `falta`. Con `toca_exterior: true` tiene que haber al menos una |
-| cambios dentro de `scope_paths` | o ampliar el scope a propósito |
-| prueba en el diff (si `exige_prueba_en_diff`) | tocar un fichero de prueba |
+| every check id ran on the **current** working-tree content (content fingerprint) | `assure check`. Ids resolve through `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
+| a check that exits 0 without its declared minimum output is **not** green | `min_lineas` in the registry: "clean" must be distinguishable from "did not look" |
+| if the task touches an integration boundary, a real crossing **after** the last change | `assure cruce -- <real command>` or `--id <registered check>` |
+| every finding has a disposition | `hallazgos` in the contract |
+| every claim about the outside world has a state | `afirmaciones`: `verificado` needs a primary source and a verbatim quote, `derivado` needs what it derives from, `no_verificado` needs what is missing |
+| every changed file is inside `scope_paths` | or widen the scope on purpose |
+| if required, a test file is part of the diff | green is not covered |
 
-**Lo que no hace, a propósito.**
-- No ejecuta nada que venga del repositorio: el contrato solo lleva ids; una cadena
-  de comando se rechaza sin ejecutarse (probado con canario).
-- No actúa en repos fuera de la allowlist: un `.assure/` ajeno no engancha el gate.
-- No lee la salida de los checks (podría llevar secretos).
-- Fail-closed: contrato ilegible o ausente en repo alistado = bloqueo.
-  Tope de 3 bloqueos por sesión y tarea; después avisa y deja parar.
-- Un verde de assure quiere decir «no encontré los de mi clase», no «está bien».
+What it deliberately does not do: it never executes strings found in the repository (the
+contract only carries ids; an injected command is rejected without running, proven with a
+canary), it stays silent in repos outside the allowlist, it never reads command output, and it
+fails closed (an unreadable contract in an enrolled repo blocks). Three blocks per session and
+task, then it warns and lets go.
 
-**Estructura**
+## Install
 
-- `bin/assure` · CLI y evaluador. `assure --help`.
-- `checks/registry.json` · único sitio con comandos (`argv`, `cwd: repo|assure`, `min_lineas`).
-- `config/repos.json` · allowlist de repos donde el gate actúa.
-- `adapters/claude/` · hook Stop y fragmento de `settings.json` (conectado el 04-09).
-- `adapters/codex/` · `hooks.json` y LEEME. Lo instala José o Codex en `~/.codex/`, no Claude Code.
-- `incidents/` · corpus de 28 fallos reales (15 propios, 13 de `rootml-de`), uno por YAML,
-  con clase S/T/C/A/R/I/M. `corpus/TABLA.md` se genera con `python3 bin/assure-corpus.py`.
-- `tests/assure-stop-test.sh` · 58 casos con `ASSURE_HOME` desechable: el gate visto en rojo y
-  en verde, mutación a mutación. `tests/cruce-settings-claude.sh` ejecuta la línea Stop tal cual
-  está en `settings.json` (visto dar 0, 1 y 2). `tests/sin-var-pegada.sh` · check triestado de
-  ejemplo (0 limpio · 1 hay · 2 no vi nada).
+```bash
+git clone https://github.com/bugroo/assure ~/assure
+cp ~/assure/checks/registry.example.json ~/assure/checks/registry.local.json   # your checks
+```
 
-**Lo que NO es (todavía).** Ni ledger de hallazgos con fingerprint, ni CI, ni
-máquina de estados, ni motor de políticas, ni PreToolUse. La tabla del corpus dice
-que la clase mayor es **I** (comprobaciones incapaces de fallar): ahí va el siguiente
-módulo, no en ampliar el Stop gate.
+Claude Code: add the `Stop` entry from `adapters/claude/settings-fragment.json` to
+`~/.claude/settings.json`. Codex: merge `adapters/codex/hooks.json` into `~/.codex/hooks.json`
+and trust the hook in `/hooks` (see `adapters/codex/LEEME.md`).
+
+Requirements: Python 3.9+, git. No dependencies for the gate. `PyYAML` only for regenerating
+the corpus table.
+
+## Use
+
+```bash
+cd your-repo
+~/assure/bin/assure init --id T-42 --scope 'src/**' --check mi-proyecto.test --junta
+# work
+~/assure/bin/assure check
+~/assure/bin/assure cruce --nota "real request through the deployed path" -- curl -sf https://…
+~/assure/bin/assure close
+```
+
+## Verified, and not
+
+- 60 cases in `tests/assure-stop-test.sh`, each gate seen red with a mutation that was
+  confirmed to apply, then green. Runs in CI on every push.
+- The Claude Code side has been crossed live: ending a turn with an unmet contract returned
+  the block with the right reasons.
+- **Not verified:** the Codex side live (adapter follows the official hook contract; the
+  install and trust steps are the user's), and the observation layer in
+  [docs/observacion.md](docs/observacion.md), which is a design, not code.
+
+## Roadmap, in order
+
+1. Positive control per registered check: the instrument must detect a known-bad input before its green counts.
+2. Observation layer: three triggers (task risk, repeated error signature, claims about the world), escalating rigor with a warning first.
+3. Plain-language closing report: what was checked and seen failing, what could not be checked, what is yours to decide.
+4. CI adapter (`assure verify --ci`) as the independent judge.
+5. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.
+
+## Related work
+
+[Agentic OS](https://github.com/KbWen/agentic-os) enforces a phased workflow with evidence
+through git hooks and CI; [Hermes Agent](https://github.com/NousResearch/hermes-agent) learns
+skills from experience; mutation testing tools (Stryker, PIT) measure test strength. `assure`
+sits next to them and adds the part none of them checks: that the check itself was looking.
+
+MIT.

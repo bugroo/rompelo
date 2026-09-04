@@ -1,5 +1,5 @@
 {
-  "_ayuda": "Único sitio donde viven comandos. El contrato solo lleva ids. argv se ejecuta sin shell; cwd: repo | assure.",
+  "_ayuda": "Único sitio con comandos. El contrato solo lleva ids. argv se ejecuta sin shell; cwd: repo | assure. Tus checks propios van en registry.local.json (sin versionar), mismo formato.",
   "assure.tests": {
     "argv": [
       "bash",
@@ -17,58 +17,6 @@
     "cwd": "assure",
     "descripcion": "ejecuta la línea Stop tal cual está en settings.json",
     "min_lineas": 1
-  },
-  "claveon.test": {
-    "argv": [
-      "pnpm",
-      "test"
-    ],
-    "cwd": "repo"
-  },
-  "claveon.typecheck": {
-    "argv": [
-      "pnpm",
-      "typecheck"
-    ],
-    "cwd": "repo"
-  },
-  "claveon.typecheck-functions": {
-    "argv": [
-      "pnpm",
-      "typecheck:functions"
-    ],
-    "cwd": "repo"
-  },
-  "claveon.build": {
-    "argv": [
-      "pnpm",
-      "build"
-    ],
-    "cwd": "repo"
-  },
-  "claveon.humo-navegador": {
-    "argv": [
-      "node",
-      "scripts/humo-navegador.mjs"
-    ],
-    "cwd": "repo",
-    "descripcion": "91 páginas en navegador real con axe; caza lo que 964 pruebas de texto no ven (INC-0005)"
-  },
-  "claveon.comprobar-newsletter": {
-    "argv": [
-      "bash",
-      "scripts/comprobar-newsletter.sh"
-    ],
-    "cwd": "repo",
-    "descripcion": "cruce real del doble opt-in (INC-0004)"
-  },
-  "claveon.comprobar-deriva": {
-    "argv": [
-      "bash",
-      "scripts/comprobar-deriva.sh"
-    ],
-    "cwd": "repo",
-    "descripcion": "desplegado frente a origin/main (INC-0002)"
   },
   "assure.sin-var-pegada": {
     "argv": [

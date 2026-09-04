@@ -23,6 +23,7 @@ import datetime, fnmatch, hashlib, json, os, re, subprocess, sys, tempfile
 TOPE_BLOQUEOS = 3
 ASSURE_HOME = os.environ.get("ASSURE_HOME") or os.path.join(os.path.expanduser("~"), "assure")
 REGISTRO = os.path.join(ASSURE_HOME, "checks", "registry.json")
+REGISTRO_LOCAL = os.path.join(ASSURE_HOME, "checks", "registry.local.json")
 ALLOWLIST = os.path.join(ASSURE_HOME, "config", "repos.json")
 PRUEBAS_POR_DEFECTO = ["tests/**", "test/**", "**/*.test.*", "**/*.spec.*", "**/*_test.*"]
 ID_OK = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
@@ -79,13 +80,18 @@ def leer_json(f):
 
 
 def registro():
-    try:
-        r = leer_json(REGISTRO)
-    except FileNotFoundError:
-        return {}
-    if not isinstance(r, dict):
-        raise ValueError("registry.json tiene que ser un objeto id → {argv, cwd}")
-    return r
+    """registry.json (versionado, checks genéricos) + registry.local.json (sin versionar,
+    checks de tus repos). Los locales ganan si repiten un id."""
+    r = {}
+    for f in (REGISTRO, REGISTRO_LOCAL):
+        try:
+            parte = leer_json(f)
+        except FileNotFoundError:
+            continue
+        if not isinstance(parte, dict):
+            raise ValueError(f"{f} tiene que ser un objeto id → {{argv, cwd}}")
+        r.update(parte)
+    return {k: v for k, v in r.items() if not k.startswith("_")}
 
 
 def repos_permitidos():
