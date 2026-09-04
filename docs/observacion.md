@@ -5,7 +5,7 @@ aquí primero. Todo lo que diga «hay que medir» está sin medir.
 
 ## 1. Para qué
 
-La puerta (`assure hook`) ya impide cerrar sin evidencia. Pero comprobar a fondo cada tarea
+La puerta (`rompelo hook`) ya impide cerrar sin evidencia. Pero comprobar a fondo cada tarea
 no se sostiene, y esperar a ver errores para empezar a comprobar deja pasar justo los fallos
 silenciosos, que en el corpus son mayoría (clase I: 8 de 28; S: 6; T: 3). La capa de
 observación decide **cuándo subir la intensidad**, con tres disparadores, y **avisa antes**
@@ -15,11 +15,11 @@ de subirla. Lo decide código a partir de eventos, no el modelo opinando sobre s
 
 Los dos agentes ya emiten el evento que hace falta: `PostToolUse`, con `tool_name`,
 `tool_input` y `tool_response` (docs oficiales leídas el 04-09-2026: code.claude.com/docs/en/hooks.md
-y developers.openai.com/codex/hooks.md). Un hook `assure observe <agente>` lee cada evento y
+y developers.openai.com/codex/hooks.md). Un hook `rompelo observe <agente>` lee cada evento y
 escribe una línea en un libro por sesión, **fuera del repo**:
 
 ```
-~/assure/state/sesiones/<agente>-<session_id>.jsonl      (append-only)
+~/rompelo/state/sesiones/<agente>-<session_id>.jsonl      (append-only)
 ```
 
 Cada línea guarda solo lo necesario para reconocer patrones, nunca contenido:
@@ -36,7 +36,7 @@ Cada línea guarda solo lo necesario para reconocer patrones, nunca contenido:
 | `firma` | ver §3 | la línea de error |
 | `ficheros` | rutas relativas tocadas por Edit/Write/apply_patch | el contenido |
 
-Retención: 30 días, borrado por `assure state prune`. Tamaño esperado: unas decenas de KB por sesión.
+Retención: 30 días, borrado por `rompelo state prune`. Tamaño esperado: unas decenas de KB por sesión.
 
 ## 3. Firma de error
 
@@ -52,7 +52,7 @@ texto pero iguales en causa producen la misma firma; dos causas distintas, firma
 
 ### D1 · riesgo de la tarea (no espera a ningún error)
 
-`~/assure/config/riesgo.json` mapea patrones de ruta y de comando a un perfil:
+`~/rompelo/config/riesgo.json` mapea patrones de ruta y de comando a un perfil:
 
 | Perfil | Señal | Ejemplo |
 |---|---|---|
@@ -78,11 +78,11 @@ Se calcula sobre el libro de la sesión, y también sobre las últimas 24 h del 
 | Patrón | Umbral inicial | Por qué ese número |
 |---|---|---|
 | misma `firma` de error | 2 | José: «una más de dos veces» |
-| mismo check de assure en rojo (`check-<id>.json` con código ≠ 0 dos veces seguidas) | 2 | igual |
+| mismo check de rompelo en rojo (`check-<id>.json` con código ≠ 0 dos veces seguidas) | 2 | igual |
 | mismo fichero editado sin que ningún check pase entre medias («thrashing») | 4 ediciones | a partir de la 4ª el agente está adivinando; hay que medirlo con sesiones reales antes de fijarlo |
 | verde ambiguo repetido (código 0 con salida vacía o `stderr_lineas > 0`) sobre el mismo `prog` | 2 | clase I, INC-0018/0019 |
 
-Los umbrales viven en `~/assure/config/observacion.json`, no en el código, y la batería los
+Los umbrales viven en `~/rompelo/config/observacion.json`, no en el código, y la batería los
 muta (umbral 1 → salta a la primera; umbral 99 → no salta) para ver que se leen de verdad.
 
 ### D3 · afirmación sobre el mundo exterior
@@ -102,8 +102,8 @@ cita textual. Una búsqueda sin cita no cuenta.
 | 2 | exigencia | control positivo en todos los checks; cruce de junta si el perfil lo incluye; afirmaciones con estado si `exterior`; una segunda pasada explícita antes de cerrar | tras el aviso (§6) |
 | 3 | externo | además, herramientas externas del perfil: mutation testing (Stryker/PIT) en `lógica`, Strix o semgrep en `expuesto`, búsqueda en internet con cita | solo con permiso de José, recordado por patrón |
 
-El nivel se guarda en `~/assure/state/sesiones/…` y en `~/assure/state/repos/<sha-de-la-ruta>.json`
-(nivel del repo, con fecha). Baja solo de forma explícita (`assure nivel bajar --motivo`) o
+El nivel se guarda en `~/rompelo/state/sesiones/…` y en `~/rompelo/state/repos/<sha-de-la-ruta>.json`
+(nivel del repo, con fecha). Baja solo de forma explícita (`rompelo nivel bajar --motivo`) o
 al cerrar una tarea con todo en verde en nivel 2.
 
 ## 6. Aviso y permiso
@@ -116,19 +116,19 @@ al cerrar una tarea con todo en verde en nivel 2.
    lo que evita el fallo silencioso.
 3. **Subir a nivel 3 sí pide permiso**, porque gasta (búsquedas, herramientas externas,
    tiempo). El agente pregunta; la respuesta se registra con
-   `assure permiso <patron> si|no [--recordar]`. Con `--recordar` queda en
-   `~/assure/config/permisos.json` y no se vuelve a preguntar por ese patrón: eso es el
+   `rompelo permiso <patron> si|no [--recordar]`. Con `--recordar` queda en
+   `~/rompelo/config/permisos.json` y no se vuelve a preguntar por ese patrón: eso es el
    aprendizaje de Hermes, pero como regla ejecutable y aprobada por una persona.
-4. Límite conocido: `assure permiso` lo ejecuta el agente, así que podría registrar un «sí»
+4. Límite conocido: `rompelo permiso` lo ejecuta el agente, así que podría registrar un «sí»
    inventado. No es un control de seguridad, es de experiencia; el informe de cierre (§8)
    enseña cada permiso con su hora para que el usuario lo vea.
 
 ## 7. Adaptadores
 
-- Claude Code: `PostToolUse` sin matcher → `~/assure/adapters/claude/assure-observe.sh` → `assure observe claude`.
+- Claude Code: `PostToolUse` sin matcher → `~/rompelo/adapters/claude/rompelo-observe.sh` → `rompelo observe claude`.
   Convive con `werixo-medir-de-verdad.sh` (mismo evento, otro propósito); a medio plazo la
   regla del «cero ambiguo» de ese hook pasa aquí.
-- Codex: entrada `PostToolUse` en `~/assure/adapters/codex/hooks.json` → `assure observe codex`.
+- Codex: entrada `PostToolUse` en `~/rompelo/adapters/codex/hooks.json` → `rompelo observe codex`.
   Mismo libro, mismos patrones: la paridad se prueba con el mismo flujo de eventos por los
   dos adaptadores.
 - Los hooks de observación **nunca bloquean** (PostToolUse no puede deshacer nada) y fallan
@@ -136,7 +136,7 @@ al cerrar una tarea con todo en verde en nivel 2.
 
 ## 8. Informe de cierre en llano
 
-Al cerrar la tarea, `assure close` imprime tres bloques para el usuario que no lee código:
+Al cerrar la tarea, `rompelo close` imprime tres bloques para el usuario que no lee código:
 **qué se comprobó y se vio fallar** (checks con control positivo), **qué no se pudo comprobar**
 (afirmaciones `no_verificado` y checks sin control positivo), **qué patrones saltaron y qué
 permisos diste** (con hora). Es lo que convierte la herramienta en algo que enseña.
@@ -161,7 +161,7 @@ lectura del contenido de comandos o salidas más allá de recuentos y hashes.
 ## 11. Orden de trabajo
 
 1. Codex termina el módulo de control positivo (`PROMPT-CODEX.md`), que es lo que el nivel 2 exige.
-2. `assure observe` + libro + firma + D1 y D2, con la batería del §9.1.
-3. Aviso, niveles y `assure permiso`.
+2. `rompelo observe` + libro + firma + D1 y D2, con la batería del §9.1.
+3. Aviso, niveles y `rompelo permiso`.
 4. Informe en llano.
 5. D3 y nivel 3 (externo), con Strix o Stryker como primer check registrado de perfil.

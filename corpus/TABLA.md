@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (28 incidentes). No editar a mano: `python3 bin/assure-corpus.py`.
+Generado desde `incidents/` (28 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
 
 ## Lo que decide
 
@@ -82,8 +82,8 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 - **0018** · pnpm audit salió con 0 tras un TimeoutError: nunca llegó al registro; un wc -l da 0 porque la orden falló (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0019** · vitest dijo «no tests» con el fichero roto de sintaxis y se leyó como 0 fallos (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0020** · una prueba que lanza 54 procesos tardaba 3 s sola y agotaba el plazo de 5 s bajo carga, saliendo como fallo con mensaje «timed out» que en el listado se ve igual que un rojo real (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
-- **0021** · variable pegada a carácter multibyte («$nombre») bajo set -u; arreglada tres veces en el mismo día, la tercera dentro de la biblioteca escrita para evitarlo. La misma sesión assure cayó en el mismo fallo con «$CMD» (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
-- **0022** · la mutación no se aplicó: el replace no casó, el fichero quedó intacto, la prueba siguió verde y se iba a anotar «la prueba lo caza». Dos veces. También en assure hoy (sed sobre - true que el YAML guardaba entrecomillado) (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0021** · variable pegada a carácter multibyte («$nombre») bajo set -u; arreglada tres veces en el mismo día, la tercera dentro de la biblioteca escrita para evitarlo. La misma sesión rompelo cayó en el mismo fallo con «$CMD» (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0022** · la mutación no se aplicó: el replace no casó, el fichero quedó intacto, la prueba siguió verde y se iba a anotar «la prueba lo caza». Dos veces. También en rompelo hoy (sed sobre - true que el YAML guardaba entrecomillado) (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0023** · la mutación se aplicó pero no creó el fallo: se escribió $VAR días con espacio para probar «variable pegada»; el fichero cambió, la prueba pasó y se concluyó «mi prueba es floja» (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0024** · un refactor de rendimiento de una prueba es donde deja de mirar sin que nadie lo note; se volvieron a aplicar las mutaciones y seguían cazándose (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0025** · el patrón buscaba el guion largo como carácter (—) y el escrito como entidad (&mdash;) sobrevivió (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)

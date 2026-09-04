@@ -6,7 +6,7 @@ tipo: resultado-nulo
 evidencia_verde: "código 0 y salida vacía"
 lo_que_faltaba: "un 0 con stderr o sin salida en una orden que siempre produce algo es «no miré», no «limpio»"
 gate: instrumento-control-positivo
-gate_descripcion: "assure: un check con salida vacía cuando el registro exige salida mínima no cuenta como verde"
+gate_descripcion: "rompelo: un check con salida vacía cuando el registro exige salida mínima no cuenta como verde"
 existe_hoy: "sí"
 spike_cubre: "sí"
 clase: I

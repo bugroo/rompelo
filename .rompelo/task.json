@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "id": "ASSURE-CODEX-01",
+  "id": "ROMPELO-CODEX-01",
   "estado": "cerrada",
   "base": "f9218b8dd27f42014caff83685425419967a0ff1",
   "descripcion": "Hook Stop de Codex instalado. Pendientes la confianza en la interfaz, el cruce en vivo y después control positivo y triestado.",
@@ -8,9 +8,9 @@
     "**"
   ],
   "checks": [
-    "assure.tests",
-    "assure.cruce-settings-claude",
-    "assure.sin-var-pegada"
+    "rompelo.tests",
+    "rompelo.cruce-settings-claude",
+    "rompelo.sin-var-pegada"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,

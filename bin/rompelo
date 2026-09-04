@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""assure — puerta de cierre por tarea, agnóstica del agente. Solo biblioteca estándar.
+"""rompelo — puerta de cierre por tarea, agnóstica del agente. Solo biblioteca estándar.
 
-Un repo se alista con `assure init` (crea `.assure/task.json` y apunta el repo en la
-allowlist `~/assure/config/repos.json`). Desde entonces el hook Stop de Claude Code o
-de Codex llama a `assure hook <agente>` y la tarea NO puede darse por terminada hasta:
+Un repo se alista con `rompelo init` (crea `.rompelo/task.json` y apunta el repo en la
+allowlist `~/rompelo/config/repos.json`). Desde entonces el hook Stop de Claude Code o
+de Codex llama a `rompelo hook <agente>` y la tarea NO puede darse por terminada hasta:
 
-  1. cada id de `checks` ejecutado con `assure check` sobre EL MISMO contenido del
-     árbol que hay ahora (huella); los comandos viven en `~/assure/checks/registry.json`,
+  1. cada id de `checks` ejecutado con `rompelo check` sobre EL MISMO contenido del
+     árbol que hay ahora (huella); los comandos viven en `~/rompelo/checks/registry.json`,
      nunca en el contrato, y se ejecutan como argv, sin shell;
-  2. si `toca_junta`, un cruce real (`assure cruce -- <argv>` o `--id <registro>`)
+  2. si `toca_junta`, un cruce real (`rompelo cruce -- <argv>` o `--id <registro>`)
      con código 0 y sobre la misma huella, o sea DESPUÉS del último cambio;
   3. ningún hallazgo de `hallazgos` sin `disposicion`;
   4. ningún fichero cambiado fuera de `scope_paths`;
@@ -21,13 +21,13 @@ Tope de 3 bloqueos por sesión y tarea.
 import datetime, fnmatch, hashlib, json, os, re, subprocess, sys, tempfile
 
 TOPE_BLOQUEOS = 3
-ASSURE_HOME = os.environ.get("ASSURE_HOME") or os.path.join(os.path.expanduser("~"), "assure")
-REGISTRO = os.path.join(ASSURE_HOME, "checks", "registry.json")
-REGISTRO_LOCAL = os.path.join(ASSURE_HOME, "checks", "registry.local.json")
-ALLOWLIST = os.path.join(ASSURE_HOME, "config", "repos.json")
+ROMPELO_HOME = os.environ.get("ROMPELO_HOME") or os.path.join(os.path.expanduser("~"), "rompelo")
+REGISTRO = os.path.join(ROMPELO_HOME, "checks", "registry.json")
+REGISTRO_LOCAL = os.path.join(ROMPELO_HOME, "checks", "registry.local.json")
+ALLOWLIST = os.path.join(ROMPELO_HOME, "config", "repos.json")
 PRUEBAS_POR_DEFECTO = ["tests/**", "test/**", "**/*.test.*", "**/*.spec.*", "**/*_test.*"]
 ID_OK = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
-EXCL = [".", ":(exclude).assure"]
+EXCL = [".", ":(exclude).rompelo"]
 
 
 # ── git ─────────────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ def ref_base(root, base):
 
 
 def huella_arbol(root, base=None):
-    """Huella del CONTENIDO del árbol sin `.assure/`: diff frente a la base + untracked.
+    """Huella del CONTENIDO del árbol sin `.rompelo/`: diff frente a la base + untracked.
     No incluye HEAD a propósito: commitear el mismo contenido no cambia la huella."""
     h = hashlib.sha256()
     if head(root) != "sin-head":
@@ -127,7 +127,7 @@ def resolver_check(cid, root):
     argv = e.get("argv")
     if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv):
         raise ValueError(f"registro: {cid}.argv tiene que ser una lista de cadenas")
-    cwd = root if e.get("cwd", "repo") == "repo" else ASSURE_HOME
+    cwd = root if e.get("cwd", "repo") == "repo" else ROMPELO_HOME
     return argv, cwd
 
 
@@ -136,7 +136,7 @@ OBLIGATORIAS = ["id", "estado", "scope_paths", "checks", "toca_junta"]
 
 
 def rutas(root):
-    d = os.path.join(root, ".assure")
+    d = os.path.join(root, ".rompelo")
     return d, os.path.join(d, "task.json")
 
 
@@ -164,7 +164,7 @@ def leer_contrato(root):
 
 
 def dir_evidencia(root, c):
-    base = os.path.join(root, ".assure", "evidence")
+    base = os.path.join(root, ".rompelo", "evidence")
     d = os.path.join(base, re.sub(r"[^A-Za-z0-9._-]", "_", str(c["id"])))
     os.makedirs(d, exist_ok=True)
     gi = os.path.join(base, ".gitignore")  # la evidencia se autoignora; el .gitignore del repo no se toca
@@ -210,7 +210,7 @@ def motivos_bloqueo(root, para_cerrar=False):
         if cerr and cerr.get("huella") == hu:
             return []
         if not para_cerrar:
-            m.append("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `assure check` y `assure close`.")
+            m.append("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.")
 
     cambiados = ficheros_cambiados(root, c.get("base"))
     fuera = [p for p in cambiados if not any(casa(p, s) for s in c["scope_paths"])]
@@ -224,7 +224,7 @@ def motivos_bloqueo(root, para_cerrar=False):
             continue
         e = leer_evidencia(ev, f"check-{cid}.json")
         if e is None:
-            m.append(f"check `{cid}` sin ejecutar (usa `assure check`)")
+            m.append(f"check `{cid}` sin ejecutar (usa `rompelo check`)")
         elif e.get("argv") != reg[cid].get("argv"):
             m.append(f"check `{cid}` cambió en el registro después de ejecutarse")
         elif e.get("codigo") != 0:
@@ -237,7 +237,7 @@ def motivos_bloqueo(root, para_cerrar=False):
     if c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json")
         if cr is None:
-            m.append("toca_junta: true y no hay cruce real registrado (`assure cruce --nota '…' -- <comando real>`)")
+            m.append("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)")
         elif cr.get("codigo") != 0:
             m.append(f"el cruce real FALLÓ con código {cr.get('codigo')}: {cr.get('argv')}")
         elif cr.get("huella") != hu:
@@ -326,7 +326,7 @@ def cmd_init(root, args):
     with open(f, "w") as fh:
         json.dump(c, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
-    dir_evidencia(root, c)  # crea .assure/evidence/.gitignore
+    dir_evidencia(root, c)  # crea .rompelo/evidence/.gitignore
     permitir_repo(root)
     print(f"contrato creado: {f}\nrepo alistado en {ALLOWLIST}")
 
@@ -361,7 +361,7 @@ def cmd_cruce(root, args):
     elif "--" in args and args[args.index("--") + 1:]:
         argv, cwd = args[args.index("--") + 1:], root
     else:
-        sys.exit("uso: assure cruce [--nota TXT] (--id <check del registro> | -- <argv del comando real>)")
+        sys.exit("uso: rompelo cruce [--nota TXT] (--id <check del registro> | -- <argv del comando real>)")
     e, salida = ejecutar(argv, cwd)
     e["nota"] = valor(args, "--nota") or ""
     e["huella"] = huella_arbol(root, c.get("base"))
@@ -439,10 +439,10 @@ def cmd_hook(agente, args):
             pass
         m = motivos_bloqueo(root)
     except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
-        m = [f"assure no pudo evaluar el contrato ({exc.__class__.__name__}: {exc}). Un repo alistado sin contrato legible no puede cerrar."]
+        m = [f"rompelo no pudo evaluar el contrato ({exc.__class__.__name__}: {exc}). Un repo alistado sin contrato legible no puede cerrar."]
     if not m:
         return 0
-    marca = os.path.join(tempfile.gettempdir(), f"assure-stop-{sid}-{tid}")
+    marca = os.path.join(tempfile.gettempdir(), f"rompelo-stop-{sid}-{tid}")
     n = 0
     try:
         n = int(open(marca).read().strip() or 0)
@@ -454,19 +454,19 @@ def cmd_hook(agente, args):
     except Exception:
         pass
     if n > TOPE_BLOQUEOS:
-        print(json.dumps({"systemMessage": f"[assure] tope de {TOPE_BLOQUEOS} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. " + " | ".join(m)}, ensure_ascii=False))
+        print(json.dumps({"systemMessage": f"[rompelo] tope de {TOPE_BLOQUEOS} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. " + " | ".join(m)}, ensure_ascii=False))
         return 0
-    texto = f"[assure] La tarea {tid} NO puede darse por terminada ({n}/{TOPE_BLOQUEOS}):\n" + "\n".join("- " + x for x in m)
-    print(json.dumps({"decision": "block", "reason": texto + "\nNo declares la tarea terminada. Resuelve cada punto (assure check / assure cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato."}, ensure_ascii=False))
+    texto = f"[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{TOPE_BLOQUEOS}):\n" + "\n".join("- " + x for x in m)
+    print(json.dumps({"decision": "block", "reason": texto + "\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato."}, ensure_ascii=False))
     return 0
 
 
 AYUDA = __doc__ + f"""
 uso:
-  assure init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force]
-  assure status | verify [--json] | check | close | repos
-  assure cruce [--nota TXT] (--id ID | -- <argv>)
-  assure hook claude|codex      (lo llama el hook Stop; JSON por stdin)
+  rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force]
+  rompelo status | verify [--json] | check | close | repos
+  rompelo cruce [--nota TXT] (--id ID | -- <argv>)
+  rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}
 """
 
@@ -482,15 +482,15 @@ def main(argv):
         return cmd_repos(args)
     root = raiz_repo(os.getcwd())
     if not root:
-        sys.exit("assure: no estás dentro de un repositorio git")
+        sys.exit("rompelo: no estás dentro de un repositorio git")
     tabla = {"init": cmd_init, "status": cmd_status, "verify": cmd_verify, "check": cmd_check,
              "cruce": cmd_cruce, "close": cmd_close}
     if sub not in tabla:
-        sys.exit(f"assure: subcomando desconocido '{sub}'\n{AYUDA}")
+        sys.exit(f"rompelo: subcomando desconocido '{sub}'\n{AYUDA}")
     try:
         return tabla[sub](root, args) or 0
     except (FileNotFoundError, ValueError) as exc:
-        sys.exit(f"assure: {exc}")
+        sys.exit(f"rompelo: {exc}")
 
 
 if __name__ == "__main__":

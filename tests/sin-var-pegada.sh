@@ -1,12 +1,12 @@
 #!/bin/bash
 # Variable pegada a un carácter multibyte («$X» o $X» o similares) mata un guion bajo set -u:
 # bash lee el byte siguiente como parte del nombre. Mordió tres veces a rootml-de y una a
-# assure el mismo día (INC-2026-0021). Triestado: 0 limpio · 1 hay ocurrencias · 2 no vi ficheros.
+# rompelo el mismo día (INC-2026-0021). Triestado: 0 limpio · 1 hay ocurrencias · 2 no vi ficheros.
 # Informa siempre de cuántos ficheros vio: un 0 sobre nada no es «limpio».
 # La primera versión usaba grep -P y su control positivo falló (ugrep no casaba el rango);
 # por eso el análisis va en Python, que se comporta igual en todas partes.
 set -u
-RAIZ="${1:-$HOME/assure}"
+RAIZ="${1:-$HOME/rompelo}"
 python3 - "$RAIZ" <<'PY'
 import os, re, sys
 raiz = sys.argv[1]

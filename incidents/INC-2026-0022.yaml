@@ -1,5 +1,5 @@
 id: INC-2026-0022
-titulo: "la mutación no se aplicó: el replace no casó, el fichero quedó intacto, la prueba siguió verde y se iba a anotar «la prueba lo caza». Dos veces. También en assure hoy (sed sobre - true que el YAML guardaba entrecomillado)"
+titulo: "la mutación no se aplicó: el replace no casó, el fichero quedó intacto, la prueba siguió verde y se iba a anotar «la prueba lo caza». Dos veces. También en rompelo hoy (sed sobre - true que el YAML guardaba entrecomillado)"
 fecha: 2026-09-04
 fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
 tipo: prueba-ciega

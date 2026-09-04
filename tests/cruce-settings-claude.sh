@@ -1,5 +1,5 @@
 #!/bin/bash
-# Cruce de la junta settings.json ↔ hook Stop ↔ assure, ejecutando la línea TAL CUAL
+# Cruce de la junta settings.json ↔ hook Stop ↔ rompelo, ejecutando la línea TAL CUAL
 # está configurada (no una ruta escrita aquí). Crea un repo alistado desechable con el
 # contrato sin cumplir y exige que la línea configurada devuelva decision: block.
 # El repo desechable entra en la allowlist REAL (es lo que cruza el hook real) y se
@@ -9,17 +9,17 @@ S="$HOME/.claude/settings.json"
 CMD=$(python3 - "$S" <<'PY'
 import json,sys
 d=json.load(open(sys.argv[1]))
-c=[h['command'] for m in d.get('hooks',{}).get('Stop',[]) for h in m.get('hooks',[]) if 'assure' in h.get('command','')]
+c=[h['command'] for m in d.get('hooks',{}).get('Stop',[]) for h in m.get('hooks',[]) if 'rompelo' in h.get('command','')]
 print(c[0] if c else '')
 PY
 )
-[ -n "$CMD" ] || { echo "settings.json no tiene ningún hook Stop de assure"; exit 2; }
+[ -n "$CMD" ] || { echo "settings.json no tiene ningún hook Stop de rompelo"; exit 2; }
 T=$(mktemp -d); export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 git -C "$T" init -q && git -C "$T" config user.email t@t && git -C "$T" config user.name t
 echo a > "$T/a" && git -C "$T" add -A && git -C "$T" commit -qm base
-( cd "$T" && "$HOME/assure/bin/assure" init --id CRUCE --check assure.tests --junta >/dev/null ) || { echo "init falló"; exit 2; }
+( cd "$T" && "$HOME/rompelo/bin/rompelo" init --id CRUCE --check rompelo.tests --junta >/dev/null ) || { echo "init falló"; exit 2; }
 OUT=$(printf '{"session_id":"cruce","cwd":"%s","stop_hook_active":false,"hook_event_name":"Stop"}' "$T" | sh -c "$CMD")
-python3 - "$HOME/assure/config/repos.json" "$T" <<'PY'
+python3 - "$HOME/rompelo/config/repos.json" "$T" <<'PY'
 import json,os,sys
 f,t=sys.argv[1],os.path.realpath(sys.argv[2])
 d=json.load(open(f)); d["repos"]=[r for r in d["repos"] if os.path.realpath(r)!=t]

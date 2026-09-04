@@ -10,7 +10,7 @@ import yaml
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ficheros = sorted(glob.glob(os.path.join(RAIZ, "incidents", "INC-*.yaml")))
 if not ficheros:
-    print("assure-corpus: 0 incidentes leídos; no escribo nada", file=sys.stderr)
+    print("rompelo-corpus: 0 incidentes leídos; no escribo nada", file=sys.stderr)
     sys.exit(2)
 
 CLAVES = ["id", "titulo", "fecha", "tipo", "evidencia_verde", "lo_que_faltaba",
@@ -20,7 +20,7 @@ for f in ficheros:
     d = yaml.safe_load(open(f))
     faltan = [k for k in CLAVES if k not in d]
     if faltan:
-        print(f"assure-corpus: {os.path.basename(f)} sin {faltan}", file=sys.stderr)
+        print(f"rompelo-corpus: {os.path.basename(f)} sin {faltan}", file=sys.stderr)
         sys.exit(2)
     # YAML lee «no» como False y «sí» como texto: se normaliza para no comparar bool con str.
     for k in ("existe_hoy", "spike_cubre"):
@@ -34,7 +34,7 @@ existe = collections.Counter(d["existe_hoy"] for d in inc)
 
 out = []
 out.append("# Corpus de fallos reales · tabla generada\n")
-out.append(f"Generado desde `incidents/` ({len(inc)} incidentes). No editar a mano: `python3 bin/assure-corpus.py`.\n")
+out.append(f"Generado desde `incidents/` ({len(inc)} incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.\n")
 por_clase = collections.Counter(d["clase"] for d in inc)
 S = [d for d in inc if d["clase"] == "S"]
 recall_S = sum(1 for d in S if d["spike_cubre"] == "sí")
