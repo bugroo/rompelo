@@ -40,7 +40,7 @@ and session; after that `rompelo` warns the user and lets go, so nobody gets tra
 
 ![Three steps: start from green, confirmed mutation turns it red, undo it and it is green again](docs/img/en/rojo-primero.png)
 
-The test battery (73 cases, run in CI on every push) applies this cycle to every condition of the
+The test battery (77 cases, run in CI on every push) applies this cycle to every condition of the
 gate itself. When a mutation is used to force red, the test first confirms the mutation actually
 happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
 
@@ -84,7 +84,10 @@ git clone https://github.com/bugroo/rompelo ~/rompelo
 cp ~/rompelo/checks/registry.example.json ~/rompelo/checks/registry.local.json   # your checks
 ```
 
-`registry.local.json` is where your commands live, one id each, as argv:
+Or let `rompelo init` find them: with no `--check`, it reads `package.json` scripts, `pyproject.toml`,
+`Cargo.toml`, `go.mod` and the `Makefile`, registers what it finds in `registry.local.json` as
+`<repo>.<name>`, and puts them in the contract. `registry.local.json` is where your commands live,
+one id each, as argv:
 
 ```json
 {
@@ -113,12 +116,17 @@ cd your-repo
 ~/rompelo/bin/rompelo close                                   # refuses if anything is missing
 ```
 
+`close` prints a plain-language report and saves it next to the evidence: what was checked
+(exit code, duration, lines of output, the real crossing, verified claims), what could not be
+checked (claims marked `no_verificado`, checks that only run on this machine), and what is left
+to you (findings accepted without a fix).
+
 `rompelo verify` shows the current verdict at any time. `rompelo --help` lists everything.
 The gate's messages are in Spanish today; English messages are on the roadmap.
 
 ## Verified, and not
 
-- 73 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
+- 77 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
   red with a confirmed mutation, then green. CI runs them on Ubuntu on every push.
 - The Claude Code side has been crossed live: ending a turn with an unmet contract returned the
   block with the right reasons, and the configured `settings.json` line is replayed by
@@ -132,7 +140,7 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
 
 1. Positive control per registered check: the instrument must detect a known-bad input before its green counts.
 2. Observation layer: three triggers (task risk, repeated error signature, claims about the world) that raise rigor with a warning first, and ask once before spending on external checks.
-3. Plain-language closing report: what was checked and seen failing, what could not be checked, what is the user's to decide.
+3. Closing report that says "seen failing" for real, once every check has a positive control.
 4. English messages from the gate.
 5. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.
 

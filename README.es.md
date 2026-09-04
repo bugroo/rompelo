@@ -37,7 +37,7 @@ por tarea y sesión; después `rompelo` avisa al usuario y suelta, para que nadi
 
 ![Tres pasos: verde de partida, mutación confirmada que lo pone en rojo, deshecha y verde otra vez](docs/img/es/rojo-primero.png)
 
-La batería (73 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
+La batería (77 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
 puerta. Cuando una mutación se usa para forzar el rojo, la prueba confirma primero que la
 mutación ocurrió. Una mutación que no se aplicó no prueba nada, y ese error está dos veces en el corpus.
 
@@ -80,7 +80,10 @@ git clone https://github.com/bugroo/rompelo ~/rompelo
 cp ~/rompelo/checks/registry.example.json ~/rompelo/checks/registry.local.json   # tus checks
 ```
 
-En `registry.local.json` viven tus comandos, un id cada uno, como argv:
+O deja que `rompelo init` los encuentre: sin `--check`, lee los scripts de `package.json`,
+`pyproject.toml`, `Cargo.toml`, `go.mod` y el `Makefile`, registra lo que encuentra en
+`registry.local.json` como `<repo>.<nombre>` y lo mete en el contrato. En `registry.local.json`
+viven tus comandos, un id cada uno, como argv:
 
 ```json
 {
@@ -109,11 +112,16 @@ cd tu-repo
 ~/rompelo/bin/rompelo close                                     # se niega si falta algo
 ```
 
+`close` imprime un informe en llano y lo guarda junto a la evidencia: qué se comprobó (código,
+duración, líneas de salida, el cruce real, las afirmaciones verificadas), qué no se pudo
+comprobar (afirmaciones `no_verificado`, checks que solo corren en esta máquina) y qué queda a
+tu cargo (hallazgos aceptados sin corregir).
+
 `rompelo verify` enseña el veredicto en cualquier momento. `rompelo --help` lo lista todo.
 
 ## Verificado, y no
 
-- 73 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
+- 77 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
   en rojo con una mutación confirmada y luego en verde. CI los corre en Ubuntu en cada push.
 - El lado de Claude Code está cruzado en vivo: terminar un turno con el contrato sin cumplir
   devolvió el bloqueo con los motivos correctos, y la línea configurada en `settings.json` la
@@ -126,7 +134,7 @@ cd tu-repo
 
 1. Control positivo por check registrado: el instrumento tiene que detectar una entrada mala conocida antes de que su verde valga.
 2. Capa de observación: tres disparadores (riesgo de la tarea, firma de error repetida, afirmaciones sobre el mundo) que suben el rigor avisando antes, y piden permiso una vez antes de gastar en comprobaciones externas.
-3. Informe de cierre en llano: qué se comprobó y se vio fallar, qué no se pudo comprobar, qué queda a tu cargo.
+3. Que el informe de cierre pueda decir «visto fallar» de verdad, cuando cada check tenga control positivo.
 4. Mensajes de la puerta en inglés.
 5. Incidentes que se compilan en checks registrados: una lección como detector, no como prosa.
 

@@ -192,6 +192,30 @@ contrato 'checks=["hay-a","ok","local"]'
 "$ASSURE" check >/dev/null 2>&1; [ $? -eq 1 ] && ok "fuera de CI el check solo_local sí corre (y aquí falla)" || bad "solo_local local"
 contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
 
+echo "── init sin --check detecta los checks del repo"
+R2="$T/repo2"; mkdir -p "$R2/src"; (cd "$R2" && git init -q && git config user.email t@t && git config user.name t \
+  && printf '{"name":"demo","scripts":{"test":"vitest run","typecheck":"tsc --noEmit","dev":"vite"}}' > package.json && : > pnpm-lock.yaml \
+  && printf 'test:\n\techo t\n' > Makefile && git add -A && git commit -qm base)
+(cd "$R2" && "$ASSURE" init --id D1 > "$T/init.txt" 2>&1) && ok "init sin --check no falla" || bad "init auto" "$(cat "$T/init.txt")"
+python3 - "$R2/.rompelo/task.json" "$ROMPELO_HOME/checks/registry.local.json" <<'PY2'
+import json,sys
+c=json.load(open(sys.argv[1])); r=json.load(open(sys.argv[2]))
+assert c["checks"]==["repo2.test","repo2.typecheck"], c["checks"]          # make test no duplica el .test
+assert r["repo2.test"]["argv"]==["pnpm","test"], r["repo2.test"]
+assert r["repo2.typecheck"]["argv"]==["pnpm","run","typecheck"], r["repo2.typecheck"]
+assert "repo2.dev" not in r
+PY2
+[ $? -eq 0 ] && ok "detecta test y typecheck con pnpm, ignora dev, no duplica make test" || bad "detección"
+rm -f "$ROMPELO_HOME/checks/registry.local.json"
+(cd "$R2" && rm -rf .rompelo && "$ASSURE" init --id D2 --sin-detectar > /dev/null 2>&1 && python3 -c 'import json;assert json.load(open(".rompelo/task.json"))["checks"]==[]') && ok "--sin-detectar deja los checks vacíos" || bad "--sin-detectar"
+
+echo "── informe en llano al cerrar"
+contrato 'checks=["hay-a","ok"]' 'afirmaciones=[{"texto":"x","estado":"no_verificado","falta":"acceso al panel"}]' 'hallazgos=[{"id":"H9","texto":"borde","disposicion":"aceptado","nota":"no bloquea"}]'
+"$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
+"$ASSURE" close > "$T/close.txt" 2>&1; rc=$?
+[ $rc -eq 0 ] && grep -q '## Qué se comprobó' "$T/close.txt" && grep -q 'acceso al panel' "$T/close.txt" && grep -q 'H9 aceptado' "$T/close.txt" && [ -f .rompelo/evidence/T1/INFORME.md ] && ok "close imprime y guarda el informe con los tres bloques" || bad "informe" "rc=$rc $(cat "$T/close.txt")"
+contrato 'afirmaciones=[]' 'hallazgos=[]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+
 echo "── fichero NUEVO: commitearlo no cambia la huella (mismo contenido)"
 echo n > src/nuevo.txt; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
 espera_paso "cerrada con fichero nuevo sin rastrear: silencio" s12

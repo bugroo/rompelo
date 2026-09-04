@@ -324,12 +324,82 @@ def valores(args, k):
     return [args[i + 1] for i, a in enumerate(args) if a == k and i + 1 < len(args)]
 
 
+def detectar_checks(root):
+    """Checks que el repo ya trae, leídos de sus ficheros, no adivinados. Devuelve
+    {id: {argv, cwd, min_lineas, descripcion}} con ids `<repo>.<nombre>`."""
+    nombre = re.sub(r"[^a-z0-9._-]", "-", os.path.basename(root).lower()) or "repo"
+    out = {}
+    pj = os.path.join(root, "package.json")
+    if os.path.exists(pj):
+        try:
+            scripts = (leer_json(pj).get("scripts") or {})
+        except (ValueError, OSError):
+            scripts = {}
+        gestor = "pnpm" if os.path.exists(os.path.join(root, "pnpm-lock.yaml")) else \
+                 "yarn" if os.path.exists(os.path.join(root, "yarn.lock")) else \
+                 "bun" if os.path.exists(os.path.join(root, "bun.lockb")) else "npm"
+        for sc in ("test", "typecheck", "lint", "build", "check"):
+            if sc in scripts:
+                argv = [gestor, sc] if sc in ("test",) and gestor != "npm" else [gestor, "run", sc]
+                if gestor == "npm" and sc == "test":
+                    argv = ["npm", "test"]
+                out[f"{nombre}.{sc}"] = {"argv": argv, "cwd": "repo", "min_lineas": 1,
+                                        "descripcion": f"package.json scripts.{sc}: {scripts[sc][:60]}"}
+    if os.path.exists(os.path.join(root, "pyproject.toml")) or os.path.exists(os.path.join(root, "pytest.ini")) \
+            or os.path.isdir(os.path.join(root, "tests")) and any(f.startswith("test_") for f in os.listdir(os.path.join(root, "tests"))):
+        if not any(k.endswith(".test") for k in out):
+            out[f"{nombre}.pytest"] = {"argv": ["python3", "-m", "pytest", "-q"], "cwd": "repo", "min_lineas": 1,
+                                       "descripcion": "pytest (pyproject.toml / pytest.ini / tests/test_*)"}
+    if os.path.exists(os.path.join(root, "Cargo.toml")):
+        out[f"{nombre}.cargo-test"] = {"argv": ["cargo", "test"], "cwd": "repo", "min_lineas": 1, "descripcion": "Cargo.toml"}
+    if os.path.exists(os.path.join(root, "go.mod")):
+        out[f"{nombre}.go-test"] = {"argv": ["go", "test", "./..."], "cwd": "repo", "min_lineas": 1, "descripcion": "go.mod"}
+    mk = os.path.join(root, "Makefile")
+    if os.path.exists(mk):
+        try:
+            objetivos = set(re.findall(r"^([A-Za-z0-9_-]+):", open(mk, encoding="utf-8", errors="replace").read(), re.M))
+        except OSError:
+            objetivos = set()
+        for t in ("test", "check", "lint"):
+            if t in objetivos and not any(k.endswith("." + t) for k in out):
+                out[f"{nombre}.make-{t}"] = {"argv": ["make", t], "cwd": "repo", "min_lineas": 1, "descripcion": f"Makefile: {t}"}
+    return out
+
+
+def registrar_local(nuevos):
+    """Añade al registry.local.json los ids que no existan. Devuelve los añadidos."""
+    os.makedirs(os.path.dirname(REGISTRO_LOCAL), exist_ok=True)
+    actual = {}
+    try:
+        actual = leer_json(REGISTRO_LOCAL)
+    except FileNotFoundError:
+        pass
+    anadidos = [k for k in nuevos if k not in actual]
+    for k in anadidos:
+        actual[k] = nuevos[k]
+    if anadidos:
+        with open(REGISTRO_LOCAL, "w") as fh:
+            json.dump(actual, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+    return anadidos
+
+
 def cmd_init(root, args):
     d, f = rutas(root)
     if os.path.exists(f) and "--force" not in args:
         sys.exit(f"ya existe {f} (usa --force para sobrescribir)")
     os.makedirs(d, exist_ok=True)
     checks = valores(args, "--check")
+    if not checks and "--sin-detectar" not in args:
+        detectados = detectar_checks(root)
+        if detectados:
+            nuevos = registrar_local(detectados)
+            checks = sorted(detectados)
+            print("checks detectados en el repo (registrados en " + REGISTRO_LOCAL + "):")
+            for k in checks:
+                print(f"  {k}: {' '.join(detectados[k]['argv'])}" + ("" if k in nuevos else "  (ya estaba)"))
+        else:
+            print("no he detectado ningún check en el repo (package.json, pyproject, Cargo.toml, go.mod, Makefile). Añade los tuyos con --check <id> y el registro.")
     reg = registro(root)
     desconocidos = [x for x in checks if x not in reg]
     if desconocidos:
@@ -450,8 +520,51 @@ def cmd_close(root, args):
     with open(f, "w") as fh:
         json.dump(c, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
-    print(f"tarea {c['id']} cerrada sobre la huella {hu}")
+    informe = informe_llano(root, c, ev)
+    with open(os.path.join(ev, "INFORME.md"), "w") as fh:
+        fh.write(informe)
+    print(informe)
+    print(f"tarea {c['id']} cerrada sobre la huella {hu} · informe en {os.path.join(ev, 'INFORME.md')}")
     return 0
+
+
+def informe_llano(root, c, ev):
+    """Tres bloques para quien no lee código: qué se comprobó, qué no se pudo comprobar,
+    qué queda a su cargo. Solo hechos que están en la evidencia."""
+    reg = registro(root)
+    comprobado, no_pudo, a_cargo = [], [], []
+    for cid in c["checks"]:
+        e = leer_evidencia(ev, f"check-{cid}.json") or {}
+        if reg.get(cid, {}).get("solo_local"):
+            nota = " (solo en esta máquina; CI no lo repite)"
+        else:
+            nota = ""
+        comprobado.append(f"{cid}: código {e.get('codigo')} en {e.get('segundos')} s, {e.get('lineas_salida')} líneas de salida{nota}")
+    if c["toca_junta"]:
+        cr = leer_evidencia(ev, "cruce.json") or {}
+        comprobado.append("cruce real de la junta: " + " ".join(cr.get("argv") or []) + (f" · {cr.get('nota')}" if cr.get("nota") else ""))
+    for a in c.get("afirmaciones") or []:
+        if not isinstance(a, dict):
+            continue
+        if a.get("estado") == "verificado":
+            comprobado.append(f"afirmación verificada: {a.get('texto')} (fuente: {a.get('fuente')})")
+        elif a.get("estado") == "derivado":
+            comprobado.append(f"afirmación derivada: {a.get('texto')} (de: {a.get('de')})")
+        elif a.get("estado") == "no_verificado":
+            no_pudo.append(f"{a.get('texto')}: falta {a.get('falta')}")
+    for h in c.get("hallazgos") or []:
+        if isinstance(h, dict) and h.get("disposicion") == "aceptado":
+            a_cargo.append(f"hallazgo {h.get('id')} aceptado sin corregir: {h.get('texto') or ''} {('(' + str(h.get('nota')) + ')') if h.get('nota') else ''}".strip())
+    if not comprobado:
+        comprobado.append("nada: el contrato no tenía checks ni junta")
+    lineas = [f"# Informe de cierre · {c['id']}", "", "## Qué se comprobó", ""]
+    lineas += ["- " + x for x in comprobado]
+    lineas += ["", "## Qué no se pudo comprobar", ""]
+    lineas += ["- " + x for x in no_pudo] or ["- nada declarado como no verificado"]
+    lineas += ["", "## Qué queda a tu cargo", ""]
+    lineas += ["- " + x for x in a_cargo] or ["- nada: no hay hallazgos aceptados sin corregir"]
+    lineas += ["", "Un verde aquí significa «no encontré los de mi clase», no «está bien». Los checks todavía no tienen control positivo: eso es lo siguiente.", ""]
+    return "\n".join(lineas)
 
 
 def cmd_status(root, args):
@@ -512,7 +625,8 @@ def cmd_hook(agente, args):
 
 AYUDA = __doc__ + f"""
 uso:
-  rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force]
+  rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar]
+      sin --check, detecta los checks del repo (package.json, pyproject, Cargo.toml, go.mod, Makefile) y los registra en registry.local.json
   rompelo status | verify [--json] [--ci [--estricto]] | check | close | repos
   rompelo cruce [--nota TXT] (--id ID | -- <argv>)
   rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
