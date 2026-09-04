@@ -95,6 +95,8 @@ out="$(hook claude s9 "$R")"; printf '%s' "$out" | grep -q systemMessage && ! pr
 echo "── close y reapertura por cambios posteriores"
 "$ASSURE" close >/dev/null && grep -q '^estado: cerrada' .assure/task.yaml && ok "close deja estado: cerrada" || bad "close"
 espera_paso "cerrada y sin cambios: silencio" s10
+git add -A >/dev/null && git commit -qm "mismo contenido" && [ "$(git rev-parse HEAD)" != "$(git rev-parse HEAD~1)" ] && ok "commit hecho (HEAD cambió)" || bad "commit"
+espera_paso "cerrada y commit del mismo contenido: sigue en silencio" s10c
 echo d >> src/a.txt
 espera_bloqueo "cerrada con cambios posteriores" s10b "cambios posteriores al cierre"
 
