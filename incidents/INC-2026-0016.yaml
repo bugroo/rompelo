@@ -1,0 +1,13 @@
+id: INC-2026-0016
+titulo: "node -c validaba código de un nodo n8n que el runtime envuelve en una función: fallaba con código bueno y pasaba código malo"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: instrumento
+evidencia_verde: "el validador daba veredicto: parecía una prueba"
+lo_que_faltaba: "validar como lo envuelve el runtime (new Function(args, src)); medir el artefacto que corre, no un fragmento fuera de su envoltorio"
+gate: instrumento-control-positivo
+gate_descripcion: "todo check declara qué artefacto mide; un validador genérico sobre un fragmento envuelto es sospechoso"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: el validador rechazaba código correcto, bastaba un control positivo"

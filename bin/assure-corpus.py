@@ -40,7 +40,7 @@ S = [d for d in inc if d["clase"] == "S"]
 recall_S = sum(1 for d in S if d["spike_cubre"] == "sí")
 out.append("## Lo que decide\n")
 out.append("Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta (PreToolUse) · "
-           "**C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **M** mixto.\n")
+           "**C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **I** instrumento: la comprobación no podía fallar · **M** mixto.\n")
 out.append("| Pregunta | Recuento |\n|---|---|")
 out.append("| Reparto por clase | " + " · ".join(f"**{c}**: {n}" for c, n in sorted(por_clase.items())) + f" (de {len(inc)}) |")
 out.append(f"| recall del Stop gate sobre la clase S | **{recall_S} de {len(S)}** |")

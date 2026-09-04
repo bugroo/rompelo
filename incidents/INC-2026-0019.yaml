@@ -1,0 +1,13 @@
+id: INC-2026-0019
+titulo: "vitest dijo «no tests» con el fichero roto de sintaxis y se leyó como 0 fallos"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: resultado-nulo
+evidencia_verde: "suite en verde"
+lo_que_faltaba: "toda comprobación informa de cuántas cosas vio; cero elementos analizados no es cero fallos"
+gate: instrumento-control-positivo
+gate_descripcion: "recuento de elementos vistos obligatorio; cero vistos = no pude mirar"
+existe_hoy: "sí"
+spike_cubre: "sí"
+clase: I
+senal_al_stop: "sí: 0 pruebas ejecutadas"

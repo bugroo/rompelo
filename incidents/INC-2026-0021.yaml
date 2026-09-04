@@ -1,0 +1,13 @@
+id: INC-2026-0021
+titulo: "variable pegada a carácter multibyte («$nombre») bajo set -u; arreglada tres veces en el mismo día, la tercera dentro de la biblioteca escrita para evitarlo. La misma sesión assure cayó en el mismo fallo con «$CMD»"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: contexto-perdido
+evidencia_verde: "arreglo puntual, verde después"
+lo_que_faltaba: "arreglar la clase: grep del patrón sobre todo el árbol y aserción de que quedan cero, con recuento de ficheros vistos"
+gate: stop-checks
+gate_descripcion: "assure.sin-var-pegada: check triestado (0 limpio, 1 hay, 2 no vi ficheros)"
+existe_hoy: "sí"
+spike_cubre: "sí"
+clase: S
+senal_al_stop: "sí: el patrón es grepeable"

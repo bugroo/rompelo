@@ -223,6 +223,8 @@ def motivos_bloqueo(root, para_cerrar=False):
             m.append(f"check `{cid}` cambió en el registro después de ejecutarse")
         elif e.get("codigo") != 0:
             m.append(f"check `{cid}` FALLÓ con código {e.get('codigo')}")
+        elif e.get("lineas_salida", 0) < int(reg[cid].get("min_lineas", 0) or 0):
+            m.append(f"check `{cid}` salió con 0 pero sin la salida mínima ({e.get('lineas_salida')} < {reg[cid].get('min_lineas')} líneas): «limpio» no se distingue de «no miré»")
         elif e.get("huella") != hu:
             m.append(f"check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)")
 
@@ -238,6 +240,27 @@ def motivos_bloqueo(root, para_cerrar=False):
     for h in c.get("hallazgos") or []:
         if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
             m.append(f"hallazgo sin disposición: {h.get('id') if isinstance(h, dict) else h}")
+
+    # Afirmaciones materiales sobre el mundo exterior (criterio de rootml-de, 04-09-2026):
+    # cada una lleva estado. verificado = fuente de primera mano + cita textual que zanja;
+    # derivado = de qué afirmación verificada; no_verificado = qué falta. Sin estado no existe.
+    afs = c.get("afirmaciones") or []
+    if c.get("toca_exterior") and not afs:
+        m.append("toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)")
+    for i, a in enumerate(afs, 1):
+        et = a.get("estado") if isinstance(a, dict) else None
+        tx = (a.get("texto") if isinstance(a, dict) else str(a)) or f"#{i}"
+        if et == "verificado":
+            if not (str(a.get("fuente") or "").strip() and str(a.get("cita") or "").strip()):
+                m.append(f"afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual")
+        elif et == "derivado":
+            if not str(a.get("de") or "").strip():
+                m.append(f"afirmación «{tx}» marcada derivado sin decir de qué se deduce")
+        elif et == "no_verificado":
+            if not str(a.get("falta") or "").strip():
+                m.append(f"afirmación «{tx}» marcada no_verificado sin decir qué falta")
+        else:
+            m.append(f"afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)")
 
     if c.get("exige_prueba_en_diff"):
         globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO

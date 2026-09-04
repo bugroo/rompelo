@@ -1,30 +1,30 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (15 incidentes). No editar a mano: `python3 bin/assure-corpus.py`.
+Generado desde `incidents/` (28 incidentes). No editar a mano: `python3 bin/assure-corpus.py`.
 
 ## Lo que decide
 
-Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta (PreToolUse) · **C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **M** mixto.
+Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta (PreToolUse) · **C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **I** instrumento: la comprobación no podía fallar · **M** mixto.
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 3 · **M**: 2 · **R**: 2 · **S**: 3 · **T**: 3 (de 15) |
-| recall del Stop gate sobre la clase S | **3 de 3** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 4 · parcial: 3 · no: 8 |
-| ¿Cuántos tienen ya un control hoy? | sí: 4 · parcial: 5 · **no: 6** |
+| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 8 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 28) |
+| recall del Stop gate sobre la clase S | **5 de 6** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 5 · no: 15 |
+| ¿Cuántos tienen ya un control hoy? | sí: 9 · parcial: 7 · **no: 12** |
 
 ## Por tipo de gate que lo habría cazado
 
 | Gate | Incidentes | Existe hoy |
 |---|---|---|
+| `instrumento-control-positivo` | 10 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025) | no, parcial, sí |
+| `deriva-generada` | 4 (0002, 0003, 0012, 0026) | parcial, sí |
 | `pretooluse-destructivo` | 3 (0001, 0007, 0008) | no, sí |
-| `deriva-generada` | 3 (0002, 0003, 0012) | parcial, sí |
-| `stop-junta` | 2 (0004, 0014) | no, parcial |
-| `instrumento-control-positivo` | 2 (0006, 0013) | parcial, sí |
-| `stop-checks` | 1 (0005) | parcial |
+| `stop-junta` | 3 (0004, 0014, 0027) | no, parcial |
+| `stop-checks` | 3 (0005, 0021, 0028) | parcial, sí |
+| `stop-prueba-toca-diff` | 2 (0011, 0024) | no |
 | `stop-hallazgos` | 1 (0009) | no |
 | `alerta-operacional` | 1 (0010) | sí |
-| `stop-prueba-toca-diff` | 1 (0011) | no |
 | `ledger-auditoria` | 1 (0015) | no |
 
 ## Los incidentes
@@ -46,6 +46,19 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | 0013 | 2026-08-14 | C | ninguna: búsqueda en un ámbito y afirmación sobre otro | `instrumento-control-positivo` | parcial | no |
 | 0014 | 2026-08-27 | R | el ciclo de verificación pasó; el token caducó 15 minutos después | `stop-junta` | no | no |
 | 0015 | 2026-09-03 | A | mismo commit, dos conclusiones; sin ledger no hay señal comparable | `ledger-auditoria` | no | parcial |
+| 0016 | 2026-09-04 | I | sí: el validador rechazaba código correcto, bastaba un control positivo | `instrumento-control-positivo` | no | no |
+| 0017 | 2026-09-04 | I | sí: stderr no vacío junto a un código de hallazgo | `instrumento-control-positivo` | parcial | no |
+| 0018 | 2026-09-04 | I | sí: salida vacía en una orden que siempre imprime | `instrumento-control-positivo` | sí | sí |
+| 0019 | 2026-09-04 | I | sí: 0 pruebas ejecutadas | `instrumento-control-positivo` | sí | sí |
+| 0020 | 2026-09-04 | I | sí: el mensaje decía timed out | `instrumento-control-positivo` | no | no |
+| 0021 | 2026-09-04 | S | sí: el patrón es grepeable | `stop-checks` | sí | sí |
+| 0022 | 2026-09-04 | I | sí: hash igual antes y después | `instrumento-control-positivo` | sí | no |
+| 0023 | 2026-09-04 | I | sí: el patrón que se busca no casaba con el mutante | `instrumento-control-positivo` | no | no |
+| 0024 | 2026-09-04 | S | sí: el diff toca ficheros de prueba | `stop-prueba-toca-diff` | no | parcial |
+| 0025 | 2026-09-04 | I | sí: la entidad estaba en el fichero | `instrumento-control-positivo` | no | no |
+| 0026 | 2026-09-04 | C | no: la señal es la ausencia de un check | `deriva-generada` | parcial | no |
+| 0027 | 2026-09-04 | M | no del todo: la señal está en el sistema, no en el árbol | `stop-junta` | no | parcial |
+| 0028 | 2026-09-04 | S | sí: ShellCheck instalado y no ejecutado | `stop-checks` | sí | sí |
 
 ## Títulos
 
@@ -64,3 +77,16 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 - **0013** · «No existe copia de la clave GPG», medido solo en este Mac; había una en un disco externo desde hacía 42 días (`memoria feedback_medir_y_afirmar_mismo_ambito; PROBLEMAS.md C3`)
 - **0014** · Cambio de servidor MCP de Zoho: URL cambiada en tres nodos y la credencial seguía apuntando al viejo; la reconexión duró quince minutos (`~/ClaveON_B2C/docs/PROBLEMAS-RESUELTOS.md#N72`)
 - **0015** · La auditoría del 02-09 dio por revisadas las páginas de barrio; al día siguiente, sobre el mismo commit, compartían el 58 % del texto (`memoria feedback_medir_antes_de_afirmar (regla 6)`)
+- **0016** · node -c validaba código de un nodo n8n que el runtime envuelve en una función: fallaba con código bueno y pasaba código malo (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0017** · un guardián de tres estados (0 coinciden, 1 no, 2 no pude mirar) murió por una variable sin definir y salió con 1: «producción se ha separado del repo» cuando no llegó a mirar (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0018** · pnpm audit salió con 0 tras un TimeoutError: nunca llegó al registro; un wc -l da 0 porque la orden falló (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0019** · vitest dijo «no tests» con el fichero roto de sintaxis y se leyó como 0 fallos (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0020** · una prueba que lanza 54 procesos tardaba 3 s sola y agotaba el plazo de 5 s bajo carga, saliendo como fallo con mensaje «timed out» que en el listado se ve igual que un rojo real (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0021** · variable pegada a carácter multibyte («$nombre») bajo set -u; arreglada tres veces en el mismo día, la tercera dentro de la biblioteca escrita para evitarlo. La misma sesión assure cayó en el mismo fallo con «$CMD» (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0022** · la mutación no se aplicó: el replace no casó, el fichero quedó intacto, la prueba siguió verde y se iba a anotar «la prueba lo caza». Dos veces. También en assure hoy (sed sobre - true que el YAML guardaba entrecomillado) (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0023** · la mutación se aplicó pero no creó el fallo: se escribió $VAR días con espacio para probar «variable pegada»; el fichero cambió, la prueba pasó y se concluyó «mi prueba es floja» (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0024** · un refactor de rendimiento de una prueba es donde deja de mirar sin que nadie lo note; se volvieron a aplicar las mutaciones y seguían cazándose (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0025** · el patrón buscaba el guion largo como carácter (—) y el escrito como entidad (&mdash;) sobrevivió (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0026** · cinco de los fallos del día estaban escritos en las reglas del proyecto antes de empezar; escribir la regla no es aplicarla (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0027** · se retiró el nodo que mandaba un SMS; el canon seguía diciendo que ese aviso sale por SMS, el workflow preparaba el texto y su guardián seguía en verde confirmando que los dos textos coincidían. Un guardián impecable vigilando algo que ya no ocurre (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
+- **0028** · se copió la convención de otro guardián del repo y se propagó su fallo con confianza; ShellCheck estaba instalado y no se había pasado (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)

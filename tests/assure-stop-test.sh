@@ -13,7 +13,8 @@ export ASSURE_HOME="$T/home"; mkdir -p "$ASSURE_HOME/checks" "$ASSURE_HOME/confi
 CANARY="$T/canario"
 cat > "$ASSURE_HOME/checks/registry.json" <<J
 {"ok": {"argv": ["true"]}, "ko": {"argv": ["false"]}, "hay-a": {"argv": ["test", "-f", "src/a.txt"]},
- "canario": {"argv": ["touch", "$CANARY"]}}
+ "canario": {"argv": ["touch", "$CANARY"]},
+ "mudo": {"argv": ["true"], "min_lineas": 1}, "habla": {"argv": ["echo", "1 visto"], "min_lineas": 1}}
 J
 R="$T/repo"; mkdir -p "$R"; cd "$R" || exit 2
 git init -q && git config user.email t@t && git config user.name t
@@ -99,6 +100,28 @@ mkdir -p docs && echo x > docs/x.md
 espera_bloqueo "fuera de scope" s7 "fuera de scope_paths: docs/x.md"
 rm docs/x.md && rmdir docs; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
 espera_paso "deshecha D: verde" s7b
+
+echo "── afirmaciones con estado (criterio de ir a la fuente)"
+contrato 'toca_exterior=true'
+espera_bloqueo "toca_exterior sin afirmaciones bloquea" s7a "ninguna afirmación con estado"
+contrato 'afirmaciones=[{"texto":"la capa gratuita permite uso comercial","estado":"verificado","fuente":"https://x/pricing"}]'
+espera_bloqueo "verificado sin cita bloquea" s7b2 "sin fuente de primera mano o sin cita"
+contrato 'afirmaciones=[{"texto":"a","estado":"seguro"}]'
+espera_bloqueo "estado inventado bloquea" s7b3 "sin estado válido"
+contrato 'afirmaciones=[{"texto":"a","estado":"derivado"}]'
+espera_bloqueo "derivado sin origen bloquea" s7b4 "sin decir de qué"
+contrato 'afirmaciones=[{"texto":"a","estado":"no_verificado"}]'
+espera_bloqueo "no_verificado sin qué falta bloquea" s7b5 "sin decir qué falta"
+contrato 'afirmaciones=[{"texto":"a","estado":"verificado","fuente":"doc oficial","cita":"frase literal"},{"texto":"b","estado":"derivado","de":"a"},{"texto":"c","estado":"no_verificado","falta":"no hay acceso al panel"}]'
+espera_paso "tres estados bien formados: verde" s7b6
+contrato 'toca_exterior=false' 'afirmaciones=[]'
+
+echo "── salida mínima: un 0 sin salida no es verde (INC-0018/0019)"
+contrato 'checks=["hay-a","ok","mudo"]'; "$ASSURE" check >/dev/null
+espera_bloqueo "check mudo con min_lineas bloquea" s7m "sin la salida mínima"
+contrato 'checks=["hay-a","ok","habla"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
+espera_paso "check que informa de lo visto: verde" s7n
+contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
 
 echo "── registro cambiado tras ejecutar"
 python3 - "$ASSURE_HOME/checks/registry.json" <<'PY'

@@ -1,0 +1,13 @@
+id: INC-2026-0018
+titulo: "pnpm audit salió con 0 tras un TimeoutError: nunca llegó al registro; un wc -l da 0 porque la orden falló"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: resultado-nulo
+evidencia_verde: "código 0 y salida vacía"
+lo_que_faltaba: "un 0 con stderr o sin salida en una orden que siempre produce algo es «no miré», no «limpio»"
+gate: instrumento-control-positivo
+gate_descripcion: "assure: un check con salida vacía cuando el registro exige salida mínima no cuenta como verde"
+existe_hoy: "sí"
+spike_cubre: "sí"
+clase: I
+senal_al_stop: "sí: salida vacía en una orden que siempre imprime"

@@ -1,0 +1,13 @@
+id: INC-2026-0023
+titulo: "la mutación se aplicó pero no creó el fallo: se escribió $VAR días con espacio para probar «variable pegada»; el fichero cambió, la prueba pasó y se concluyó «mi prueba es floja»"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: prueba-ciega
+evidencia_verde: "fichero cambiado y prueba verde"
+lo_que_faltaba: "tras mutar, comprobar que el fallo existe (el patrón buscado casa), no solo que el fichero cambió; son dos aserciones"
+gate: instrumento-control-positivo
+gate_descripcion: "mutación verificada en dos pasos: cambió y rompe"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: el patrón que se busca no casaba con el mutante"

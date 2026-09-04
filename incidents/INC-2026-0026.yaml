@@ -1,0 +1,13 @@
+id: INC-2026-0026
+titulo: "cinco de los fallos del día estaban escritos en las reglas del proyecto antes de empezar; escribir la regla no es aplicarla"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: contexto-perdido
+evidencia_verde: "regla existente y leída"
+lo_que_faltaba: "lo que se queda en un comentario se incumple; lo que se ejecuta, no"
+gate: deriva-generada
+gate_descripcion: "regla → check ejecutable en el registro"
+existe_hoy: "parcial"
+spike_cubre: "no"
+clase: C
+senal_al_stop: "no: la señal es la ausencia de un check"

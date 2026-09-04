@@ -1,0 +1,13 @@
+id: INC-2026-0017
+titulo: "un guardián de tres estados (0 coinciden, 1 no, 2 no pude mirar) murió por una variable sin definir y salió con 1: «producción se ha separado del repo» cuando no llegó a mirar"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: instrumento
+evidencia_verde: "código de salida 1, leído como hallazgo real"
+lo_que_faltaba: "trap EXIT/ERR que convierte todo aborto inesperado en «no pude», nunca en «no coinciden»"
+gate: instrumento-control-positivo
+gate_descripcion: "un fallo del instrumento nunca puede salir por el código de hallazgo"
+existe_hoy: "parcial"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: stderr no vacío junto a un código de hallazgo"

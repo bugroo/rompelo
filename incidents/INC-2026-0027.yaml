@@ -1,0 +1,13 @@
+id: INC-2026-0027
+titulo: "se retiró el nodo que mandaba un SMS; el canon seguía diciendo que ese aviso sale por SMS, el workflow preparaba el texto y su guardián seguía en verde confirmando que los dos textos coincidían. Un guardián impecable vigilando algo que ya no ocurre"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: junta
+evidencia_verde: "guardián en verde"
+lo_que_faltaba: "cruzarlo una vez de verdad, o un guardián que afirme lo contrario: no «coinciden» sino «nadie manda ese SMS»"
+gate: stop-junta
+gate_descripcion: "toca_junta + cruce real después del último cambio"
+existe_hoy: "no"
+spike_cubre: "parcial"
+clase: M
+senal_al_stop: "no del todo: la señal está en el sistema, no en el árbol"

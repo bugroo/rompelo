@@ -1,0 +1,13 @@
+id: INC-2026-0025
+titulo: "el patrón buscaba el guion largo como carácter (—) y el escrito como entidad (&mdash;) sobrevivió"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: instrumento
+evidencia_verde: "mutación sobrevive"
+lo_que_faltaba: "buscar el efecto en todas sus codificaciones, no una representación"
+gate: instrumento-control-positivo
+gate_descripcion: "control positivo por cada forma del efecto"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: la entidad estaba en el fichero"

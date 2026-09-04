@@ -9,10 +9,65 @@
   ],
   "checks": [
     "assure.tests",
-    "assure.cruce-settings-claude"
+    "assure.cruce-settings-claude",
+    "assure.sin-var-pegada"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
-  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo."
+  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "toca_exterior": true,
+  "afirmaciones": [
+    {
+      "texto": "Claude Code: un hook Stop impide parar devolviendo decision block",
+      "estado": "verificado",
+      "fuente": "https://code.claude.com/docs/en/hooks.md (leído 04-09-2026)",
+      "cita": "\"decision\": \"block\" prevents Claude from stopping. Omit to allow Claude to stop"
+    },
+    {
+      "texto": "Claude Code corta la continuación tras 8 bloqueos seguidos",
+      "estado": "verificado",
+      "fuente": "https://code.claude.com/docs/en/hooks.md",
+      "cita": "Claude Code overrides the hook and ends the turn after 8 consecutive blocks"
+    },
+    {
+      "texto": "Codex: el hook Stop acepta el mismo JSON y lo convierte en prompt de continuación",
+      "estado": "verificado",
+      "fuente": "https://developers.openai.com/codex/hooks.md (leído 04-09-2026)",
+      "cita": "decision: \"block\" doesn't reject the turn. Instead, it tells Codex to continue and automatically creates a new continuation prompt"
+    },
+    {
+      "texto": "Codex: los hooks no gestionados hay que revisarlos y confiarlos antes de que corran",
+      "estado": "verificado",
+      "fuente": "https://developers.openai.com/codex/hooks.md",
+      "cita": "Non-managed hooks must be reviewed and trusted before they run"
+    },
+    {
+      "texto": "Microsoft Agent Governance Toolkit es MIT",
+      "estado": "verificado",
+      "fuente": "https://raw.githubusercontent.com/microsoft/agent-governance-toolkit/main/LICENSE",
+      "cita": "MIT License. Copyright (c) Microsoft Corporation."
+    },
+    {
+      "texto": "El instalador de Pilot Shell mueve ~/.claude y ~/.codex y usa curl | bash",
+      "estado": "verificado",
+      "fuente": "https://github.com/maxritter/pilot-shell (README, vía Brave 04-09-2026)",
+      "cita": "mv ~/.claude ~/.claude.bak mv ~/.codex ~/.codex.bak mv ~/.pilot ~/.pilot.bak # 3. Reinstall Pilot Shell from the official installer curl -fsSL .../install.sh | bash"
+    },
+    {
+      "texto": "El hook global de Codex alcanza a ai, ai-web, ai-build, ai-resume y clobs-codex",
+      "estado": "derivado",
+      "de": "lanzadores leídos en .zshrc y ~/bin/clobs-codex: ninguno cambia CODEX_HOME ni pasa un hooks.json alternativo, y la doc dice que los hooks de usuario se cargan aunque el proyecto no sea de confianza"
+    },
+    {
+      "texto": "assure bloquea en Codex en vivo",
+      "estado": "no_verificado",
+      "falta": "instalar adapters/codex/hooks.json en ~/.codex/hooks.json (territorio de Codex, lo hace José) y confiar el hook en /hooks; luego cerrar un turno con un contrato sin cumplir"
+    },
+    {
+      "texto": "assure alcanza a clobs en vivo",
+      "estado": "no_verificado",
+      "falta": "cerrar un turno desde clobs en un repo de la allowlist con contrato sin cumplir"
+    }
+  ]
 }

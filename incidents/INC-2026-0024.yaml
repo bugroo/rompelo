@@ -1,0 +1,13 @@
+id: INC-2026-0024
+titulo: "un refactor de rendimiento de una prueba es donde deja de mirar sin que nadie lo note; se volvieron a aplicar las mutaciones y seguían cazándose"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: prueba-ciega
+evidencia_verde: "prueba más rápida y verde"
+lo_que_faltaba: "si cambia el fichero de pruebas, revalidar su capacidad de detección"
+gate: stop-prueba-toca-diff
+gate_descripcion: "cambio en tests/ exige repetir las mutaciones"
+existe_hoy: "no"
+spike_cubre: "parcial"
+clase: S
+senal_al_stop: "sí: el diff toca ficheros de prueba"

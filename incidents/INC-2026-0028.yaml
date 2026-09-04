@@ -1,0 +1,13 @@
+id: INC-2026-0028
+titulo: "se copió la convención de otro guardián del repo y se propagó su fallo con confianza; ShellCheck estaba instalado y no se había pasado"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: contexto-perdido
+evidencia_verde: "guion parecido a los demás"
+lo_que_faltaba: "avisar de que existe un analizador estándar para ese tipo de fichero y no se ha ejecutado"
+gate: stop-checks
+gate_descripcion: "check registrado shellcheck sobre scripts/*.sh, con control positivo (guion roto en temporal)"
+existe_hoy: "sí"
+spike_cubre: "sí"
+clase: S
+senal_al_stop: "sí: ShellCheck instalado y no ejecutado"

@@ -1,0 +1,13 @@
+id: INC-2026-0022
+titulo: "la mutación no se aplicó: el replace no casó, el fichero quedó intacto, la prueba siguió verde y se iba a anotar «la prueba lo caza». Dos veces. También en assure hoy (sed sobre - true que el YAML guardaba entrecomillado)"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: prueba-ciega
+evidencia_verde: "prueba verde tras «mutar»"
+lo_que_faltaba: "confirmar que el fichero cambió (hash antes/después) antes de dar valor al resultado"
+gate: instrumento-control-positivo
+gate_descripcion: "toda mutación asevera que ocurrió"
+existe_hoy: "sí"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: hash igual antes y después"

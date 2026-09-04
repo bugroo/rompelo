@@ -1,0 +1,13 @@
+id: INC-2026-0020
+titulo: "una prueba que lanza 54 procesos tardaba 3 s sola y agotaba el plazo de 5 s bajo carga, saliendo como fallo con mensaje «timed out» que en el listado se ve igual que un rojo real"
+fecha: 2026-09-04
+fuente: "relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí"
+tipo: instrumento
+evidencia_verde: "rojo intermitente leído como fallo de código"
+lo_que_faltaba: "separar «agotó el plazo» de «falló una aserción»; no lanzar subprocesos en bucle"
+gate: instrumento-control-positivo
+gate_descripcion: "distinguir timeout de aserción en la salida del check"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: el mensaje decía timed out"
