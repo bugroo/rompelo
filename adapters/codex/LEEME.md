@@ -42,4 +42,41 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
-**NO VERIFICADO en vivo desde Codex.** El cruce real (Codex bloqueado por assure y luego concedido) lo tiene que hacer José en su terminal de Codex, con un repo de la allowlist y un contrato sin cumplir. Hasta entonces el lado Codex de la junta está sin cruzar.
+### 04-09-2026 · instalación pendiente por permisos de la sesión
+
+**NO VERIFICADO en vivo desde Codex.** El encargo se inició sobre `f9218b8`, con el
+árbol limpio. `bash tests/assure-stop-test.sh` terminó con código 0 y
+`PASS=58 FAIL=0` antes de cualquier edición.
+
+La copia previa de `~/.codex/hooks.json` está en
+`~/assure/.assure/evidence/hooks.json.20260904T214552Z.bak`, ignorada por Git.
+`cmp` confirmó igualdad byte a byte antes y después del intento de fusión.
+La herramienta rechazó el parche con:
+
+```text
+patch rejected: writing outside of the project; rejected by user approval settings
+```
+
+La sesión permite leer `~/.codex`, pero no escribir ahí ni solicitar elevación.
+El archivo conserva los dos hooks Stop anteriores y no contiene aún assure.
+La lectura limitada a `features.hooks` / `features.codex_hooks` no encontró un
+override explícito en `config.toml`; esto no acredita que el hook haya corrido.
+No se modificó la confianza ni se usó una vía alternativa para saltar el rechazo.
+
+La entrada pendiente es exactamente la del adaptador: evento `Stop`, comando
+`"$HOME/assure/bin/assure" hook codex`, timeout `30`. Tras fusionarla en una sesión
+con permiso de escritura, José debe revisarla y confiarla en `/hooks` (o en la
+revisión de hooks de la app), conforme al [contrato oficial](https://developers.openai.com/codex/hooks#review-and-trust-hooks).
+Codex ejecutará después el cruce desechable, conservará el bloqueo literal,
+comprobará el paso a silencio y limpiará el repo y su entrada de allowlist.
+
+`ASSURE-CODEX-01` queda abierto con los tres checks y junta solicitados.
+No se inició el módulo de control positivo: el encargo exige completar primero
+la instalación y el cruce en vivo. Faltan la fusión, la confianza humana, ese
+cruce y la Parte 2 completa; no hay salida literal de bloqueo en vivo que aportar.
+
+Verificación del punto de reanudación: segunda pasada de la batería también
+`PASS=58 FAIL=0` (código 0); `git diff --check` sin incidencias. `assure verify`
+devuelve 1: los tres checks del contrato nuevo siguen sin evidencia registrada
+y falta la junta. Las pasadas directas de la batería no sustituyen `assure check`
+ni prueban la ejecución del hook por Codex.
