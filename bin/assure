@@ -50,13 +50,23 @@ def head(root):
 EXCL = [".", ":(exclude).assure"]
 
 
-def huella_arbol(root):
-    """Huella del árbol de trabajo sin `.assure/`: HEAD + diff frente a HEAD + untracked."""
+def ref_base(root, base):
+    """`base` del contrato si es un commit válido; si no, HEAD."""
+    if base and git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode == 0:
+        return str(base)
+    return "HEAD"
+
+
+def huella_arbol(root, base=None):
+    """Huella del CONTENIDO del árbol de trabajo sin `.assure/`: diff frente a la base
+    del contrato + untracked. No incluye HEAD a propósito: hacer commit del mismo
+    contenido no cambia la huella, así que cerrar y luego commitear no reabre."""
     h = hashlib.sha256()
     hd = head(root)
-    h.update(hd.encode())
     if hd != "sin-head":
-        h.update(git(root, "diff", "HEAD", "--", *EXCL).stdout.encode())
+        h.update(git(root, "diff", ref_base(root, base), "--", *EXCL).stdout.encode())
+    else:
+        h.update(b"sin-head")
     for p in sorted(git(root, "ls-files", "--others", "--exclude-standard", "--", *EXCL).stdout.split("\n")):
         if not p:
             continue
@@ -67,7 +77,7 @@ def huella_arbol(root):
 
 def ficheros_cambiados(root, base):
     """Cambiados frente a `base` (árbol de trabajo) + untracked. Sin `.assure/`."""
-    ref = base if base and git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode == 0 else "HEAD"
+    ref = ref_base(root, base)
     out = set()
     if head(root) != "sin-head":
         out |= {p for p in git(root, "diff", "--name-only", ref, "--", *EXCL).stdout.split("\n") if p}
@@ -126,7 +136,7 @@ def motivos_bloqueo(root):
     """Lista vacía = puede cerrar. Lanza excepción si el contrato es ilegible."""
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
-    hu = huella_arbol(root)
+    hu = huella_arbol(root, c.get("base"))
     m = []
 
     if str(c["estado"]) == "cerrada":
@@ -230,7 +240,7 @@ def cmd_check(root, args):
     for i, cmd in enumerate(c["checks_obligatorios"], 1):
         print(f"[{i}/{len(c['checks_obligatorios'])}] {cmd}")
         e, salida = ejecutar(root, cmd)
-        e["huella"] = huella_arbol(root)
+        e["huella"] = huella_arbol(root, c.get("base"))
         with open(os.path.join(ev, f"check-{i}.yaml"), "w") as fh:
             yaml.safe_dump(e, fh, allow_unicode=True, sort_keys=False)
         if e["codigo"] != 0:
@@ -251,7 +261,7 @@ def cmd_cruce(root, args):
         sys.exit("falta el comando del cruce")
     e, salida = ejecutar(root, cmd)
     e["nota"] = valor(args, "--nota") or ""
-    e["huella"] = huella_arbol(root)
+    e["huella"] = huella_arbol(root, c.get("base"))
     with open(os.path.join(ev, "cruce.yaml"), "w") as fh:
         yaml.safe_dump(e, fh, allow_unicode=True, sort_keys=False)
     print(("cruce OK" if e["codigo"] == 0 else f"cruce FALLÓ (código {e['codigo']})") + f": {cmd}")
@@ -283,19 +293,19 @@ def cmd_close(root, args):
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
     with open(os.path.join(ev, "cerrada.yaml"), "w") as fh:
-        yaml.safe_dump({"huella": huella_arbol(root), "fecha": ahora()}, fh, sort_keys=False)
+        yaml.safe_dump({"huella": huella_arbol(root, c.get("base")), "fecha": ahora()}, fh, sort_keys=False)
     _, f = rutas(root)
     txt = open(f).read()
     import re
     txt = re.sub(r"^estado:.*$", "estado: cerrada", txt, count=1, flags=re.M)
     open(f, "w").write(txt)
-    print(f"tarea {c['id']} cerrada sobre la huella {huella_arbol(root)}")
+    print(f"tarea {c['id']} cerrada sobre la huella {huella_arbol(root, c.get('base'))}")
     return 0
 
 
 def cmd_status(root, args):
     c = leer_contrato(root)
-    print(f"tarea {c['id']} · estado {c['estado']} · huella {huella_arbol(root)}")
+    print(f"tarea {c['id']} · estado {c['estado']} · huella {huella_arbol(root, c.get('base'))}")
     print(f"scope: {c['scope_paths']}")
     print(f"cambiados: {ficheros_cambiados(root, c.get('base'))}")
     return cmd_verify(root, args)
