@@ -42,7 +42,24 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
-### 04-09-2026 · instalación pendiente por permisos de la sesión
+### 05-09-2026 · hook instalado; confianza y cruce pendientes
+
+La fusión global está aplicada tras aprobar la escritura puntual. La nueva copia
+previa es `~/assure/.assure/evidence/hooks.json.20260904T220001Z.bak` (fecha UTC).
+El JSON instalado contiene exactamente tres entradas Stop: las dos anteriores
+y la entrada del adaptador, con timeout de 30 segundos. La comparación estructural
+confirma que el resto de eventos, comandos y opciones permanece idéntico.
+`cmp` confirmó que el archivo instalado coincide byte a byte con la fusión revisada.
+
+**NO VERIFICADO:** confianza del nuevo hook y cruce en vivo. José debe revisar y
+confiar en `/hooks` la entrada `"$HOME/assure/bin/assure" hook codex`. Esta instalación
+no escribe el hash de confianza en `config.toml`. El cruce desechable y la Parte 2
+siguen pendientes; `ASSURE-CODEX-01` permanece abierto.
+
+La batería previa tiene dos pasadas `PASS=58 FAIL=0`; no se ha modificado el
+evaluador ni la batería. El bloqueo inicial de escritura queda resuelto.
+
+### 04-09-2026 · historial del bloqueo inicial de instalación (resuelto)
 
 **NO VERIFICADO en vivo desde Codex.** El encargo se inició sobre `f9218b8`, con el
 árbol limpio. `bash tests/assure-stop-test.sh` terminó con código 0 y

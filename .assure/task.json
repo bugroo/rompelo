@@ -3,7 +3,7 @@
   "id": "ASSURE-CODEX-01",
   "estado": "abierta",
   "base": "f9218b8dd27f42014caff83685425419967a0ff1",
-  "descripcion": "Instalar y cruzar el hook Stop de Codex; después implementar control positivo y triestado. Pendiente de una sesión con escritura en .codex.",
+  "descripcion": "Hook Stop de Codex instalado. Pendientes la confianza en la interfaz, el cruce en vivo y después control positivo y triestado.",
   "scope_paths": [
     "**"
   ],
