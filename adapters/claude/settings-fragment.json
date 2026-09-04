@@ -2,6 +2,9 @@
   "hooks": {
     "Stop": [
       { "hooks": [ { "type": "command", "command": "$HOME/rompelo/adapters/claude/rompelo-stop.sh", "timeout": 30 } ] }
+    ],
+    "PostToolUse": [
+      { "hooks": [ { "type": "command", "command": "$HOME/rompelo/adapters/claude/rompelo-observe.sh", "timeout": 10 } ] }
     ]
   }
 }

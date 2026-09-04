@@ -10,10 +10,12 @@
   "checks": [
     "rompelo.tests",
     "rompelo.cruce-settings-claude",
-    "rompelo.sin-var-pegada"
+    "rompelo.sin-var-pegada",
+    "rompelo.observe-tests"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
-  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo."
+  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "05-09 noche: releídos bin/rompelo (observación), las dos baterías (77 + 30) y los README. Encontrado y arreglado el falso positivo de D1 con heredocs; los perfiles auth/despliegue/secretos de este repo venían de prosa, no de comandos."
 }

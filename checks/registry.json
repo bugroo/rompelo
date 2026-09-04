@@ -27,5 +27,14 @@
     "cwd": "rompelo",
     "min_lineas": 1,
     "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)"
+  },
+  "rompelo.observe-tests": {
+    "argv": [
+      "bash",
+      "tests/rompelo-observe-test.sh"
+    ],
+    "cwd": "rompelo",
+    "min_lineas": 10,
+    "descripcion": "batería de la capa de observación"
   }
 }

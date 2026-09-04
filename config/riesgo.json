@@ -1,0 +1,4 @@
+{
+  "_ayuda": "Perfiles de riesgo (docs/observacion.md §4 D1): expresiones regulares sobre el comando y las rutas tocadas. Añade las tuyas; las de aquí sustituyen a las del código para ese perfil.",
+  "junta": ["functions/api/", "\\bwebhooks?\\b", "\\bn8n\\b", "\\bworkflows?/", "process\\.env", "os\\.environ", "import\\.meta\\.env"]
+}

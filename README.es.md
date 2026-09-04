@@ -41,6 +41,27 @@ La batería (77 casos, en CI en cada push) aplica este ciclo a cada condición d
 puerta. Cuando una mutación se usa para forzar el rojo, la prueba confirma primero que la
 mutación ocurrió. Una mutación que no se aplicó no prueba nada, y ese error está dos veces en el corpus.
 
+## Se da cuenta de cuándo mirar más despacio
+
+Comprobarlo todo, siempre, no aguanta un día real: un guardián que grita siempre se acaba
+apagando. Por eso la puerta tiene un suelo barato y una capa de observación que sube el rigor
+solo cuando salta uno de tres disparadores, y avisa antes de subirlo:
+
+| Disparador | Salta con | Qué exige entonces la puerta |
+|---|---|---|
+| **riesgo de la tarea** | ediciones o comandos que tocan `auth`, secretos, migraciones, despliegues, una junta con otro sistema (`functions/api/`, webhooks, `process.env`) o una dependencia nueva (`pnpm add`, `package.json`) | cruce real aunque el contrato diga `toca_junta: false`; afirmaciones con fuente para una dependencia nueva |
+| **patrón repetido** | la misma firma de error dos veces, el mismo check en rojo dos veces, un fichero editado cuatro veces sin un check verde entre medias, un comando que sale con 0 sin salida dos veces | una segunda pasada explícita antes de cerrar (`segunda_pasada` en el contrato) |
+| **afirmaciones sobre el mundo** | `toca_exterior` en el contrato, o el disparador de dependencia de arriba | cada afirmación con `verificado` (fuente y cita), `derivado` o `no_verificado` |
+
+El observador es un hook `PostToolUse` (`rompelo observe <agente>`). Nunca bloquea y nunca guarda
+texto de comandos ni de salidas: un libro por sesión con programa, hash del comando, código de
+salida, recuentos, firma normalizada del error y rutas tocadas, fuera del repo. Los umbrales
+viven en `config/observacion.json`, los perfiles en `config/riesgo.json`, y la batería los muta
+para demostrar que se leen. Subir a nivel 2 avisa al agente (tiene que decírtelo en dos líneas)
+y no pide permiso; gastar en comprobaciones externas (nivel 3) sí: `rompelo permiso <patron>
+si|no --recordar` guarda tu respuesta para preguntarte una sola vez. Diseño y límites en
+[docs/observacion.md](docs/observacion.md).
+
 ## Qué exige la puerta
 
 Un repo se alista con `rompelo init`, que escribe `.rompelo/task.json` y apunta el repo en una
@@ -94,7 +115,7 @@ viven tus comandos, un id cada uno, como argv:
 
 Después, el hook:
 
-- **Claude Code**: añade la entrada `Stop` de
+- **Claude Code**: añade las entradas `Stop` y `PostToolUse` de
   [`adapters/claude/settings-fragment.json`](adapters/claude/settings-fragment.json) a
   `~/.claude/settings.json`.
 - **Codex**: fusiona [`adapters/codex/hooks.json`](adapters/codex/hooks.json) en
@@ -128,12 +149,12 @@ tu cargo (hallazgos aceptados sin corregir).
   reproduce [`tests/cruce-settings-claude.sh`](tests/cruce-settings-claude.sh), visto dar sus tres códigos.
 - **No verificado:** el lado de Codex en vivo. El adaptador sigue el contrato oficial del hook;
   instalarlo y confiarlo es del usuario. La capa de observación de
-  [docs/observacion.md](docs/observacion.md) es diseño, no código.
+  el observador se cruzó en vivo una vez, sin querer: mientras se escribía esta documentación, el hook `PostToolUse` subió el repo a nivel 2 y destapó un falso positivo (palabras de riesgo dentro de un heredoc que escribía prosa), arreglado con caso en rojo primero. El nivel 3 con herramientas externas no está construido.
 
 ## Hoja de ruta, en orden
 
 1. Control positivo por check registrado: el instrumento tiene que detectar una entrada mala conocida antes de que su verde valga.
-2. Capa de observación: tres disparadores (riesgo de la tarea, firma de error repetida, afirmaciones sobre el mundo) que suben el rigor avisando antes, y piden permiso una vez antes de gastar en comprobaciones externas.
+2. Nivel 3 de verdad: checks externos registrados (mutation testing, escáneres de seguridad) que el observador pueda proponer cuando hayas dado permiso.
 3. Que el informe de cierre pueda decir «visto fallar» de verdad, cuando cada check tenga control positivo.
 4. Mensajes de la puerta en inglés.
 5. Incidentes que se compilan en checks registrados: una lección como detector, no como prosa.

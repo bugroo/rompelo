@@ -18,7 +18,7 @@ Decide código normal. El modelo pide; esto concede. Fail-closed: un repo alista
 contrato ilegible bloquea. Repos fuera de la allowlist: silencio, y no se ejecuta nada.
 Tope de 3 bloqueos por sesión y tarea.
 """
-import datetime, fnmatch, hashlib, json, os, re, subprocess, sys, tempfile
+import collections, datetime, fnmatch, hashlib, json, os, re, subprocess, sys, tempfile
 
 TOPE_BLOQUEOS = 3
 ROMPELO_HOME = os.environ.get("ROMPELO_HOME") or os.path.join(os.path.expanduser("~"), "rompelo")
@@ -220,6 +220,19 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
     ev = dir_evidencia(root, c)
     hu = huella_arbol(root, c.get("base"))
     m = []
+    junta_por_perfil = False
+    # La observación (§5 de docs/observacion.md) puede haber subido el nivel del repo. A nivel 2
+    # el perfil manda sobre lo que el agente escribió en el contrato.
+    obs = estado_repo(root)
+    if obs.get("nivel", 0) >= 2:
+        perfiles = set(obs.get("perfiles") or [])
+        if "junta" in perfiles and not c["toca_junta"]:
+            c = dict(c, toca_junta=True)
+            junta_por_perfil = True
+        if "exterior" in perfiles and not c.get("toca_exterior"):
+            c = dict(c, toca_exterior=True)
+        if not str(c.get("segunda_pasada") or "").strip():
+            m.append("observación: nivel 2 (" + ", ".join(sorted(obs.get("patrones") or [])) + "). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)")
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
@@ -260,12 +273,16 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
         (m if ci.get("estricto") else ci["advertencias"]).append(txt)
     elif c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json")
+        mc = []
         if cr is None:
-            m.append("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)")
+            mc.append("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)")
         elif cr.get("codigo") != 0:
-            m.append(f"el cruce real FALLÓ con código {cr.get('codigo')}: {cr.get('argv')}")
+            mc.append(f"el cruce real FALLÓ con código {cr.get('codigo')}: {cr.get('argv')}")
         elif cr.get("huella") != hu:
-            m.append("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio")
+            mc.append("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio")
+        if mc and junta_por_perfil:
+            m.append("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false")
+        m += mc
 
     for h in c.get("hallazgos") or []:
         if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
@@ -569,10 +586,296 @@ def informe_llano(root, c, ev):
 
 def cmd_status(root, args):
     c = leer_contrato(root)
-    print(f"tarea {c['id']} · estado {c['estado']} · huella {huella_arbol(root, c.get('base'))}")
+    est = estado_repo(root)
+    print(f"tarea {c['id']} · estado {c['estado']} · huella {huella_arbol(root, c.get('base'))} · nivel {est.get('nivel', 0)} {est.get('perfiles', [])} {est.get('patrones', [])}")
     print(f"scope: {c['scope_paths']}  checks: {c['checks']}")
     print(f"cambiados: {ficheros_cambiados(root, c.get('base'))}")
     return cmd_verify(root, args)
+
+
+# ── observación (docs/observacion.md) ────────────────────────────────────────
+ESTADO = os.path.join(ROMPELO_HOME, "state")
+OBS_CONF = os.path.join(ROMPELO_HOME, "config", "observacion.json")
+RIESGO_CONF = os.path.join(ROMPELO_HOME, "config", "riesgo.json")
+PERMISOS = os.path.join(ROMPELO_HOME, "config", "permisos.json")
+UMBRALES = {"firma_repetida": 2, "check_en_rojo": 2, "ediciones_sin_verde": 4, "verde_ambiguo": 2}
+RIESGO = {
+    "auth":       [r"\b(auth|session|login|logout|token|oauth|jwt|passkey)\b"],
+    "secretos":   [r"\.env\b", r"\bsecrets?\b", r"\bvault\b", r"\bpass show\b", r"\bcredentials?\b"],
+    "datos":      [r"migrations?/", r"\.sql$", r"\bpsql\b", r"\bsupabase\b", r"prisma migrate", r"\balembic\b"],
+    "despliegue": [r"\bdeploy", r"\bwrangler\b", r"docker compose up", r"\bsystemctl\b", r"kubectl apply", r"terraform apply"],
+    "junta":      [r"functions/api/", r"\bwebhooks?\b", r"\bn8n\b", r"\bworkflows?/", r"process\.env", r"os\.environ", r"import\.meta\.env"],
+    "exterior":   [r"^pnpm (add|install)\b", r"^npm (i|install|add)\b", r"^yarn add\b", r"^pip3? install\b", r"^cargo add\b", r"^go get\b", r"package\.json$", r"pyproject\.toml$", r"requirements.*\.txt$"],
+}
+CHECKS_VERDES = ("pnpm test", "npm test", "yarn test", "pytest", "python3 -m pytest", "cargo test", "go test", "make test", "make check", "rompelo check", "vitest", "jest")
+
+
+def leer_json_o(f, defecto):
+    try:
+        return leer_json(f)
+    except (FileNotFoundError, ValueError):
+        return defecto
+
+
+def umbrales():
+    u = dict(UMBRALES)
+    u.update({k: int(v) for k, v in leer_json_o(OBS_CONF, {}).items() if k in UMBRALES})
+    return u
+
+
+def perfiles_riesgo():
+    r = {k: list(v) for k, v in RIESGO.items()}
+    for k, v in leer_json_o(RIESGO_CONF, {}).items():
+        if isinstance(v, list):
+            r[k] = [str(x) for x in v]
+    return r
+
+
+def ruta_estado_repo(root):
+    os.makedirs(os.path.join(ESTADO, "repos"), exist_ok=True)
+    return os.path.join(ESTADO, "repos", hashlib.sha256(root.encode()).hexdigest()[:16] + ".json")
+
+
+def estado_repo(root):
+    return leer_json_o(ruta_estado_repo(root), {})
+
+
+def guardar_estado_repo(root, d):
+    with open(ruta_estado_repo(root), "w") as fh:
+        json.dump(d, fh, indent=2, ensure_ascii=False)
+
+
+def normalizar_firma(texto):
+    t = texto.strip().lower()
+    t = re.sub(r"0x[0-9a-f]+|\b[0-9a-f]{7,}\b", "#", t)
+    t = re.sub(r"/[^\s'\"]+", "/…/", t)
+    t = re.sub(r"\d+", "#", t)
+    t = re.sub(r"[\"'`]", "", t)
+    t = re.sub(r"\s+", " ", t)
+    return t
+
+
+def firma_error(stderr, prog, codigo):
+    lineas = [l for l in (stderr or "").split("\n") if l.strip()]
+    if lineas:
+        return hashlib.sha256(normalizar_firma(lineas[-1]).encode()).hexdigest()[:12]
+    if codigo not in (None, 0):
+        return hashlib.sha256(f"{prog}:{codigo}".encode()).hexdigest()[:12]
+    return None
+
+
+def programa(cmd):
+    partes = [p for p in cmd.strip().split() if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", p)]
+    if not partes:
+        return ""
+    prog = os.path.basename(partes[0])
+    if prog in ("sudo", "env", "time", "nice"):
+        return programa(" ".join(partes[1:]))
+    if len(partes) > 1 and not partes[1].startswith("-") and prog in (
+            "git", "pnpm", "npm", "yarn", "bun", "docker", "cargo", "go", "make", "python3", "python", "node", "bash", "sh", "rompelo", "gh", "kubectl", "terraform", "wrangler", "pip", "pip3"):
+        return f"{prog} {os.path.basename(partes[1])}"
+    return prog
+
+
+def evento_desde_hook(ent):
+    """Traduce el PostToolUse de Claude Code o Codex a la línea del libro. Sin texto de comandos
+    ni de salidas: solo programa, hash, código, recuentos, firma y rutas."""
+    tool = str(ent.get("tool_name") or "")
+    ti = ent.get("tool_input") or {}
+    resp = ent.get("tool_response")
+    if not isinstance(ti, dict):
+        ti = {}
+    cmd = str(ti.get("command") or "") if tool in ("Bash", "bash", "shell") else ""
+    stdout, stderr, codigo = "", "", None
+    if isinstance(resp, dict):
+        for k in ("stdout", "output", "content"):
+            if isinstance(resp.get(k), str):
+                stdout += resp[k]
+        stderr = resp.get("stderr") if isinstance(resp.get("stderr"), str) else ""
+        for k in ("exit_code", "exitCode", "code", "returncode"):
+            if isinstance(resp.get(k), int):
+                codigo = resp[k]
+                break
+    elif isinstance(resp, str):
+        stdout = resp
+    if codigo is None:
+        mo = re.search(r"[Ee]xit code:? (\d+)", stderr + "\n" + stdout)
+        if mo:
+            codigo = int(mo.group(1))
+        elif tool in ("Bash", "bash", "shell") and not stderr:
+            codigo = 0 if resp is not None else None
+    ficheros = []
+    for k in ("file_path", "path", "notebook_path"):
+        if isinstance(ti.get(k), str):
+            ficheros.append(ti[k])
+    if tool == "apply_patch" or (cmd.startswith("apply_patch") or "*** Begin Patch" in cmd):
+        ficheros += re.findall(r"\*\*\* (?:Add|Update|Delete) File: (.+)", cmd)
+    prog = programa(cmd) if cmd else tool.lower()
+    return {
+        "t": ahora(), "tool": tool, "prog": prog,
+        "cmd_sha": hashlib.sha256(cmd.encode()).hexdigest()[:12] if cmd else None,
+        "cmd_es_check": bool(cmd) and any(cmd.strip().startswith(x) or f" {x}" in f" {cmd}" for x in CHECKS_VERDES),
+        "codigo": codigo, "stderr_lineas": (stderr or "").count("\n") + (1 if (stderr or "").strip() else 0),
+        "stdout_vacio": not (stdout or "").strip(),
+        "firma": firma_error(stderr, prog, codigo) if cmd else None,
+        "ficheros": ficheros,
+        # Para D1 se mira el comando SIN los cuerpos de heredoc: ahí va texto, no órdenes, y un
+        # documento que habla de functions/api no es tocar functions/api (falso positivo en vivo, 05-09).
+        "riesgo_texto": (re.sub(r"<<-?\s*['\"]?(\w+)['\"]?.*?^\s*\1\s*$", "", cmd, flags=re.S | re.M) + "\n" + "\n".join(ficheros)),
+    }
+
+
+def perfiles_de(evento):
+    txt = evento.get("riesgo_texto") or ""
+    hits = set()
+    for perfil, patrones in perfiles_riesgo().items():
+        for pat in patrones:
+            try:
+                if re.search(pat, txt, re.M | re.I):
+                    hits.add(perfil)
+                    break
+            except re.error:
+                continue
+    return hits
+
+
+def patrones_de(libro, u):
+    """D2 sobre el libro de la sesión. Devuelve {nombre_patron: detalle}."""
+    out = {}
+    firmas = collections.Counter(e.get("firma") for e in libro if e.get("firma"))
+    for f, n in firmas.items():
+        if n >= u["firma_repetida"]:
+            out["firma-repetida"] = f"el mismo error {n} veces (firma {f})"
+            break
+    rojos = collections.Counter(e.get("prog") for e in libro if e.get("cmd_es_check") and e.get("codigo") not in (None, 0))
+    for p, n in rojos.items():
+        if n >= u["check_en_rojo"]:
+            out["check-en-rojo"] = f"`{p}` en rojo {n} veces"
+            break
+    ediciones = collections.Counter()
+    for e in libro:
+        if e.get("cmd_es_check") and e.get("codigo") == 0:
+            ediciones.clear()
+        for f in e.get("ficheros") or []:
+            ediciones[f] += 1
+    for f, n in ediciones.items():
+        if n >= u["ediciones_sin_verde"]:
+            out["ediciones-sin-verde"] = f"`{f}` editado {n} veces sin un check en verde entre medias"
+            break
+    ambiguos = collections.Counter(e.get("prog") for e in libro
+                                   if e.get("cmd_sha") and e.get("codigo") == 0 and (e.get("stdout_vacio") or e.get("stderr_lineas", 0) > 0))
+    for p, n in ambiguos.items():
+        if n >= u["verde_ambiguo"]:
+            out["verde-ambiguo"] = f"`{p}` salió con 0 pero sin salida o con stderr {n} veces: un limpio que no se distingue de «no miré»"
+            break
+    return out
+
+
+def cmd_observe(agente, args):
+    """PostToolUse. Nunca bloquea; a lo sumo devuelve additionalContext. Fail-silent hacia
+    state/observe.err para no romper la sesión."""
+    try:
+        ent = json.load(sys.stdin)
+        if not isinstance(ent, dict):
+            return 0
+        sid = re.sub(r"[^A-Za-z0-9._-]", "_", str(ent.get("session_id") or "nosession"))
+        cwd = ent.get("cwd") or os.getcwd()
+        root = raiz_repo(cwd)
+        ev = evento_desde_hook(ent)
+        ev["repo"] = root
+        os.makedirs(os.path.join(ESTADO, "sesiones"), exist_ok=True)
+        libro_f = os.path.join(ESTADO, "sesiones", f"{agente}-{sid}.jsonl")
+        libro = []
+        try:
+            with open(libro_f) as fh:
+                libro = [json.loads(l) for l in fh if l.strip()]
+        except FileNotFoundError:
+            pass
+        perfiles = perfiles_de(ev)
+        guardado = {k: v for k, v in ev.items() if k != "riesgo_texto"}
+        guardado["perfiles"] = sorted(perfiles)
+        with open(libro_f, "a") as fh:
+            fh.write(json.dumps(guardado, ensure_ascii=False) + "\n")
+        libro.append(guardado)
+        if not root or root not in repos_permitidos():
+            return 0  # se observa, pero solo se escala en repos alistados
+        u = umbrales()
+        est = estado_repo(root)
+        est.setdefault("perfiles", [])
+        est.setdefault("patrones", [])
+        est.setdefault("avisos", {})
+        nuevos = []
+        for p in sorted(perfiles):
+            if p not in est["perfiles"]:
+                est["perfiles"].append(p)
+                nuevos.append(("perfil", p, f"la tarea toca `{p}`"))
+        for nombre, detalle in patrones_de([e for e in libro if e.get("repo") == root], u).items():
+            if nombre not in est["patrones"]:
+                est["patrones"].append(nombre)
+                nuevos.append(("patron", nombre, detalle))
+        if not nuevos:
+            guardar_estado_repo(root, est)
+            return 0
+        est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+        clave = f"{agente}-{sid}"
+        est["avisos"].setdefault(clave, [])
+        pendientes = [n for n in nuevos if n[1] not in est["avisos"][clave]]
+        est["avisos"][clave] += [n[1] for n in pendientes]
+        est["fecha"] = ahora()
+        guardar_estado_repo(root, est)
+        if not pendientes:
+            return 0
+        exige = []
+        if "junta" in est["perfiles"]:
+            exige.append("cruce real de la junta después del último cambio (`rompelo cruce`)")
+        if "exterior" in est["perfiles"]:
+            exige.append("cada afirmación sobre la dependencia o servicio con estado y fuente (`afirmaciones` en el contrato)")
+        if {"secretos", "datos", "auth", "despliegue"} & set(est["perfiles"]):
+            exige.append("checks con control positivo cuando estén disponibles; hasta entonces, `min_lineas` en el registro")
+        exige.append("una segunda pasada explícita antes de cerrar (campo `segunda_pasada` del contrato)")
+        texto = ("[rompelo · observación] He reconocido " + "; ".join(f"{d}" for _, _, d in pendientes) +
+                 f". Subo el rigor de este repo a nivel 2. Antes de seguir, dile al usuario en dos líneas qué patrón he visto y que a partir de ahora la tarea exige: " +
+                 "; ".join(exige) + ". Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.")
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": texto}}, ensure_ascii=False))
+        return 0
+    except Exception as exc:
+        try:
+            os.makedirs(ESTADO, exist_ok=True)
+            with open(os.path.join(ESTADO, "observe.err"), "a") as fh:
+                fh.write(f"{ahora()} {exc.__class__.__name__}: {exc}\n")
+        except Exception:
+            pass
+        return 0
+
+
+def cmd_permiso(root, args):
+    if len(args) < 2 or args[1] not in ("si", "sí", "no"):
+        sys.exit("uso: rompelo permiso <patron> si|no [--recordar]")
+    d = leer_json_o(PERMISOS, {})
+    entrada = {"respuesta": "si" if args[1] in ("si", "sí") else "no", "fecha": ahora(), "repo": root, "recordar": "--recordar" in args}
+    d.setdefault(args[0], []).append(entrada)
+    os.makedirs(os.path.dirname(PERMISOS), exist_ok=True)
+    with open(PERMISOS, "w") as fh:
+        json.dump(d, fh, indent=2, ensure_ascii=False)
+    est = estado_repo(root)
+    if entrada["respuesta"] == "si":
+        est["nivel"] = 3
+        est.setdefault("permisos", []).append(args[0])
+        guardar_estado_repo(root, est)
+    print(f"permiso {entrada['respuesta']} para `{args[0]}`" + (" (recordado)" if entrada["recordar"] else "") + f" · nivel del repo: {est.get('nivel', 0)}")
+    return 0
+
+
+def cmd_nivel(root, args):
+    est = estado_repo(root)
+    if args and args[0] == "bajar":
+        motivo = valor(args, "--motivo")
+        if not motivo:
+            sys.exit("uso: rompelo nivel bajar --motivo 'por qué'")
+        est.update({"nivel": 0, "perfiles": [], "patrones": [], "bajado": {"fecha": ahora(), "motivo": motivo}})
+        guardar_estado_repo(root, est)
+    print(f"nivel {est.get('nivel', 0)} · perfiles {est.get('perfiles', [])} · patrones {est.get('patrones', [])}")
+    return 0
 
 
 def cmd_repos(args):
@@ -630,6 +933,8 @@ uso:
   rompelo status | verify [--json] [--ci [--estricto]] | check | close | repos
   rompelo cruce [--nota TXT] (--id ID | -- <argv>)
   rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
+  rompelo observe claude|codex   (lo llama el hook PostToolUse; JSON por stdin; nunca bloquea)
+  rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}
 """
 
@@ -641,13 +946,15 @@ def main(argv):
     sub, args = argv[0], argv[1:]
     if sub == "hook":
         return cmd_hook(args[0] if args else "claude", args[1:])
+    if sub == "observe":
+        return cmd_observe(args[0] if args else "claude", args[1:])
     if sub == "repos":
         return cmd_repos(args)
     root = raiz_repo(os.getcwd())
     if not root:
         sys.exit("rompelo: no estás dentro de un repositorio git")
     tabla = {"init": cmd_init, "status": cmd_status, "verify": cmd_verify, "check": cmd_check,
-             "cruce": cmd_cruce, "close": cmd_close}
+             "cruce": cmd_cruce, "close": cmd_close, "permiso": cmd_permiso, "nivel": cmd_nivel}
     if sub not in tabla:
         sys.exit(f"rompelo: subcomando desconocido '{sub}'\n{AYUDA}")
     try:

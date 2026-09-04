@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/rompelo/bin/rompelo\" observe codex",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

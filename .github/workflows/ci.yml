@@ -15,6 +15,8 @@ jobs:
           git config --global user.email ci@example.com
           git config --global user.name ci
           bash "$HOME/rompelo/tests/rompelo-stop-test.sh"
+      - name: Observation layer battery (every trigger seen firing and not firing)
+        run: bash "$HOME/rompelo/tests/rompelo-observe-test.sh"
       - name: Tri-state check sees its own positive control
         # Con `bash -e` un comando que sale con 1 aborta el paso antes del test: se captura el código.
         run: |

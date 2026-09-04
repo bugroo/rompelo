@@ -44,6 +44,27 @@ The test battery (77 cases, run in CI on every push) applies this cycle to every
 gate itself. When a mutation is used to force red, the test first confirms the mutation actually
 happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
 
+## It notices when to look harder
+
+Checking everything, always, does not survive contact with a real day: a guard that always
+shouts gets switched off. So the gate has a cheap floor and an observation layer that raises the
+rigor only when one of three triggers fires, and warns before doing so:
+
+| Trigger | Fires on | What the gate then demands |
+|---|---|---|
+| **task risk** | edits or commands touching `auth`, secrets, migrations, deploys, an integration boundary (`functions/api/`, webhooks, `process.env`), or a new dependency (`pnpm add`, `package.json`) | a real crossing even if the contract said `toca_junta: false`; claims with a source for a new dependency |
+| **repeated pattern** | the same error signature twice, the same check red twice, one file edited four times without a green check in between, a command that exits 0 with empty output twice | an explicit second pass before closing (`segunda_pasada` in the contract) |
+| **claims about the world** | `toca_exterior` in the contract, or the dependency trigger above | every claim with `verificado` (source + quote), `derivado` or `no_verificado` |
+
+The observer is a `PostToolUse` hook (`rompelo observe <agent>`). It never blocks and it never
+stores command text or output: per-session ledger with program name, a hash of the command, exit
+code, line counts, a normalized error signature and the paths touched, kept outside the repo.
+Thresholds live in `config/observacion.json`, risk patterns in `config/riesgo.json`, and the
+battery mutates them to prove they are read. Raising to level 2 warns the agent (it must tell you
+in two lines) and does not ask; spending on external checks (level 3) does: `rompelo permiso
+<pattern> si|no --recordar` records your answer so you are asked once. Design and limits in
+[docs/observacion.md](docs/observacion.md).
+
 ## What the gate enforces
 
 A repo opts in with `rompelo init`, which writes `.rompelo/task.json` and adds the repo to a local
@@ -98,7 +119,7 @@ one id each, as argv:
 
 Then connect the hook:
 
-- **Claude Code**: add the `Stop` entry from
+- **Claude Code**: add the `Stop` and `PostToolUse` entries from
   [`adapters/claude/settings-fragment.json`](adapters/claude/settings-fragment.json) to
   `~/.claude/settings.json`.
 - **Codex**: merge [`adapters/codex/hooks.json`](adapters/codex/hooks.json) into
@@ -134,12 +155,12 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
   return all three of its exit codes.
 - **Not verified:** the Codex side live. The adapter follows the official hook contract; the
   install and trust steps belong to the user. The observation layer in
-  [docs/observacion.md](docs/observacion.md) is a design, not code.
+  the observer has been crossed live once, by accident: while this documentation was being written, the `PostToolUse` hook raised the repo to level 2 and, in doing so, exposed a false positive (risk words inside a heredoc that wrote prose), fixed with a red case first. Level 3 with external tools is not built.
 
 ## Roadmap, in order
 
 1. Positive control per registered check: the instrument must detect a known-bad input before its green counts.
-2. Observation layer: three triggers (task risk, repeated error signature, claims about the world) that raise rigor with a warning first, and ask once before spending on external checks.
+2. Level 3 for real: registered external checks (mutation testing, security scanners) that the observer can propose once you have given permission.
 3. Closing report that says "seen failing" for real, once every check has a positive control.
 4. English messages from the gate.
 5. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.

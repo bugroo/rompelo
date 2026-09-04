@@ -165,3 +165,23 @@ lectura del contenido de comandos o salidas más allá de recuentos y hashes.
 3. Aviso, niveles y `rompelo permiso`.
 4. Informe en llano.
 5. D3 y nivel 3 (externo), con Strix o Stryker como primer check registrado de perfil.
+
+## 12. Cruce en vivo (05-09-2026)
+
+Implementados §2, §3, §4 (D1 y D2), §5 (niveles 0, 2 y 3), §6 (aviso una vez por patrón y
+sesión; `rompelo permiso`) y §7 (adaptadores Claude y Codex). Batería propia:
+`tests/rompelo-observe-test.sh`.
+
+El primer cruce real lo hizo el propio observador sin provocarlo: conectado el hook
+`PostToolUse` en Claude Code, la sesión que estaba escribiendo esta documentación en
+`~/rompelo` recibió el aviso de nivel 2 con los perfiles `junta`, `auth`, `despliegue` y
+`secretos`. Dos cosas verificadas a la vez: el camino settings.json → hook → `rompelo observe`
+→ `additionalContext` funciona, y D1 tenía un falso positivo: leía las palabras de riesgo en el
+**cuerpo de un heredoc** que escribía prosa, no en un comando. Arreglado quitando los cuerpos de
+heredoc antes de evaluar D1, con caso en rojo primero.
+
+Pendiente de este diseño: §4 D3 más allá del perfil `exterior`, §5 nivel 3 con herramientas
+externas registradas, §8 informe con patrones y permisos (hoy el informe no los lista), §9.2
+control negativo con sesiones reales y §9.3 anotar en cada incidente el disparador que lo
+habría visto.
+
