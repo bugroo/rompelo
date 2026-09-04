@@ -40,7 +40,7 @@ and session; after that `rompelo` warns the user and lets go, so nobody gets tra
 
 ![Three steps: start from green, confirmed mutation turns it red, undo it and it is green again](docs/img/en/rojo-primero.png)
 
-The test battery (60 cases, run in CI on every push) applies this cycle to every condition of the
+The test battery (63 cases, run in CI on every push) applies this cycle to every condition of the
 gate itself. When a mutation is used to force red, the test first confirms the mutation actually
 happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
 
@@ -109,7 +109,7 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
 
 ## Verified, and not
 
-- 60 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
+- 63 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
   red with a confirmed mutation, then green. CI runs them on Ubuntu on every push.
 - The Claude Code side has been crossed live: ending a turn with an unmet contract returned the
   block with the right reasons, and the configured `settings.json` line is replayed by

@@ -161,6 +161,12 @@ espera_bloqueo "cerrada con cambios posteriores" s10b "cambios posteriores al ci
 "$ASSURE" close >/dev/null && ok "se puede volver a cerrar tras rehacer la evidencia" || bad "re-close"
 espera_paso "re-cerrada: silencio" s10d
 
+echo "── fichero NUEVO: commitearlo no cambia la huella (mismo contenido)"
+echo n > src/nuevo.txt; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+espera_paso "cerrada con fichero nuevo sin rastrear: silencio" s12
+git add -A >/dev/null && git commit -qm "fichero nuevo" && ok "commit del fichero nuevo" || bad "commit"
+espera_paso "cerrada y el fichero nuevo ya commiteado: sigue en silencio" s12b
+
 echo
 echo "PASS=$PASS FAIL=$FAIL"
 rm -rf "$T"

@@ -37,7 +37,7 @@ por tarea y sesión; después `rompelo` avisa al usuario y suelta, para que nadi
 
 ![Tres pasos: verde de partida, mutación confirmada que lo pone en rojo, deshecha y verde otra vez](docs/img/es/rojo-primero.png)
 
-La batería (60 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
+La batería (63 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
 puerta. Cuando una mutación se usa para forzar el rojo, la prueba confirma primero que la
 mutación ocurrió. Una mutación que no se aplicó no prueba nada, y ese error está dos veces en el corpus.
 
@@ -105,7 +105,7 @@ cd tu-repo
 
 ## Verificado, y no
 
-- 60 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
+- 63 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
   en rojo con una mutación confirmada y luego en verde. CI los corre en Ubuntu en cada push.
 - El lado de Claude Code está cruzado en vivo: terminar un turno con el contrato sin cumplir
   devolvió el bloqueo con los motivos correctos, y la línea configurada en `settings.json` la

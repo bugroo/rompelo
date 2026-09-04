@@ -52,16 +52,16 @@ def ref_base(root, base):
 
 
 def huella_arbol(root, base=None):
-    """Huella del CONTENIDO del árbol sin `.rompelo/`: diff frente a la base + untracked.
-    No incluye HEAD a propósito: commitear el mismo contenido no cambia la huella."""
+    """Huella del CONTENIDO del árbol sin `.rompelo/`: para cada ruta que difiere de la base
+    (rastreada o no), su hash de contenido, o D si se borró. No depende de HEAD ni de si el
+    fichero está en el índice: commitear el mismo contenido no cambia la huella."""
     h = hashlib.sha256()
-    if head(root) != "sin-head":
-        h.update(git(root, "diff", ref_base(root, base), "--", *EXCL).stdout.encode())
-    else:
-        h.update(b"sin-head")
-    for p in sorted(git(root, "ls-files", "--others", "--exclude-standard", "--", *EXCL).stdout.split("\n")):
-        if p:
+    for p in ficheros_cambiados(root, base):
+        f = os.path.join(root, p)
+        if os.path.isfile(f):
             h.update(f"{p}:{git(root, 'hash-object', '--', p).stdout.strip()}\n".encode())
+        else:
+            h.update(f"{p}:D\n".encode())
     return h.hexdigest()[:16]
 
 
