@@ -1,0 +1,15 @@
+id: INC-2026-0007
+titulo: "git stash -u con pathspec dijo «No local changes to save» y borró ficheros sin rastrear"
+fecha: 2026-08-31
+fuente: memoria feedback_git_stash_u_pathspec_borra
+tipo: destructivo
+evidencia_verde: >
+  Mensaje de «no hice nada» y ningún stash creado. Pérdida de datos disfrazada de no-op.
+lo_que_faltaba: >
+  El comando no está en ninguna lista del guardián de Bash. Ninguna regla actual lo
+  habría atrapado (dicho en CLAUDE.md).
+gate: pretooluse-destructivo
+gate_descripcion: PreToolUse que bloquea stash -u con pathspec o exige mv a directorio temporal.
+existe_hoy: no
+existe_hoy_detalle: solo la regla escrita en memoria.
+spike_cubre: no

@@ -1,0 +1,16 @@
+id: INC-2026-0009
+titulo: "El fallback del switch enviaba lo que no entendía a «descartado»; visto el 22-08, archivado sin responder, mordió el 27-08"
+fecha: 2026-08-27
+fuente: ~/ClaveON_B2C/docs/PROBLEMAS-RESUELTOS.md#N66; ERRORLOG P16
+tipo: contexto-perdido
+evidencia_verde: >
+  La auditoría del 22-08 lo anotó como aviso de tipado y el plan lo cerró con «ya
+  señalado, no ampliado hoy». Nadie preguntó a dónde apuntaba el 2.
+lo_que_faltaba: >
+  Un hallazgo con identidad propia y una disposición obligatoria (confirmado, rechazado,
+  aceptado) antes de dar la auditoría por cerrada.
+gate: stop-hallazgos
+gate_descripcion: Stop bloqueado mientras exista un hallazgo del contrato sin disposición.
+existe_hoy: no
+existe_hoy_detalle: los hallazgos viven en prosa dentro de ledgers y auditorías en Markdown.
+spike_cubre: sí

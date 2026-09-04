@@ -1,0 +1,16 @@
+id: INC-2026-0014
+titulo: "Cambio de servidor MCP de Zoho: URL cambiada en tres nodos y la credencial seguía apuntando al viejo; la reconexión duró quince minutos"
+fecha: 2026-08-27
+fuente: ~/ClaveON_B2C/docs/PROBLEMAS-RESUELTOS.md#N72
+tipo: junta
+evidencia_verde: >
+  Ciclo 2583 en verde, borrador creado, dado por cerrado. Desde las 19:15 todos los ciclos
+  fallaban con INVALID_TOKEN.
+lo_que_faltaba: >
+  El orden: URL en los nodos Y en la credencial, y luego Connect. Un orden invertido que
+  falla en silencio, guardado en la memoria de quien despliega y no en un guion.
+gate: stop-junta
+gate_descripcion: Contrato con toca_junta y cruce real registrado DESPUÉS del último cambio, no antes.
+existe_hoy: no
+existe_hoy_detalle: regla escrita al final de N72.
+spike_cubre: sí

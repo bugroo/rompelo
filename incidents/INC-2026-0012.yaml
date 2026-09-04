@@ -1,0 +1,16 @@
+id: INC-2026-0012
+titulo: "«Estos commits salen sobre main sin depender del rediseño»: cierto para el código, falso para el despliegue"
+fecha: 2026-09-03
+fuente: memoria feedback_medir_antes_de_afirmar (caso 4)
+tipo: ambito
+evidencia_verde: >
+  git diff limpio entre las ramas. Publicar desde ahí habría borrado el rediseño entero,
+  porque producción no sigue a main.
+lo_que_faltaba: >
+  Decir en la misma frase sobre qué ámbito se midió. Y un despliegue que compare lo que
+  va a publicar con lo que hay publicado.
+gate: deriva-generada
+gate_descripcion: deploy que mide el commit desplegado frente al que va a desplegar y aborta ante retroceso.
+existe_hoy: parcial
+existe_hoy_detalle: reference_claveon_deploy_verify cubre verificación posterior, no el retroceso previo.
+spike_cubre: no

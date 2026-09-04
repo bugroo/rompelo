@@ -1,0 +1,15 @@
+id: INC-2026-0011
+titulo: "Cierre automático de lead entregado con 575 pruebas en verde y ninguna tocaba la línea nueva"
+fecha: 2026-09-03
+fuente: memoria feedback_medir_antes_de_afirmar (caso 3)
+tipo: prueba-ciega
+evidencia_verde: >
+  «Tests en verde» era cierto. Ninguno ejercitaba el código añadido.
+lo_que_faltaba: >
+  Comprobar que alguna prueba toca el diff antes de decir «cubierto». Verde no es
+  cubierto.
+gate: stop-prueba-toca-diff
+gate_descripcion: Stop bloqueado si el diff añade código y ninguna prueba nueva o modificada lo acompaña.
+existe_hoy: no
+existe_hoy_detalle: regla 4 de la memoria; nada la comprueba.
+spike_cubre: sí

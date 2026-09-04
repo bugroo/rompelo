@@ -1,0 +1,15 @@
+id: INC-2026-0013
+titulo: "«No existe copia de la clave GPG», medido solo en este Mac; había una en un disco externo desde hacía 42 días"
+fecha: 2026-08-14
+fuente: memoria feedback_medir_y_afirmar_mismo_ambito; PROBLEMAS.md C3
+tipo: resultado-nulo
+evidencia_verde: >
+  Una búsqueda vacía leída como negativo. C3 quedó mal enunciado dos días.
+lo_que_faltaba: >
+  Que la frase negativa lleve el ámbito donde se buscó, y un control positivo de la
+  búsqueda (algo que sí tenga que aparecer).
+gate: instrumento-control-positivo
+gate_descripcion: Aviso en el momento cuando una búsqueda sale vacía; la afirmación lleva el ámbito.
+existe_hoy: parcial
+existe_hoy_detalle: werixo-medir-de-verdad.sh avisa; no bloquea ni obliga a nombrar el ámbito.
+spike_cubre: no

@@ -1,0 +1,16 @@
+id: INC-2026-0004
+titulo: "Newsletter desplegado cinco días sin dar de alta a nadie, doce altas rechazadas con 403"
+fecha: 2026-08-31
+fuente: memoria feedback_el_fallo_vive_en_la_junta; PROBLEMAS.md N82
+tipo: junta
+evidencia_verde: >
+  Código correcto en los dos lados, pruebas en verde, despliegue sin error, revisión sin
+  hallazgos. El borde mandaba CRM_API_KEY y el servidor comparaba NEWSLETTER_API_KEY.
+lo_que_faltaba: >
+  Una petición real por el camino real después de desplegar. El 403 se ve igual venga
+  de un intruso o del propio cable suelto.
+gate: stop-junta
+gate_descripcion: Stop bloqueado si el contrato marca toca_junta y no hay registro de un cruce real con resultado.
+existe_hoy: parcial
+existe_hoy_detalle: medir-de-verdad avisa al escribir un secreto de panel; comprobar-newsletter.sh existe pero se escribió después. Nada bloquea.
+spike_cubre: sí

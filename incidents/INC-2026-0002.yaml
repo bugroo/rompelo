@@ -1,0 +1,16 @@
+id: INC-2026-0002
+titulo: "El guion de copias versionado no era el desplegado, y su test llevaba meses en verde"
+fecha: 2026-08-13
+fuente: ~/ClaveON_B2C/docs/PROBLEMAS.md#A7
+tipo: prueba-ciega
+evidencia_verde: >
+  test/backup-script.test.mjs en verde durante meses. Comparaba el repositorio consigo
+  mismo: exigía un remoto r2-claveon que no existe en el servidor.
+lo_que_faltaba: >
+  Una comparación entre lo desplegado y origin/main. Tres guiones y once unidades de
+  systemd corrían sin versionar en ningún sitio.
+gate: deriva-generada
+gate_descripcion: Detector que compara fichero a fichero lo desplegado contra origin/main y sale con 1.
+existe_hoy: sí
+existe_hoy_detalle: scripts/comprobar-deriva.sh, probado en las dos direcciones.
+spike_cubre: no

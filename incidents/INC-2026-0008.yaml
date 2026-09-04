@@ -1,0 +1,16 @@
+id: INC-2026-0008
+titulo: "47 filas de producción modificadas al probar un backfill «dentro de una transacción» mal atada"
+fecha: 2026-08-24
+fuente: memoria feedback_nunca_probar_escrituras_contra_produccion
+tipo: destructivo
+evidencia_verde: >
+  Los datos resultantes eran correctos por casualidad. psql confirmó cada UPDATE porque
+  iban antes del begin, no dentro.
+lo_que_faltaba: >
+  Una copia desechable para probar escrituras y un plan escrito y aprobado antes de tocar
+  producción. La regla del repo decía «las migraciones las aplica José».
+gate: pretooluse-destructivo
+gate_descripcion: PreToolUse que bloquea escrituras SQL contra hosts de producción sin plan aprobado en el contrato.
+existe_hoy: no
+existe_hoy_detalle: solo la regla en memoria y en CLAUDE.md.
+spike_cubre: no

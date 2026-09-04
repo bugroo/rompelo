@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+"""assure — puerta de cierre por tarea, agnóstica del agente.
+
+Un repo se «alista» creando `.assure/task.yaml` (`assure init`). Desde ese
+momento, el hook Stop de Claude Code o de Codex llama a `assure hook <agente>`
+y la tarea NO puede darse por terminada hasta que:
+
+  1. cada comando de `checks_obligatorios` se haya ejecutado con `assure check`
+     sobre EL MISMO árbol de trabajo que hay ahora (huella del árbol);
+  2. si `toca_junta: true`, exista un cruce real (`assure cruce -- <cmd>`)
+     con código 0 y sobre el mismo árbol (o sea, DESPUÉS del último cambio);
+  3. ningún hallazgo de `hallazgos:` esté sin `disposicion`;
+  4. ningún fichero cambiado quede fuera de `scope_paths`;
+  5. si `exige_prueba_en_diff: true`, algún fichero de prueba haya cambiado.
+
+Decide código normal, no un modelo. El modelo puede pedir cerrar; solo esto
+concede. Fail-closed: contrato ilegible = bloqueo. Tope de 3 bloqueos por
+sesión y tarea para no dejar a nadie atrapado.
+"""
+import fnmatch, hashlib, json, os, subprocess, sys, tempfile, datetime, shlex
+
+try:
+    import yaml
+except ImportError:
+    print("assure: falta PyYAML (python3 -m pip install --user pyyaml)", file=sys.stderr)
+    sys.exit(2)
+
+TOPE_BLOQUEOS = 3
+PRUEBAS_POR_DEFECTO = ["tests/**", "test/**", "**/*.test.*", "**/*.spec.*", "**/*_test.*"]
+
+
+# ── git ─────────────────────────────────────────────────────────────────────
+def git(root, *args, check=False):
+    r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
+    if check and r.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r
+
+
+def raiz_repo(cwd):
+    r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def head(root):
+    r = git(root, "rev-parse", "HEAD")
+    return r.stdout.strip() if r.returncode == 0 else "sin-head"
+
+
+EXCL = [".", ":(exclude).assure"]
+
+
+def huella_arbol(root):
+    """Huella del árbol de trabajo sin `.assure/`: HEAD + diff frente a HEAD + untracked."""
+    h = hashlib.sha256()
+    hd = head(root)
+    h.update(hd.encode())
+    if hd != "sin-head":
+        h.update(git(root, "diff", "HEAD", "--", *EXCL).stdout.encode())
+    for p in sorted(git(root, "ls-files", "--others", "--exclude-standard", "--", *EXCL).stdout.split("\n")):
+        if not p:
+            continue
+        ho = git(root, "hash-object", "--", p)
+        h.update(f"{p}:{ho.stdout.strip()}\n".encode())
+    return h.hexdigest()[:16]
+
+
+def ficheros_cambiados(root, base):
+    """Cambiados frente a `base` (árbol de trabajo) + untracked. Sin `.assure/`."""
+    ref = base if base and git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode == 0 else "HEAD"
+    out = set()
+    if head(root) != "sin-head":
+        out |= {p for p in git(root, "diff", "--name-only", ref, "--", *EXCL).stdout.split("\n") if p}
+    out |= {p for p in git(root, "ls-files", "--others", "--exclude-standard", "--", *EXCL).stdout.split("\n") if p}
+    return sorted(out)
+
+
+# ── contrato ────────────────────────────────────────────────────────────────
+OBLIGATORIAS = ["id", "estado", "scope_paths", "checks_obligatorios", "toca_junta"]
+
+
+def rutas(root):
+    d = os.path.join(root, ".assure")
+    return d, os.path.join(d, "task.yaml")
+
+
+def leer_contrato(root):
+    _, f = rutas(root)
+    with open(f) as fh:
+        c = yaml.safe_load(fh) or {}
+    faltan = [k for k in OBLIGATORIAS if k not in c]
+    if faltan:
+        raise ValueError(f"task.yaml sin claves obligatorias: {faltan}")
+    if not isinstance(c["scope_paths"], list) or not isinstance(c["checks_obligatorios"], list):
+        raise ValueError("scope_paths y checks_obligatorios tienen que ser listas")
+    return c
+
+
+def dir_evidencia(root, c):
+    d = os.path.join(root, ".assure", "evidence", str(c["id"]))
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def leer_yaml(f):
+    try:
+        with open(f) as fh:
+            return yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        return None
+
+
+def ahora():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+
+def casa(path, patron):
+    patron = patron.rstrip("/")
+    if any(ch in patron for ch in "*?["):
+        return fnmatch.fnmatch(path, patron) or fnmatch.fnmatch(path, patron.replace("**/", ""))
+    return path == patron or path.startswith(patron + "/")
+
+
+# ── veredicto ───────────────────────────────────────────────────────────────
+def motivos_bloqueo(root):
+    """Lista vacía = puede cerrar. Lanza excepción si el contrato es ilegible."""
+    c = leer_contrato(root)
+    ev = dir_evidencia(root, c)
+    hu = huella_arbol(root)
+    m = []
+
+    if str(c["estado"]) == "cerrada":
+        cerr = leer_yaml(os.path.join(ev, "cerrada.yaml"))
+        if cerr and cerr.get("huella") == hu:
+            return []
+        m.append("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `assure check` y `assure close`.")
+
+    cambiados = ficheros_cambiados(root, c.get("base"))
+    fuera = [p for p in cambiados if not any(casa(p, s) for s in c["scope_paths"])]
+    if fuera:
+        m.append("fuera de scope_paths: " + ", ".join(fuera[:8]) + (" …" if len(fuera) > 8 else ""))
+
+    for i, cmd in enumerate(c["checks_obligatorios"], 1):
+        e = leer_yaml(os.path.join(ev, f"check-{i}.yaml"))
+        if e is None:
+            m.append(f"check {i} sin ejecutar: `{cmd}` (usa `assure check`)")
+        elif e.get("comando") != cmd:
+            m.append(f"check {i} cambió en el contrato después de ejecutarse (`{e.get('comando')}` ≠ `{cmd}`)")
+        elif e.get("codigo") != 0:
+            m.append(f"check {i} FALLÓ con código {e.get('codigo')}: `{cmd}`")
+        elif e.get("huella") != hu:
+            m.append(f"check {i} se ejecutó sobre otro árbol (hay cambios posteriores): `{cmd}`")
+
+    if c["toca_junta"]:
+        cr = leer_yaml(os.path.join(ev, "cruce.yaml"))
+        if cr is None:
+            m.append("toca_junta: true y no hay cruce real registrado (`assure cruce --nota '…' -- <comando real>`)")
+        elif cr.get("codigo") != 0:
+            m.append(f"el cruce real FALLÓ con código {cr.get('codigo')}: `{cr.get('comando')}`")
+        elif cr.get("huella") != hu:
+            m.append("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio")
+
+    for h in c.get("hallazgos") or []:
+        if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
+            m.append(f"hallazgo sin disposición: {h.get('id') if isinstance(h, dict) else h}")
+
+    if c.get("exige_prueba_en_diff"):
+        globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
+        prueba = [p for p in cambiados if any(casa(p, g) for g in globs)]
+        codigo = [p for p in cambiados if p not in prueba]
+        if codigo and not prueba:
+            m.append("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto.")
+    return m
+
+
+# ── subcomandos ─────────────────────────────────────────────────────────────
+def cmd_init(root, args):
+    d, f = rutas(root)
+    if os.path.exists(f) and "--force" not in args:
+        sys.exit(f"ya existe {f} (usa --force para sobrescribir)")
+    os.makedirs(d, exist_ok=True)
+    tid = valor(args, "--id") or "TAREA-" + datetime.date.today().isoformat()
+    c = {
+        "id": tid,
+        "estado": "abierta",
+        "base": head(root),
+        "descripcion": valor(args, "--desc") or "",
+        "scope_paths": valores(args, "--scope") or ["**"],
+        "checks_obligatorios": valores(args, "--check") or [],
+        "toca_junta": "--junta" in args,
+        "exige_prueba_en_diff": "--prueba" in args,
+        "hallazgos": [],
+    }
+    with open(f, "w") as fh:
+        fh.write("# Contrato de tarea · lo lee `assure`, lo concede código, no el modelo.\n")
+        fh.write("# hallazgos: [{id: H1, texto: '…', disposicion: confirmado|rechazado|aceptado, nota: '…'}]\n")
+        yaml.safe_dump(c, fh, allow_unicode=True, sort_keys=False)
+    print(f"contrato creado: {f}")
+
+
+def valor(args, k):
+    return args[args.index(k) + 1] if k in args and args.index(k) + 1 < len(args) else None
+
+
+def valores(args, k):
+    return [args[i + 1] for i, a in enumerate(args) if a == k and i + 1 < len(args)]
+
+
+def ejecutar(root, cmd):
+    t0 = datetime.datetime.now()
+    r = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, text=True)
+    dur = (datetime.datetime.now() - t0).total_seconds()
+    salida = (r.stdout or "") + (r.stderr or "")
+    # No se guarda la salida (podría llevar secretos): solo su tamaño y su hash.
+    return {
+        "comando": cmd, "codigo": r.returncode, "segundos": round(dur, 1),
+        "lineas_salida": salida.count("\n"),
+        "sha_salida": hashlib.sha256(salida.encode()).hexdigest()[:12],
+        "fecha": ahora(),
+    }, salida
+
+
+def cmd_check(root, args):
+    c = leer_contrato(root)
+    ev = dir_evidencia(root, c)
+    if not c["checks_obligatorios"]:
+        print("el contrato no tiene checks_obligatorios")
+        return 0
+    fallos = 0
+    for i, cmd in enumerate(c["checks_obligatorios"], 1):
+        print(f"[{i}/{len(c['checks_obligatorios'])}] {cmd}")
+        e, salida = ejecutar(root, cmd)
+        e["huella"] = huella_arbol(root)
+        with open(os.path.join(ev, f"check-{i}.yaml"), "w") as fh:
+            yaml.safe_dump(e, fh, allow_unicode=True, sort_keys=False)
+        if e["codigo"] != 0:
+            fallos += 1
+            print("".join(salida.splitlines(True)[-15:]), end="")
+        print(f"    → código {e['codigo']} en {e['segundos']} s")
+    print("todos en verde" if not fallos else f"{fallos} check(s) en rojo")
+    return 1 if fallos else 0
+
+
+def cmd_cruce(root, args):
+    c = leer_contrato(root)
+    ev = dir_evidencia(root, c)
+    if "--" not in args:
+        sys.exit("uso: assure cruce [--nota 'qué se cruzó'] -- <comando real que toca los dos lados>")
+    cmd = " ".join(shlex.quote(a) for a in args[args.index("--") + 1:])
+    if not cmd:
+        sys.exit("falta el comando del cruce")
+    e, salida = ejecutar(root, cmd)
+    e["nota"] = valor(args, "--nota") or ""
+    e["huella"] = huella_arbol(root)
+    with open(os.path.join(ev, "cruce.yaml"), "w") as fh:
+        yaml.safe_dump(e, fh, allow_unicode=True, sort_keys=False)
+    print(("cruce OK" if e["codigo"] == 0 else f"cruce FALLÓ (código {e['codigo']})") + f": {cmd}")
+    if e["codigo"] != 0:
+        print("".join(salida.splitlines(True)[-15:]), end="")
+    return 0 if e["codigo"] == 0 else 1
+
+
+def cmd_verify(root, args):
+    m = motivos_bloqueo(root)
+    if "--json" in args:
+        print(json.dumps({"ok": not m, "motivos": m}, ensure_ascii=False))
+    elif m:
+        print("BLOQUEADO:")
+        for x in m:
+            print("  - " + x)
+    else:
+        print("OK: la tarea puede cerrarse")
+    return 0 if not m else 1
+
+
+def cmd_close(root, args):
+    m = motivos_bloqueo(root)
+    if m:
+        print("no se puede cerrar:")
+        for x in m:
+            print("  - " + x)
+        return 1
+    c = leer_contrato(root)
+    ev = dir_evidencia(root, c)
+    with open(os.path.join(ev, "cerrada.yaml"), "w") as fh:
+        yaml.safe_dump({"huella": huella_arbol(root), "fecha": ahora()}, fh, sort_keys=False)
+    _, f = rutas(root)
+    txt = open(f).read()
+    import re
+    txt = re.sub(r"^estado:.*$", "estado: cerrada", txt, count=1, flags=re.M)
+    open(f, "w").write(txt)
+    print(f"tarea {c['id']} cerrada sobre la huella {huella_arbol(root)}")
+    return 0
+
+
+def cmd_status(root, args):
+    c = leer_contrato(root)
+    print(f"tarea {c['id']} · estado {c['estado']} · huella {huella_arbol(root)}")
+    print(f"scope: {c['scope_paths']}")
+    print(f"cambiados: {ficheros_cambiados(root, c.get('base'))}")
+    return cmd_verify(root, args)
+
+
+def cmd_hook(agente, args):
+    """Lee el JSON del hook Stop por stdin. Mismo contrato en Claude Code y Codex:
+    stdin {session_id, cwd, stop_hook_active}; stdout {"decision":"block","reason":…}."""
+    try:
+        ent = json.load(sys.stdin)
+    except Exception:
+        ent = {}
+    cwd = ent.get("cwd") or os.getcwd()
+    sid = str(ent.get("session_id") or "nosession")
+    root = raiz_repo(cwd)
+    if not root or not os.path.isdir(os.path.join(root, ".assure")):
+        return 0  # repo no alistado: silencio
+    tid = "sin-id"
+    try:
+        try:
+            tid = str(leer_contrato(root)["id"])
+        except Exception:
+            pass
+        m = motivos_bloqueo(root)
+    except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
+        m = [f"assure no pudo evaluar el contrato ({exc.__class__.__name__}: {exc}). Un repo alistado sin contrato legible no puede cerrar."]
+    if not m:
+        return 0
+    marca = os.path.join(tempfile.gettempdir(), f"assure-stop-{sid}-{tid}")
+    n = 0
+    try:
+        n = int(open(marca).read().strip() or 0)
+    except Exception:
+        pass
+    n += 1
+    try:
+        open(marca, "w").write(str(n))
+    except Exception:
+        pass
+    texto = f"[assure] La tarea {tid} NO puede darse por terminada ({n}/{TOPE_BLOQUEOS}):\n" + "\n".join("- " + x for x in m)
+    if n > TOPE_BLOQUEOS:
+        print(json.dumps({"systemMessage": f"[assure] tope de {TOPE_BLOQUEOS} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. " + " | ".join(m)}, ensure_ascii=False))
+        return 0
+    print(json.dumps({"decision": "block", "reason": texto + "\nNo declares la tarea terminada. Resuelve cada punto (assure check / assure cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato."}, ensure_ascii=False))
+    return 0
+
+
+AYUDA = __doc__ + """
+uso:
+  assure init [--id ID] [--desc TXT] [--scope GLOB]... [--check CMD]... [--junta] [--prueba] [--force]
+  assure status | verify [--json] | check | cruce [--nota TXT] -- CMD... | close
+  assure hook claude|codex      (lo llama el hook Stop; JSON por stdin)
+"""
+
+
+def main(argv):
+    if not argv or argv[0] in ("-h", "--help", "help"):
+        print(AYUDA)
+        return 0
+    sub, args = argv[0], argv[1:]
+    if sub == "hook":
+        return cmd_hook(args[0] if args else "claude", args[1:])
+    root = raiz_repo(os.getcwd())
+    if not root:
+        sys.exit("assure: no estás dentro de un repositorio git")
+    tabla = {"init": cmd_init, "status": cmd_status, "verify": cmd_verify, "check": cmd_check,
+             "cruce": cmd_cruce, "close": cmd_close}
+    if sub not in tabla:
+        sys.exit(f"assure: subcomando desconocido '{sub}'\n{AYUDA}")
+    try:
+        return tabla[sub](root, args) or 0
+    except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
+        sys.exit(f"assure: contrato ilegible o ausente: {exc}")
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

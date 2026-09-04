@@ -1,0 +1,16 @@
+id: INC-2026-0015
+titulo: "La auditoría del 02-09 dio por revisadas las páginas de barrio; al día siguiente, sobre el mismo commit, compartían el 58 % del texto"
+fecha: 2026-09-03
+fuente: memoria feedback_medir_antes_de_afirmar (regla 6)
+tipo: contexto-perdido
+evidencia_verde: >
+  Auditoría cerrada con las páginas marcadas como revisadas. Misma entrada, distinta
+  conclusión un día después.
+lo_que_faltaba: >
+  Alcance congelado por commit, hallazgos con identidad estable y segunda pasada
+  obligatoria reportada aunque salga vacía.
+gate: ledger-auditoria
+gate_descripcion: Ledger de hallazgos con fingerprint por commit; una auditoría posterior añade transiciones, no borra.
+existe_hoy: no
+existe_hoy_detalle: la regla de la segunda pasada está en memoria; sin ledger.
+spike_cubre: parcial

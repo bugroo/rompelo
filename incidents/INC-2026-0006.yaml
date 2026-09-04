@@ -1,0 +1,16 @@
+id: INC-2026-0006
+titulo: "El reconciliador de leads gritaba en falso cada lunes y mandaba a mirar un DLQ vacío"
+fecha: 2026-08-31
+fuente: memoria project_claveon_reconciliador_falso_positivo
+tipo: instrumento
+evidencia_verde: >
+  El aviso semanal llegaba y parecía trabajar. Comparaba por nombre contra un campo que
+  cada envío sobreescribe; los leads sí estaban.
+lo_que_faltaba: >
+  Un control positivo del propio vigilante (con VENTANA=1 debe reclamar) y comparar
+  evento contra evento, no contra estado mutable.
+gate: instrumento-control-positivo
+gate_descripcion: Todo guardián lleva una prueba que lo hace fallar a propósito antes de aceptarlo.
+existe_hoy: sí
+existe_hoy_detalle: arreglado de raíz el 31-08 y probado con VENTANA=1.
+spike_cubre: no

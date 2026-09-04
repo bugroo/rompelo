@@ -1,0 +1,16 @@
+id: INC-2026-0001
+titulo: "Tres credenciales impresas en el chat al trazar un guion con bash -x"
+fecha: 2026-08-13
+fuente: ~/ClaveON_B2C/docs/incidente-2026-08-13-fuga-credenciales.md
+tipo: destructivo
+evidencia_verde: >
+  La regla que lo prohibía existía por escrito en env-bootstrap.md y el CLAUDE.md
+  global describía un guardián de Bash como activo.
+lo_que_faltaba: >
+  El guardián no estaba conectado en settings.json. Un documento prometía un control
+  que no corría. Nada intercepta el comando antes de ejecutarse.
+gate: pretooluse-destructivo
+gate_descripcion: PreToolUse sobre Bash que bloquea -x, set -x, printenv y /proc/PID/environ.
+existe_hoy: sí
+existe_hoy_detalle: werixo-no-trace-secrets.sh, conectado el mismo día.
+spike_cubre: no

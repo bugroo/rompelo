@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "$HOME/assure/adapters/claude/assure-stop.sh", "timeout": 30 } ] }
+    ]
+  }
+}

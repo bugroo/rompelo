@@ -1,0 +1,16 @@
+id: INC-2026-0010
+titulo: "Catorce ejecuciones fallidas del asistente en catorce días y ningún aviso a nadie"
+fecha: 2026-08-27
+fuente: ~/ClaveON_B2C/docs/PROBLEMAS-RESUELTOS.md#N41
+tipo: silencio-operacional
+evidencia_verde: >
+  Los workflows estaban activos y el panel no mostraba nada rojo salvo leyendo la API a
+  mano ejecución por ejecución.
+lo_que_faltaba: >
+  errorWorkflow en los ocho workflows. Y el límite conocido: un fallo con
+  continueRegularOutput sigue terminando en success.
+gate: alerta-operacional
+gate_descripcion: Observación posterior al despliegue con alerta que se ha visto dispararse una vez.
+existe_hoy: sí
+existe_hoy_detalle: N41 activo y visto funcionar con un fallo real el mismo día.
+spike_cubre: no

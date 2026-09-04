@@ -1,0 +1,16 @@
+id: INC-2026-0003
+titulo: "Seis documentos canónicos decían cosas falsas y cada error de método del día salió de fiarse de uno"
+fecha: 2026-08-13
+fuente: ~/ClaveON_B2C/docs/PROBLEMAS.md#A8 y #N8
+tipo: contexto-perdido
+evidencia_verde: >
+  177 documentos describían el sistema. INVENTARIO.md decía que todo pasaba por Caddy;
+  CLAUDE.md decía que dos guardianes estaban activos. Leídos, no medidos.
+lo_que_faltaba: >
+  Un hecho, un sitio; lo medible generado y no escrito; y un detector que falle cuando el
+  documento y el sistema difieren.
+gate: deriva-generada
+gate_descripcion: Inventario regenerado desde el sistema y comparado con el commiteado.
+existe_hoy: parcial
+existe_hoy_detalle: generar-inventario.sh --comprobar cubre infra; no hay nada que compruebe que los hooks descritos en CLAUDE.md están conectados.
+spike_cubre: no

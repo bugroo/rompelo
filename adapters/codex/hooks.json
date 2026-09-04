@@ -1,0 +1,16 @@
+{
+  "description": "assure · puerta de cierre por tarea. Mismo contrato que el hook Stop de Claude Code.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/assure/bin/assure\" hook codex",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
