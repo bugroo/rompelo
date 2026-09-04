@@ -42,6 +42,42 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 05-09-2026 · cambio a rompelo preparado; escritura global bloqueada
+
+Esta comprobación sustituye el estado de instalación anterior tras el cambio de
+nombre. El archivo global conserva tres entradas Stop y la tercera todavía llama
+a `"$HOME/assure/bin/assure" hook codex`, cuyo ejecutable ya no existe. La confianza
+guardada corresponde a esa definición antigua; no acredita la del comando nuevo.
+
+La batería previa terminó con `PASS=60 FAIL=0` y código 0. Se preparó una fusión
+que cambia únicamente el comando de la tercera entrada a
+`"$HOME/rompelo/bin/rompelo" hook codex`, conserva el timeout de 30 segundos y deja
+intactos todos los demás eventos y opciones. Los archivos revisados son:
+
+- Copia previa: `.rompelo/evidence/hooks.json.20260904T222906Z.bak`.
+- Fusión preparada: `.rompelo/evidence/hooks.json.20260904T222906Z.pending.json`.
+
+La escritura mediante `apply_patch` fue rechazada por la política de esta sesión:
+
+```text
+patch rejected: writing outside of the project; rejected by user approval settings
+```
+
+La comparación posterior confirmó que el archivo global permanece idéntico a la
+copia previa. No se escribió en `config.toml` ni se alteró la confianza.
+
+La prueba directa del comando nuevo, con repositorio y `ROMPELO_HOME` desechables,
+bloqueó por check sin ejecutar y junta sin cruzar. Después de `rompelo check`,
+`rompelo cruce -- true` y `rompelo close`, `rompelo verify` devolvió 0 y el mismo
+comando del adaptador quedó en silencio. El bloqueo literal está conservado en
+`.rompelo/evidence/codex-adapter-check-20260905.json`; esta prueba no usó la
+allowlist real y no constituye un cruce en vivo de Codex.
+
+**NO VERIFICADO:** instalación de la ruta nueva, confianza de esa definición y
+bloqueo automático al terminar un turno. Falta aplicar la fusión desde una sesión
+con escritura permitida en `~/.codex`; después José debe revisar y confiar en
+`/hooks` la entrada `"$HOME/rompelo/bin/rompelo" hook codex`, según el encargo.
+
 ### 05-09-2026 · hook instalado; confianza y cruce pendientes
 
 La fusión global está aplicada tras aprobar la escritura puntual. La nueva copia

@@ -1,0 +1,23 @@
+<html><head><meta charset="utf-8"><style>
+:root{--paper:#f4efe6;--ink:#1a1613;--muted:#6b645b;--rule:#d9d1c4;--red:#c8401f;--green:#2f6b3a;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:"Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{padding:56px 64px}
+h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+.sub{font-size:19px;color:var(--muted);margin:0 0 40px;max-width:900px;line-height:1.4}
+.mono{font-family:var(--mono)}
+.foot{margin-top:36px;font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+</style><style>
+pre{font-family:var(--mono);font-size:17px;line-height:1.55;margin:0;padding:26px 30px;border:1px solid var(--ink);background:rgba(26,22,19,.04);white-space:pre-wrap}
+.k{color:var(--red);font-weight:700}
+</style></head><body><div class="wrap">
+<h1>Lo que ve el agente cuando intenta terminar antes de tiempo</h1>
+<p class="sub">Salida real del hook, sin editar. Cada línea es una condición del contrato que no se cumple.</p>
+<pre><span class="k">[rompelo] La tarea T-42 NO puede darse por terminada (1/3):</span>
+- check `mi-app.test` sin ejecutar (usa `rompelo check`)
+- check `mi-app.humo` sin ejecutar (usa `rompelo check`)
+- toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- &lt;comando real&gt;`)
+No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce /
+disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como
+NO VERIFICADO y déjalo escrito en el contrato.</pre>
+<div class="foot">Un check con código 0 pero sin la salida mínima que declara el registro tampoco cuenta: «limpio» tiene que distinguirse de «no miré».</div>
+</div></body></html>

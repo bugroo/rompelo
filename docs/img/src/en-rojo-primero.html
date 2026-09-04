@@ -1,0 +1,23 @@
+<html><head><meta charset="utf-8"><style>
+:root{--paper:#f4efe6;--ink:#1a1613;--muted:#6b645b;--rule:#d9d1c4;--red:#c8401f;--green:#2f6b3a;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:"Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{padding:56px 64px}
+h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+.sub{font-size:19px;color:var(--muted);margin:0 0 40px;max-width:900px;line-height:1.4}
+.mono{font-family:var(--mono)}
+.foot{margin-top:36px;font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+</style><style>
+.seq{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;margin-top:8px}
+.s{border-top:6px solid var(--green);padding-top:16px}.s.red{border-top-color:var(--red)}
+.s .h{font-size:22px;font-weight:700;margin-bottom:8px}.s.red .h{color:var(--red)}.s.g .h{color:var(--green)}
+.s .d{font-size:17px;line-height:1.45}
+</style></head><body><div class="wrap">
+<h1>A green you have never seen red is not information</h1>
+<p class="sub">Every rompelo condition is accepted only after this cycle, and the test battery repeats it on every change: 60 cases.</p>
+<div class="seq">
+ <div class="s g"><div class="h">1 · Start from green</div><div class="d">A good task with a complete contract, and the hook lets it stop. Without this, the red that follows says nothing: it may have been broken already.</div></div>
+ <div class="s red"><div class="h">2 · Confirmed mutation → red</div><div class="d">The contract is broken on purpose, and it is confirmed that the mutation <em>happened</em> and creates the fault being hunted. Then the hook must block with that exact reason.</div></div>
+ <div class="s g"><div class="h">3 · Undone → green again</div><div class="d">The mutation is removed and the hook goes silent again. A guard that always shouts gets switched off, and then it protects nothing.</div></div>
+</div>
+<div class="foot">The same is demanded of the user's checks: a command that exits 0 without producing output does not count, and the next module asks every check for a positive control, a known-bad input it must detect before its green is worth anything.</div>
+</div></body></html>

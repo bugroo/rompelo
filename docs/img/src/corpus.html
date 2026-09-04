@@ -1,0 +1,29 @@
+<html><head><meta charset="utf-8"><style>
+:root{--paper:#f4efe6;--ink:#1a1613;--muted:#6b645b;--rule:#d9d1c4;--red:#c8401f;--green:#2f6b3a;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:"Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{padding:56px 64px}
+h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+.sub{font-size:19px;color:var(--muted);margin:0 0 40px;max-width:900px;line-height:1.4}
+.mono{font-family:var(--mono)}
+.foot{margin-top:36px;font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+</style><style>
+.rows{margin-top:6px}.row{display:grid;grid-template-columns:230px 1fr 60px;align-items:center;gap:18px;padding:9px 0}
+.lab{font-size:17px}.lab b{font-family:var(--mono);font-size:15px;margin-right:10px}
+.bar{height:22px;background:#8a8378;border-radius:0 3px 3px 0}.row.hi .bar{background:var(--red)}
+.val{font-family:var(--mono);font-size:17px;text-align:right}.row.hi .val,.row.hi .lab{color:var(--red);font-weight:700}
+.note{font-size:15px;color:var(--muted);margin-top:8px}
+</style></head><body><div class="wrap">
+<h1>La mayoría de los fallos reales tenían las pruebas en verde</h1>
+<p class="sub">28 incidentes de código escrito por agentes (agosto y septiembre de 2026), clasificados por lo que era visible cuando el agente dijo «hecho».</p>
+<div class="rows">
+ <div class="row hi"><div class="lab"><b>I</b>instrumento ciego</div><div><div class="bar" style="width:100%"></div></div><div class="val">8</div></div>
+ <div class="row"><div class="lab"><b>S</b>señal al parar</div><div><div class="bar" style="width:75%"></div></div><div class="val">6</div></div>
+ <div class="row"><div class="lab"><b>C</b>contexto o ámbito</div><div><div class="bar" style="width:50%"></div></div><div class="val">4</div></div>
+ <div class="row"><div class="lab"><b>M</b>mixto</div><div><div class="bar" style="width:37.5%"></div></div><div class="val">3</div></div>
+ <div class="row"><div class="lab"><b>T</b>al ejecutar la herramienta</div><div><div class="bar" style="width:37.5%"></div></div><div class="val">3</div></div>
+ <div class="row"><div class="lab"><b>A</b>auditoría</div><div><div class="bar" style="width:25%"></div></div><div class="val">2</div></div>
+ <div class="row"><div class="lab"><b>R</b>solo en producción, días después</div><div><div class="bar" style="width:25%"></div></div><div class="val">2</div></div>
+</div>
+<p class="note"><span style="color:var(--red);font-weight:700">Instrumento ciego</span>: la comprobación no podía fallar. Un validador sobre el artefacto equivocado, un guardián que muere y sale con el código de «hallazgo», un 0 después de un timeout, «no tests» leído como cero fallos, una mutación que nunca se aplicó.</p>
+<div class="foot">Fuente: corpus/TABLA.md, generado desde incidents/*.yaml. Quince incidentes propios y trece relatados por otra sesión, no reproducidos.</div>
+</div></body></html>

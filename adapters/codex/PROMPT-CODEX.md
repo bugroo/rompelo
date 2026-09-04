@@ -13,7 +13,7 @@ Reglas que no se negocian:
 - Nada se da por bueno sin haberlo visto fallar. Cada condición nueva del gate se ve primero en
   ROJO con un caso que la incumple y luego en VERDE con uno bueno, y las dos cosas quedan en
   `~/rompelo/tests/rompelo-stop-test.sh`. Antes de tocar nada, la batería tiene que estar en verde:
-  `bash ~/rompelo/tests/rompelo-stop-test.sh` (hoy: PASS=58 FAIL=0).
+  `bash ~/rompelo/tests/rompelo-stop-test.sh` (hoy: PASS=60 FAIL=0).
 - Cuando mutes un fichero para ver rojo, comprueba que la mutación ocurrió (grep del cambio) y
   que crea el fallo que buscas. Una mutación que no casa no prueba nada.
 - Commits en `~/rompelo` con mensajes en español y sin ninguna atribución a IA

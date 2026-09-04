@@ -1,0 +1,23 @@
+<html><head><meta charset="utf-8"><style>
+:root{--paper:#f4efe6;--ink:#1a1613;--muted:#6b645b;--rule:#d9d1c4;--red:#c8401f;--green:#2f6b3a;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:"Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{padding:56px 64px}
+h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+.sub{font-size:19px;color:var(--muted);margin:0 0 40px;max-width:900px;line-height:1.4}
+.mono{font-family:var(--mono)}
+.foot{margin-top:36px;font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+</style><style>
+.seq{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;margin-top:8px}
+.s{border-top:6px solid var(--green);padding-top:16px}.s.red{border-top-color:var(--red)}
+.s .h{font-size:22px;font-weight:700;margin-bottom:8px}.s.red .h{color:var(--red)}.s.g .h{color:var(--green)}
+.s .d{font-size:17px;line-height:1.45}
+</style></head><body><div class="wrap">
+<h1>Un verde que nunca has visto rojo no es información</h1>
+<p class="sub">Cada condición de rompelo se acepta solo después de este ciclo, y la batería lo repite en cada cambio: 60 casos.</p>
+<div class="seq">
+ <div class="s g"><div class="h">1 · Verde de partida</div><div class="d">Una tarea buena, con contrato completo, y el hook deja parar. Sin esto, el rojo de después no dice nada: puede que ya estuviera roto.</div></div>
+ <div class="s red"><div class="h">2 · Mutación confirmada → rojo</div><div class="d">Se rompe el contrato a propósito y se comprueba que la mutación <em>ocurrió</em> y que crea el fallo buscado. Entonces el hook tiene que bloquear con ese motivo exacto.</div></div>
+ <div class="s g"><div class="h">3 · Deshecha → verde otra vez</div><div class="d">Se retira la mutación y el hook vuelve al silencio. Un guardián que grita siempre se acaba apagando, y entonces no protege.</div></div>
+</div>
+<div class="foot">Lo mismo se exige a los checks del usuario: un comando que sale con 0 sin producir salida no cuenta, y el siguiente módulo pide a cada check un control positivo, una entrada mala conocida que tiene que detectar antes de que su verde valga.</div>
+</div></body></html>

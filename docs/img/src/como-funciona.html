@@ -1,0 +1,32 @@
+<html><head><meta charset="utf-8"><style>
+:root{--paper:#f4efe6;--ink:#1a1613;--muted:#6b645b;--rule:#d9d1c4;--red:#c8401f;--green:#2f6b3a;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:"Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{padding:56px 64px}
+h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+.sub{font-size:19px;color:var(--muted);margin:0 0 40px;max-width:900px;line-height:1.4}
+.mono{font-family:var(--mono)}
+.foot{margin-top:36px;font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+</style><style>
+.steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:2px solid var(--ink)}
+.step{padding:26px 28px 26px 0;border-right:1px solid var(--rule)}.step:last-child{border-right:0;padding-left:28px}.step:nth-child(2){padding-left:28px}
+.n{font-family:var(--mono);font-size:14px;color:var(--muted);margin-bottom:10px}
+.t{font-size:24px;font-weight:700;letter-spacing:-.01em;margin-bottom:8px}
+.d{font-size:17px;line-height:1.45;color:var(--ink)}
+.out{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px}
+.o{padding:22px 26px;border:2px solid var(--ink)}.o.red{border-color:var(--red)}.o .h{font-weight:700;font-size:20px;margin-bottom:8px}.o.red .h{color:var(--red)}.o.green .h{color:var(--green)}
+.o .d{font-size:16px}
+code{font-family:var(--mono);font-size:.92em;background:rgba(26,22,19,.06);padding:1px 5px;border-radius:3px}
+</style></head><body><div class="wrap">
+<h1>Cómo funciona</h1>
+<p class="sub">Una puerta de cierre: el agente puede pedir terminar, pero solo el código concede. Nada corre dentro del modelo.</p>
+<div class="steps">
+ <div class="step"><div class="n">1</div><div class="t">El agente dice «hecho»</div><div class="d">Claude Code o Codex intentan terminar el turno. Eso dispara su hook <code>Stop</code>, que llama a <code>rompelo hook &lt;agente&gt;</code>.</div></div>
+ <div class="step"><div class="n">2</div><div class="t">rompelo lee el contrato</div><div class="d"><code>.rompelo/task.json</code> dice qué checks son obligatorios, qué rutas puede tocar la tarea y si cruza una junta con otro sistema.</div></div>
+ <div class="step"><div class="n">3</div><div class="t">Y compara con la evidencia</div><div class="d">Cada check tiene que haber corrido sobre <em>este</em> contenido del árbol, con salida real, y el cruce real tiene que ser posterior al último cambio.</div></div>
+</div>
+<div class="out">
+ <div class="o red"><div class="h">Falta algo → BLOQUEO</div><div class="d">El agente recibe la lista exacta de motivos y sigue trabajando. Tres veces por tarea; después avisa al usuario y suelta.</div></div>
+ <div class="o green"><div class="h">Todo cumplido → silencio</div><div class="d">El turno termina. Ningún mensaje: la ausencia de bloqueo es la única forma de «hecho» que existe.</div></div>
+</div>
+<div class="foot">Los comandos nunca vienen del repositorio: el contrato solo lleva ids y los comandos viven en un registro tuyo, ejecutados sin shell. Un repo que no está en tu allowlist no engancha nada.</div>
+</div></body></html>
