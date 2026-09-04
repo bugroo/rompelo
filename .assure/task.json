@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "id": "ASSURE-SPIKE-01",
-  "estado": "abierta",
+  "estado": "cerrada",
   "base": "39eabae585509b01a1b8123ad0f4b06a4185b94e",
   "descripcion": "Spike del Stop gate: cruzar la junta settings.json → hook → assure en Claude Code",
   "scope_paths": [
