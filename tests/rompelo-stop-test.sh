@@ -177,6 +177,21 @@ rm .rompelo/registry.json
 ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -eq 1 ] && grep -q 'no está en el registro' "$T/ci.txt" && ok "sin ningún registro: bloquea, no ejecuta" || bad "sin registro" "$(cat "$T/ci.txt")"
 "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
 
+echo "── contrato cambiado después del cierre (hallazgo de Codex, 05-09)"
+contrato 'checks=["hay-a","ok","habla"]'
+espera_bloqueo "check añadido a una tarea cerrada: bloquea" s13 "sin ejecutar"
+contrato 'checks=["hay-a","ok"]'
+espera_paso "contrato restaurado: silencio" s13b
+
+echo "── solo_local: un check que no puede correr en CI se salta con advertencia"
+python3 - "$ROMPELO_HOME/checks/registry.json" <<'PY2'
+import json,sys;f=sys.argv[1];r=json.load(open(f));r['local']={'argv':['false'],'solo_local':True};json.dump(r,open(f,'w'))
+PY2
+contrato 'checks=["hay-a","ok","local"]'
+"$ASSURE" verify --ci >"$T/ci.txt" 2>&1; rc=$?; [ $rc -eq 0 ] && grep -q 'solo_local' "$T/ci.txt" && ok "--ci salta el check solo_local y lo dice" || bad "solo_local en CI" "rc=$rc $(cat "$T/ci.txt")"
+"$ASSURE" check >/dev/null 2>&1; [ $? -eq 1 ] && ok "fuera de CI el check solo_local sí corre (y aquí falla)" || bad "solo_local local"
+contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+
 echo "── fichero NUEVO: commitearlo no cambia la huella (mismo contenido)"
 echo n > src/nuevo.txt; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
 espera_paso "cerrada con fichero nuevo sin rastrear: silencio" s12

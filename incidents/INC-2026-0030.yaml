@@ -1,0 +1,13 @@
+id: INC-2026-0030
+titulo: "Una tarea cerrada aceptaba un check obligatorio nuevo sin ejecutarlo: el contrato no formaba parte de la huella de cierre"
+fecha: 2026-09-05
+fuente: "hallazgo de Codex al revisar rompelo (bin/rompelo:217), reproducido aquí con un caso en la batería"
+tipo: instrumento
+evidencia_verde: "69 casos en verde y el cierre válido; la huella solo miraba el contenido del árbol, y el contrato vive fuera de él a propósito"
+lo_que_faltaba: "que el cierre guardara también la huella del contrato: si cambian checks, scope, junta o hallazgos después de cerrar, el cierre deja de valer"
+gate: instrumento-control-positivo
+gate_descripcion: "cerrada.json lleva huella del árbol y del contrato; caso nuevo visto en rojo (71/73) antes del arreglo"
+existe_hoy: "sí"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: el contrato y la evidencia de cierre no coincidían y nadie lo comparaba"

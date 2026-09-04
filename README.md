@@ -19,9 +19,9 @@ Documentación en español: [README.es.md](README.es.md).
 
 ## The problem it is built around
 
-![Bar chart of 29 real incidents by class: blind instrument 9, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
+![Bar chart of 30 real incidents by class: blind instrument 10, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
 
-Twenty-nine real incidents from one month of agent-written code, each written down with what
+Thirty real incidents from one month of agent-written code, each written down with what
 looked green at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md), generated
 from [incidents/](incidents/)). The largest class is not "the test failed". It is "the check
 could not fail": a validator run on the wrong artifact, a guard that crashed and exited with
@@ -40,7 +40,7 @@ and session; after that `rompelo` warns the user and lets go, so nobody gets tra
 
 ![Three steps: start from green, confirmed mutation turns it red, undo it and it is green again](docs/img/en/rojo-primero.png)
 
-The test battery (69 cases, run in CI on every push) applies this cycle to every condition of the
+The test battery (73 cases, run in CI on every push) applies this cycle to every condition of the
 gate itself. When a mutation is used to force red, the test first confirms the mutation actually
 happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
 
@@ -118,7 +118,7 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
 
 ## Verified, and not
 
-- 69 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
+- 73 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
   red with a confirmed mutation, then green. CI runs them on Ubuntu on every push.
 - The Claude Code side has been crossed live: ending a turn with an unmet contract returned the
   block with the right reasons, and the configured `settings.json` line is replayed by

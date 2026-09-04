@@ -168,6 +168,13 @@ def leer_contrato(root):
     return c
 
 
+def hash_contrato(c):
+    """Huella del contrato sin `estado`: si cambian checks, scope, junta, hallazgos o
+    afirmaciones después del cierre, el cierre deja de valer (hallazgo de Codex, 05-09-2026)."""
+    d = {k: v for k, v in c.items() if k != "estado"}
+    return hashlib.sha256(json.dumps(d, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+
+
 def dir_evidencia(root, c):
     base = os.path.join(root, ".rompelo", "evidence")
     d = os.path.join(base, re.sub(r"[^A-Za-z0-9._-]", "_", str(c["id"])))
@@ -216,10 +223,13 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
-        if cerr and cerr.get("huella") == hu:
+        if cerr and cerr.get("huella") == hu and cerr.get("contrato") == hash_contrato(c):
             return []
         if not para_cerrar:
-            m.append("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.")
+            if cerr and cerr.get("huella") == hu:
+                m.append("estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`.")
+            else:
+                m.append("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.")
 
     cambiados = ficheros_cambiados(root, c.get("base"))
     fuera = [p for p in cambiados if not any(casa(p, s) for s in c["scope_paths"])]
@@ -232,6 +242,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             m.append(f"check `{cid}` no está en el registro ({REGISTRO}); no se ejecuta ni cuenta")
             continue
         e = ci["evidencias"].get(cid) if ci else leer_evidencia(ev, f"check-{cid}.json")
+        if ci and e and e.get("saltado"):
+            continue
         if e is None:
             m.append(f"check `{cid}` sin ejecutar (usa `rompelo check`)")
         elif e.get("argv") != reg[cid].get("argv"):
@@ -395,6 +407,10 @@ def cmd_verify(root, args):
                 argv, cwd = resolver_check(cid, root)
             except ValueError:
                 continue  # lo reporta motivos_bloqueo como «no está en el registro»
+            if registro(root).get(cid, {}).get("solo_local"):
+                ci["evidencias"][cid] = {"saltado": True}
+                ci["advertencias"].append(f"check `{cid}` es solo_local: no se ejecuta en CI (necesita algo de la máquina de quien lo cruza)")
+                continue
             e, _ = ejecutar(argv, cwd)
             e["huella"] = hu
             ci["evidencias"][cid] = e
@@ -428,7 +444,7 @@ def cmd_close(root, args):
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
     hu = huella_arbol(root, c.get("base"))
-    escribir_evidencia(ev, "cerrada.json", {"huella": hu, "fecha": ahora()})
+    escribir_evidencia(ev, "cerrada.json", {"huella": hu, "contrato": hash_contrato(c), "fecha": ahora()})
     _, f = rutas(root)
     c["estado"] = "cerrada"
     with open(f, "w") as fh:

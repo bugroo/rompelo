@@ -16,7 +16,8 @@
     ],
     "cwd": "rompelo",
     "descripcion": "ejecuta la línea Stop tal cual está en settings.json",
-    "min_lineas": 1
+    "min_lineas": 1,
+    "solo_local": true
   },
   "rompelo.sin-var-pegada": {
     "argv": [
