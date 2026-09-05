@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "id": "ROMPELO-CODEX-01",
+  "id": "ROMPELO-CODEX-02",
   "estado": "cerrada",
-  "base": "f9218b8dd27f42014caff83685425419967a0ff1",
-  "descripcion": "Perfiles por repo, motivo del gate a nivel 3 por permiso, uso real sobre ClaveON con gitleaks y ShellCheck como checks de nivel 3.",
+  "base": "c65243268875fbd7cf2cdfeb0ab471b403146357",
+  "descripcion": "Parte 2: triestado y control positivo por check, controles reales de scope y variable pegada, evidencia vinculada a la definición; sincronizar tres borradores de werixo-brain.",
   "scope_paths": [
     "**"
   ],
@@ -18,5 +18,5 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "05-09 tarde («go» 2): releídos perfiles_riesgo (por_repo, dos ficheros), el motivo del gate a nivel 3 y los 4 casos nuevos (2 en rojo primero). Uso real sobre ClaveON leído en las salidas de gitleaks (redactadas) y ShellCheck; limpieza comprobada: worktree fuera, allowlist y ruta confiada restauradas, árbol de ClaveON limpio."
+  "segunda_pasada": "Revisados orden control/real, códigos originales, fallo sin ejecución real, evidencia sin salidas, validación de argv/cwd, invalidación tras cambios de registro y cierre anterior, paridad CI e inglés. Controles de ClaveON no implementados: cobertura explícita en YAML y documentación. Sin escrituras de configuración de hooks ni hashes de confianza."
 }

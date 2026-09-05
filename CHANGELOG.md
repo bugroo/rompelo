@@ -5,6 +5,15 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- Control positivo opcional por check: debe detectar un caso malo con código 1 antes de
+  ejecutar el check real. Incluidos los controles de la batería (mutante de scope) y de
+  `sin-var-pegada`; no se guarda salida de ninguno de los dos procesos.
+- Triestado en el registro: hallazgo, instrumento que no pudo mirar y aborto inesperado
+  tienen motivos distintos. `check` informa líneas/mínimo y resultado del control.
+- Evidencia y cierre vinculados también a la definición del check; un cierre anterior no
+  oculta un check recién fallado. Las evidencias antiguas requieren repetir `check`/`close`.
+- Gate 77 → 109 casos. Cobertura concreta y límites de la Parte 2 en
+  [docs/control-positivo.md](docs/control-positivo.md).
 - Codex cruzado en vivo con `codex exec`: bloqueo del `Stop` con motivos, cierre por el propio
   agente, silencio después, tope de tres bloqueos. La marca del tope pasa de `tempdir` a
   `state/marcas/` (bajo el sandbox de Codex no se escribía y el tope nunca llegaba).

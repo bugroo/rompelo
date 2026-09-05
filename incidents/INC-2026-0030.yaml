@@ -6,7 +6,7 @@ tipo: instrumento
 evidencia_verde: "69 casos en verde y el cierre válido; la huella solo miraba el contenido del árbol, y el contrato vive fuera de él a propósito"
 lo_que_faltaba: "que el cierre guardara también la huella del contrato: si cambian checks, scope, junta o hallazgos después de cerrar, el cierre deja de valer"
 gate: instrumento-control-positivo
-gate_descripcion: "cerrada.json lleva huella del árbol y del contrato; caso nuevo visto en rojo (71/73) antes del arreglo"
+gate_descripcion: "cerrada.json lleva huella del árbol, contrato y definiciones de checks; además se reevalúa la evidencia para no ocultar un check recién fallado. Caso original 71/73 y extensión de control positivo 108/109 vistos en rojo antes del arreglo"
 existe_hoy: "sí"
 spike_cubre: "no"
 clase: I

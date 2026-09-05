@@ -6,8 +6,8 @@ tipo: prueba-ciega
 evidencia_verde: "suite en verde; el contador veía 6 secciones donde hay 7 porque buscaba /<div class=\"emp-grid\" data-reveal-group>/ y el rediseño puso rej-3 delante"
 lo_que_faltaba: "contar por estructura (la clase dentro de la lista, no la cadena fija) y un control positivo sobre lo que el guardián VIO: el número de secciones, no el número de discrepancias"
 gate: instrumento-control-positivo
-gate_descripcion: "control positivo por check (Parte 2 del prompt de Codex): el instrumento tiene que ver las N secciones conocidas antes de que su verde valga; hoy rompelo solo exige min_lineas"
-existe_hoy: "no"
+gate_descripcion: "rompelo ya exige código 1 del control_positivo registrado; falta el control del guardián de ClaveON con 7 secciones y una etiqueta quitada. El mecanismo existe, este requisito concreto no está cubierto"
+existe_hoy: "parcial"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "no: el guardián pasaba y nada parecía incoherente; solo se vio mutando (quitar una etiqueta) y viendo que seguía verde"

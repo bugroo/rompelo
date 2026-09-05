@@ -7,7 +7,12 @@
     ],
     "cwd": "rompelo",
     "descripcion": "batería del gate, vista en rojo y en verde",
-    "min_lineas": 10
+    "min_lineas": 10,
+    "triestado": true,
+    "control_positivo": {
+      "argv": ["python3", "tests/control-positivo.py", "gate"],
+      "cwd": "rompelo"
+    }
   },
   "rompelo.cruce-settings-claude": {
     "argv": [
@@ -26,6 +31,11 @@
     ],
     "cwd": "rompelo",
     "min_lineas": 1,
+    "triestado": true,
+    "control_positivo": {
+      "argv": ["python3", "tests/control-positivo.py", "sin-var-pegada"],
+      "cwd": "rompelo"
+    },
     "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)"
   },
   "rompelo.observe-tests": {

@@ -39,6 +39,12 @@ EN = {
     "check `{cid}` sin ejecutar (usa `rompelo check`)": "check `{cid}` not run (use `rompelo check`)",
     "check `{cid}` cambió en el registro después de ejecutarse": "check `{cid}` changed in the registry after it ran",
     "check `{cid}` FALLÓ con código {codigo}": "check `{cid}` FAILED with exit code {codigo}",
+    "check `{cid}` NO PUDO MIRAR (instrumento, no hallazgo; código 2)": "check `{cid}` COULD NOT INSPECT (instrument, not a finding; exit code 2)",
+    "check `{cid}` abortó por una ruta no prevista (código {codigo})": "check `{cid}` aborted via an unexpected path (exit code {codigo})",
+    "check `{cid}`: su control positivo no detectó el caso malo; el verde no vale": "check `{cid}`: its positive control did not detect the known bad input; green does not count",
+    "check `{cid}`: control positivo NO PUDO MIRAR (instrumento, no hallazgo)": "check `{cid}`: positive control COULD NOT INSPECT (instrument, not a finding)",
+    "check `{cid}`: control positivo abortó por una ruta no prevista (código {codigo})": "check `{cid}`: positive control aborted via an unexpected path (exit code {codigo})",
+    "estado: cerrada, pero cambió en el registro la definición de un check. Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but a check definition changed in the registry. Run `rompelo check` and `rompelo close` again.",
     "check `{cid}` salió con 0 pero sin la salida mínima ({lineas} < {min} líneas): «limpio» no se distingue de «no miré»": "check `{cid}` exited 0 without its minimum output ({lineas} < {min} lines): \"clean\" cannot be told from \"did not look\"",
     "check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)": "check `{cid}` ran on a different tree (there are later changes)",
     "nivel 3: ": "level 3: ",
@@ -193,11 +199,39 @@ def resolver_check(cid, root):
     if cid not in reg:
         raise ValueError(f"check desconocido, no está en {REGISTRO} (no se ejecuta): {cid}")
     e = reg[cid]
+    argv, cwd = resolver_argv(e, cid, root)
+    if not isinstance(e.get("triestado", False), bool):
+        raise ValueError(f"registro: {cid}.triestado tiene que ser booleano")
+    if type(e.get("min_lineas", 0)) is not int or e.get("min_lineas", 0) < 0:
+        raise ValueError(f"registro: {cid}.min_lineas tiene que ser un entero no negativo")
+    if "control_positivo" in e:
+        resolver_argv(e["control_positivo"], cid + ".control_positivo", root)
+    return argv, cwd
+
+
+def resolver_argv(e, nombre, root):
+    if not isinstance(e, dict):
+        raise ValueError(f"registro: {nombre} tiene que ser un objeto")
     argv = e.get("argv")
     if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv):
-        raise ValueError(f"registro: {cid}.argv tiene que ser una lista de cadenas")
+        raise ValueError(f"registro: {nombre}.argv tiene que ser una lista de cadenas")
+    if e.get("cwd", "repo") not in ("repo", "rompelo"):
+        raise ValueError(f"registro: {nombre}.cwd tiene que ser repo o rompelo")
     cwd = root if e.get("cwd", "repo") == "repo" else ROMPELO_HOME
     return argv, cwd
+
+
+def hash_check(e):
+    """Vincula la evidencia al instrumento y sus reglas, no a su descripción editorial."""
+    d = {k: e.get(k, v) for k, v in (("argv", None), ("cwd", "repo"),
+         ("min_lineas", 0), ("triestado", False), ("control_positivo", None))}
+    return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def hash_registro(root, c):
+    reg = registro(root)
+    d = {cid: hash_check(reg[cid]) if cid in reg else None for cid, _ in checks_exigidos(root, c)}
+    return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
 
 # ── contrato ────────────────────────────────────────────────────────────────
@@ -313,10 +347,13 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
-        if cerr and cerr.get("huella") == hu and cerr.get("contrato") == hash_contrato(c):
-            return []
-        if not para_cerrar:
-            if cerr and cerr.get("huella") == hu:
+        cierre_vigente = (cerr and cerr.get("huella") == hu and cerr.get("contrato") == hash_contrato(c)
+                          and cerr.get("registro") == hash_registro(root, c))
+        # Un cierre no borra un check que se volvió a ejecutar y ahora falla.
+        if not cierre_vigente and not para_cerrar:
+            if cerr and cerr.get("huella") == hu and cerr.get("contrato") == hash_contrato(c):
+                m.append(_("estado: cerrada, pero cambió en el registro la definición de un check. Vuelve a `rompelo check` y `rompelo close`."))
+            elif cerr and cerr.get("huella") == hu:
                 m.append(_("estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`."))
             else:
                 m.append(_("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`."))
@@ -332,19 +369,20 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
         if cid not in reg:
             m.append(pre + _("check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta", cid=cid, reg=REGISTRO))
             continue
+        resolver_check(cid, root)  # también rechaza un control malformado antes de creer evidencia
         e = ci["evidencias"].get(cid) if ci else leer_evidencia(ev, f"check-{cid}.json")
         if ci and e and e.get("saltado"):
             continue
         if e is None:
             m.append(pre + _("check `{cid}` sin ejecutar (usa `rompelo check`)", cid=cid))
-        elif e.get("argv") != reg[cid].get("argv"):
+        elif e.get("definicion") != hash_check(reg[cid]):
             m.append(pre + _("check `{cid}` cambió en el registro después de ejecutarse", cid=cid))
-        elif e.get("codigo") != 0:
-            m.append(pre + _("check `{cid}` FALLÓ con código {codigo}", cid=cid, codigo=e.get("codigo")))
-        elif e.get("lineas_salida", 0) < int(reg[cid].get("min_lineas", 0) or 0):
-            m.append(pre + _("check `{cid}` salió con 0 pero sin la salida mínima ({lineas} < {min} líneas): «limpio» no se distingue de «no miré»", cid=cid, lineas=e.get("lineas_salida"), min=reg[cid].get("min_lineas")))
-        elif e.get("huella") != hu:
-            m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
+        else:
+            motivo = motivo_check(cid, reg[cid], e)
+            if motivo:
+                m.append(pre + motivo)
+            elif e.get("huella") != hu:
+                m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
 
     if c["toca_junta"] and ci:
         txt = _("toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.")
@@ -408,6 +446,58 @@ def ejecutar(argv, cwd):
     return {"argv": argv, "cwd": cwd, "codigo": codigo, "segundos": round(dur, 1),
             "lineas_salida": salida.count("\n"),
             "sha_salida": hashlib.sha256(salida.encode()).hexdigest()[:12], "fecha": ahora()}, salida
+
+
+def ejecutar_check(cid, root):
+    """El control prueba el mismo instrumento ANTES del caso real. Solo 1 autoriza seguir."""
+    argv, cwd = resolver_check(cid, root)
+    reg = registro(root)[cid]
+    cp = None
+    if "control_positivo" in reg:
+        cp, _salida = ejecutar(*resolver_argv(reg["control_positivo"], cid + ".control_positivo", root))
+    if cp is not None and cp["codigo"] != 1:
+        e = {"argv": argv, "cwd": cwd, "codigo": None, "segundos": 0,
+             "lineas_salida": 0, "fecha": ahora(),
+             "instrumento": {0: "ciego", 2: "no_pudo_mirar"}.get(cp["codigo"], "abortado")}
+    else:
+        e, _salida = ejecutar(argv, cwd)
+        if cp is not None:
+            e["instrumento"] = "operativo"
+    if cp is not None:
+        e["control_positivo"] = cp
+    e.update(id=cid, definicion=hash_check(reg))
+    return e
+
+
+def motivo_check(cid, reg, e):
+    if "control_positivo" in reg:
+        codigo = (e.get("control_positivo") or {}).get("codigo")
+        if codigo == 0:
+            return _("check `{cid}`: su control positivo no detectó el caso malo; el verde no vale", cid=cid)
+        if codigo == 2:
+            return _("check `{cid}`: control positivo NO PUDO MIRAR (instrumento, no hallazgo)", cid=cid)
+        if codigo != 1:
+            return _("check `{cid}`: control positivo abortó por una ruta no prevista (código {codigo})", cid=cid, codigo=codigo)
+    codigo = e.get("codigo")
+    if reg.get("triestado") and codigo == 2:
+        return _("check `{cid}` NO PUDO MIRAR (instrumento, no hallazgo; código 2)", cid=cid)
+    if reg.get("triestado") and codigo not in (0, 1):
+        return _("check `{cid}` abortó por una ruta no prevista (código {codigo})", cid=cid, codigo=codigo)
+    if codigo != 0:
+        return _("check `{cid}` FALLÓ con código {codigo}", cid=cid, codigo=codigo)
+    if e.get("lineas_salida", 0) < reg.get("min_lineas", 0):
+        return _("check `{cid}` salió con 0 pero sin la salida mínima ({lineas} < {min} líneas): «limpio» no se distingue de «no miré»", cid=cid, lineas=e.get("lineas_salida"), min=reg["min_lineas"])
+    return None
+
+
+def resumen_check(reg, e):
+    codigo = e["codigo"] if e["codigo"] is not None else "sin ejecutar"
+    partes = [f"código {codigo} en {e['segundos']} s"]
+    if "min_lineas" in reg:
+        partes.append(f"{e['lineas_salida']}/{reg['min_lineas']} líneas")
+    if "control_positivo" in reg:
+        partes.append(f"control positivo: código {e['control_positivo']['codigo']} ({e['instrumento']})")
+    return ", ".join(partes)
 
 
 # ── subcomandos ─────────────────────────────────────────────────────────────
@@ -531,14 +621,16 @@ def cmd_check(root, args):
     for i, (cid, n3) in enumerate(exigidos, 1):
         argv, cwd = resolver_check(cid, root)
         print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}: {' '.join(argv)}")
-        e, salida = ejecutar(argv, cwd)
-        e["id"] = cid
-        e["huella"] = huella_arbol(root, c.get("base"))
+        hu = huella_arbol(root, c.get("base"))
+        e = ejecutar_check(cid, root)
+        e["huella"] = hu
         escribir_evidencia(ev, f"check-{cid}.json", e)
-        if e["codigo"] != 0:
+        reg = registro(root)[cid]
+        motivo = motivo_check(cid, reg, e)
+        if motivo:
             fallos += 1
-            print("".join(salida.splitlines(True)[-15:]), end="")
-        print(f"    → código {e['codigo']} en {e['segundos']} s")
+            print("    " + motivo)
+        print("    → " + resumen_check(reg, e))
     print("todos en verde" if not fallos else f"{fallos} check(s) en rojo")
     return 1 if fallos else 0
 
@@ -568,7 +660,7 @@ def cmd_verify(root, args):
         c = leer_contrato(root)
         ci = {"evidencias": {}, "estricto": "--estricto" in args, "advertencias": []}
         hu = huella_arbol(root, c.get("base"))
-        for cid in c["checks"]:
+        for cid, _n3 in checks_exigidos(root, c):
             try:
                 argv, cwd = resolver_check(cid, root)
             except ValueError:
@@ -577,11 +669,11 @@ def cmd_verify(root, args):
                 ci["evidencias"][cid] = {"saltado": True}
                 ci["advertencias"].append(f"check `{cid}` es solo_local: no se ejecuta en CI (necesita algo de la máquina de quien lo cruza)")
                 continue
-            e, _ = ejecutar(argv, cwd)
+            e = ejecutar_check(cid, root)
             e["huella"] = hu
             ci["evidencias"][cid] = e
             if "--json" not in args:
-                print(f"[ci] {cid}: código {e['codigo']} en {e['segundos']} s, {e['lineas_salida']} líneas")
+                print(f"[ci] {cid}: " + resumen_check(registro(root)[cid], e))
     m = motivos_bloqueo(root, ci=ci)
     if ci and ci["advertencias"] and "--json" not in args:
         for a in ci["advertencias"]:
@@ -610,7 +702,8 @@ def cmd_close(root, args):
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
     hu = huella_arbol(root, c.get("base"))
-    escribir_evidencia(ev, "cerrada.json", {"huella": hu, "contrato": hash_contrato(c), "fecha": ahora()})
+    escribir_evidencia(ev, "cerrada.json", {"huella": hu, "contrato": hash_contrato(c),
+                                          "registro": hash_registro(root, c), "fecha": ahora()})
     _, f = rutas(root)
     c["estado"] = "cerrada"
     with open(f, "w") as fh:
@@ -635,6 +728,11 @@ def informe_llano(root, c, ev):
         if n3:
             nota += " (check de nivel 3, exigido por permiso)"
         comprobado.append(f"{cid}: código {e.get('codigo')} en {e.get('segundos')} s, {e.get('lineas_salida')} líneas de salida{nota}")
+        cp = e.get("control_positivo")
+        if cp:
+            comprobado.append(f"{cid}: control positivo vio el caso malo (código {cp['codigo']}, {cp['lineas_salida']} líneas)")
+        else:
+            no_pudo.append(f"{cid}: sin control positivo registrado; no se registró una ejecución separada del caso malo")
     if c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json") or {}
         comprobado.append("cruce real de la junta: " + " ".join(cr.get("argv") or []) + (f" · {cr.get('nota')}" if cr.get("nota") else ""))
@@ -673,7 +771,7 @@ def informe_llano(root, c, ev):
         obs.append(f"nivel bajado a mano el {str(est['bajado'].get('fecha', ''))[:10]}: {est['bajado'].get('motivo', '')}")
     lineas += ["", "## Qué observó el observador", ""]
     lineas += ["- " + x for x in obs]
-    lineas += ["", "Un verde aquí significa «no encontré los de mi clase», no «está bien». Los checks todavía no tienen control positivo: eso es lo siguiente.", ""]
+    lineas += ["", "Un verde aquí significa «no encontré los de mi clase», no «está bien». Un control positivo solo acredita el caso malo que ejercita.", ""]
     return "\n".join(lineas)
 
 

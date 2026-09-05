@@ -37,7 +37,7 @@ por tarea y sesión; después `rompelo` avisa al usuario y suelta, para que nadi
 
 ![Tres pasos: verde de partida, mutación confirmada que lo pone en rojo, deshecha y verde otra vez](docs/img/es/rojo-primero.png)
 
-La batería (77 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
+La batería (109 casos, en CI en cada push) aplica este ciclo a cada condición de la propia
 puerta. Cuando una mutación se usa para forzar el rojo, la prueba confirma primero que la
 mutación ocurrió. Una mutación que no se aplicó no prueba nada, y ese error está dos veces en el corpus.
 
@@ -71,6 +71,8 @@ allowlist local. Desde entonces el agente no puede terminar una tarea hasta que:
 |---|---|
 | cada id de check ha corrido sobre el contenido **actual** del árbol (huella del contenido, no el commit) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
 | un check que sale con 0 sin la salida mínima declarada **no** es verde | `min_lineas` en el registro |
+| el control positivo declarado detecta el caso malo antes del check real | `control_positivo` debe salir con 1; 0 significa ciego, 2 no pudo mirar y cualquier otro código bloquea |
+| los hallazgos se distinguen del fallo del instrumento | `triestado: true`: 0 limpio, 1 hallazgos, 2 no pudo mirar, otros códigos inesperados |
 | si la tarea toca una junta con otro sistema, un cruce real **después** del último cambio | `rompelo cruce -- <comando real>` o `--id <check del registro>` |
 | cada hallazgo tiene disposición | `hallazgos` en el contrato |
 | cada afirmación sobre el mundo exterior tiene estado | `afirmaciones`: `verificado` exige fuente de primera mano y cita textual, `derivado` exige de qué se deduce, `no_verificado` exige qué falta |
@@ -144,7 +146,7 @@ Los mensajes del gate y del observador salen en español; con `ROMPELO_LANG=en` 
 
 ## Verificado, y no
 
-- 77 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
+- 109 casos en [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), cada condición vista
   en rojo con una mutación confirmada y luego en verde. CI los corre en Ubuntu en cada push.
 - El lado de Claude Code está cruzado en vivo: terminar un turno con el contrato sin cumplir
   devolvió el bloqueo con los motivos correctos, y la línea configurada en `settings.json` la
@@ -184,10 +186,14 @@ exige como a cualquier otro.
 
 ## Hoja de ruta, en orden
 
-1. Control positivo por check registrado: el instrumento tiene que detectar una entrada mala conocida antes de que su verde valga.
-2. Que el informe de cierre pueda decir «visto fallar» de verdad, cuando cada check tenga control positivo.
-3. Incidentes que se compilan en checks registrados: una lección como detector, no como prosa.
-4. Perfiles de riesgo por repo, si la regla de los dos toques sigue gritando en uso real.
+El control positivo ya corre en `check` y `verify --ci`. Incluidos: mutante de scope de la
+batería y guion malo conocido de `sin-var-pegada`. El informe distingue checks con y sin
+control. Cambiar la definición del check o del control invalida la evidencia incluso después
+del cierre. [Configuración y límites](docs/control-positivo.md).
+
+1. Añadir controles por requisito real: los casos de ClaveON INC-0033, 0034 y 0035 aún necesitan
+   sus entradas malas y aserciones propias. Un mutante de scope no acredita su cobertura.
+2. Compilar incidentes en checks registrados: una lección como detector, no como prosa.
 
 Cambios por versión: [CHANGELOG.md](CHANGELOG.md). Contribuir: [CONTRIBUTING.md](CONTRIBUTING.md).
 

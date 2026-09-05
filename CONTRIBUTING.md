@@ -18,14 +18,16 @@ Gracias por mirar. Tres reglas y un formato.
 ## Antes de abrir el PR
 
 ```bash
-bash tests/rompelo-stop-test.sh        # PASS=77 FAIL=0
-bash tests/rompelo-observe-test.sh     # PASS=64 FAIL=0
+bash tests/rompelo-stop-test.sh        # PASS=109 FAIL=0
+bash tests/rompelo-observe-test.sh     # PASS=75 FAIL=0
 bash tests/sin-var-pegada.sh           # 0 limpio · 1 hallazgos · 2 no pude mirar
 python3 bin/rompelo-corpus.py
 ```
 
 CI corre lo mismo en Ubuntu más `rompelo verify --ci` sobre este repo. Los checks marcados
 `solo_local` en `checks/registry.json` no corren en CI y no pueden ser la única prueba de algo.
+`verify --ci` ejecuta también los controles positivos registrados: un 1 del control acredita
+el malo esperado, no el check real. Contrato y límites en [docs/control-positivo.md](docs/control-positivo.md).
 
 ## Formato
 

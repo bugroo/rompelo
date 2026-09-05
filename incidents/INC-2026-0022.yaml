@@ -6,9 +6,9 @@ tipo: prueba-ciega
 evidencia_verde: "prueba verde tras «mutar»"
 lo_que_faltaba: "confirmar que el fichero cambió (hash antes/después) antes de dar valor al resultado"
 gate: instrumento-control-positivo
-gate_descripcion: "toda mutación asevera que ocurrió"
+gate_descripcion: "rompelo.tests confirma una sola sustitución de scope en una copia, exige el fallo concreto de la batería y sale con 2 si no pudo aplicar la mutación; un control con 0 no acredita el verde"
 existe_hoy: "sí"
-spike_cubre: "no"
+spike_cubre: "sí"
 clase: I
 senal_al_stop: "sí: hash igual antes y después"
 disparador: "control positivo de la mutación (la batería exige ver la mutación aplicada)"

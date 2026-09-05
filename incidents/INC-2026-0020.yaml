@@ -6,7 +6,7 @@ tipo: instrumento
 evidencia_verde: "rojo intermitente leído como fallo de código"
 lo_que_faltaba: "separar «agotó el plazo» de «falló una aserción»; no lanzar subprocesos en bucle"
 gate: instrumento-control-positivo
-gate_descripcion: "distinguir timeout de aserción en la salida del check"
+gate_descripcion: "triestado distingue 2 y códigos inesperados, pero ese runner aún necesita traducir su timeout a 2; si devuelve 1, el gate no puede distinguirlo de una aserción. No cubierto por los dos controles de rompelo"
 existe_hoy: "no"
 spike_cubre: "no"
 clase: I

@@ -6,8 +6,8 @@ tipo: prueba-ciega
 evidencia_verde: "suite completa en verde con la regla CSS mutada; ningún test miraba la especificidad"
 lo_que_faltaba: "una mutación a propósito (quitar el prefijo) como control positivo de la suite: si nada se pone rojo, ese requisito no está cubierto"
 gate: instrumento-control-positivo
-gate_descripcion: "control positivo por mutación registrado junto al check: la suite tiene que ponerse roja con el prefijo quitado; hoy rompelo no lo exige"
-existe_hoy: "no"
+gate_descripcion: "rompelo ya exige código 1 del control_positivo registrado; falta el control de ClaveON con el prefijo CSS quitado y una aserción de estilo. El control de scope de rompelo.tests no acredita este requisito"
+existe_hoy: "parcial"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "no"

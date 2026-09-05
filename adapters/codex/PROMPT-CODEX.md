@@ -65,6 +65,11 @@ Reglas que no se negocian:
 
 ## Parte 2 · Módulo «control positivo»: que un check no pueda dar verde sin haber mirado
 
+> **Implementada el 05-09-2026 sobre c652432.** Gate 109/109; registro con triestado y dos
+> controles reales. Resultados y límites en `docs/control-positivo.md`. Los requisitos de
+> abajo se conservan como contrato de la implementación; no implican controles específicos
+> ya conectados a ClaveON.
+
 Motivo, medido en `~/rompelo/corpus/TABLA.md`: de 35 incidentes reales, la clase mayor (15) es
 «la comprobación no podía fallar»: validador sobre el artefacto equivocado, instrumento que
 muere y sale con el código de hallazgo, `pnpm audit` con 0 tras un timeout, «no tests» leído

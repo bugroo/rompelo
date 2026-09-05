@@ -6,7 +6,7 @@ tipo: prueba-ciega
 evidencia_verde: "once pruebas de contenido en verde: comprobaban que el texto estaba, y estaba; solo la captura enseñó que salía como marcado"
 lo_que_faltaba: "una aserción sobre lo que SALE (render o estructura), no sobre lo que aparece: la presencia se comprueba leyendo, la forma solo renderizando"
 gate: stop-check-registrado
-gate_descripcion: "check registrado de humo renderizado (captura o parseo del HTML final) en el contrato; una prueba de subcadena no puede distinguir «está» de «está deformado»"
+gate_descripcion: "check de humo renderizado del HTML final, con control_positivo de correo escapado; el registro ya permite exigirlo, pero no se ha creado ni conectado ese check de ClaveON. Una prueba de subcadena sigue sin distinguir presencia de forma"
 existe_hoy: "parcial"
 spike_cubre: "parcial"
 clase: I

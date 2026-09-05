@@ -6,7 +6,7 @@ tipo: instrumento
 evidencia_verde: "código de salida 1, leído como hallazgo real"
 lo_que_faltaba: "trap EXIT/ERR que convierte todo aborto inesperado en «no pude», nunca en «no coinciden»"
 gate: instrumento-control-positivo
-gate_descripcion: "un fallo del instrumento nunca puede salir por el código de hallazgo"
+gate_descripcion: "el gate distingue 2 (no pudo mirar) y códigos inesperados en checks triestado; no puede descubrir que un instrumento haya usado incorrectamente 1 para un aborto. Falta corregir ese instrumento; sigue parcial"
 existe_hoy: "parcial"
 spike_cubre: "no"
 clase: I

@@ -42,6 +42,19 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 05-09-2026 · Parte 2 implementada sobre c652432
+
+Triestado y control positivo por check disponibles en `check` y `verify --ci`.
+Controles reales incluidos para `rompelo.tests` (scope anulado en una copia) y
+`rompelo.sin-var-pegada` (guion malo conocido). Gate 77 → 109 casos; rojo previo: 23 fallos,
+más un caso de cierre que ocultaba un check recién fallado. Detalles y límites en
+[`docs/control-positivo.md`](../../docs/control-positivo.md).
+
+El estado histórico de la Parte 1 se conserva debajo. Esta intervención no vuelve a instalar
+hooks ni cambia la confianza. Comprobado en disco: Stop sigue apuntando a
+`"$HOME/rompelo/bin/rompelo" hook codex`, con timeout 30; el shim sigue disponible.
+Los controles de ClaveON INC-0033/0034/0035 siguen pendientes de implementación específica.
+
 ### 05-09-2026 (mediodía) · cruzado en vivo desde Claude Code con `codex exec`
 
 Los hooks corren y están confiados (José los aceptó en `/hooks`). Cruce sobre repos desechables:

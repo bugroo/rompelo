@@ -40,7 +40,7 @@ and session; after that `rompelo` warns the user and lets go, so nobody gets tra
 
 ![Three steps: start from green, confirmed mutation turns it red, undo it and it is green again](docs/img/en/rojo-primero.png)
 
-The test battery (77 cases, run in CI on every push) applies this cycle to every condition of the
+The test battery (109 cases, run in CI on every push) applies this cycle to every condition of the
 gate itself. When a mutation is used to force red, the test first confirms the mutation actually
 happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
 
@@ -74,6 +74,8 @@ allowlist. From then on the agent cannot end a task until:
 |---|---|
 | every check id ran on the **current** working-tree content (content fingerprint, not the commit) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
 | a check that exits 0 without its declared minimum output is **not** green | `min_lineas` in the registry |
+| a declared positive control detects a known bad input before the real check runs | `control_positivo` must exit 1; 0 means blind, 2 means unable to inspect; any other code blocks |
+| findings and instrument failures are reported separately | `triestado: true`: 0 clean, 1 findings, 2 unable to inspect, other codes unexpected |
 | if the task touches an integration boundary, a real crossing **after** the last change | `rompelo cruce -- <real command>` or `--id <registered check>` |
 | every finding has a disposition | `hallazgos` in the contract |
 | every claim about the outside world has a state | `afirmaciones`: `verificado` needs a primary source and a verbatim quote, `derivado` needs what it derives from, `no_verificado` needs what is missing |
@@ -148,7 +150,7 @@ The gate and observer messages come in Spanish by default; set `ROMPELO_LANG=en`
 
 ## Verified, and not
 
-- 77 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
+- 109 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
   red with a confirmed mutation, then green. CI runs them on Ubuntu on every push.
 - The Claude Code side has been crossed live: ending a turn with an unmet contract returned the
   block with the right reasons, and the configured `settings.json` line is replayed by
@@ -188,10 +190,14 @@ requires them like any other.
 
 ## Roadmap, in order
 
-1. Positive control per registered check: the instrument must detect a known-bad input before its green counts.
-2. Closing report that says "seen failing" for real, once every check has a positive control.
-3. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.
-4. Risk profiles per repo, if the two-touch rule still shouts too much in real use.
+Positive controls now run in `check` and `verify --ci`. Included: a scope mutant for the gate
+battery and a known bad shell file for `sin-var-pegada`. The closing report distinguishes checks
+with and without a control. Evidence is invalidated when the control or check definition changes,
+even after closing. [Configuration and limits](docs/control-positivo.md) (Spanish).
+
+1. Add controls for each real requirement: the ClaveON cases in INC-0033, 0034 and 0035 still
+   need their own fixtures and assertions. A scope mutant does not establish their coverage.
+2. Compile incidents into registered checks, so a lesson becomes a detector instead of prose.
 
 Changes per version: [CHANGELOG.md](CHANGELOG.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
 

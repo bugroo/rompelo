@@ -3,7 +3,7 @@
 # FALLAR (bloquea con el motivo correcto) y PASAR (verde de partida y vuelta a verde).
 # Usa un ROMPELO_HOME desechable: registro y allowlist propios, nunca los reales.
 # Exit 0 = todo OK · 1 = hay fallos · 2 = no se pudo ejecutar.
-ASSURE="$HOME/rompelo/bin/rompelo"
+ASSURE="${ROMPELO_BIN:-$HOME/rompelo/bin/rompelo}"
 [ -x "$ASSURE" ] || { echo "no existe $ASSURE"; exit 2; }
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  ✅ $1"; }
@@ -221,6 +221,116 @@ echo n > src/nuevo.txt; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/de
 espera_paso "cerrada con fichero nuevo sin rastrear: silencio" s12
 git add -A >/dev/null && git commit -qm "fichero nuevo" && ok "commit del fichero nuevo" || bad "commit"
 espera_paso "cerrada y el fichero nuevo ya commiteado: sigue en silencio" s12b
+
+echo "── control positivo por check y triestado (INC-0018/0021/0025)"
+contrato 'estado="abierta"' 'checks=["positivo"]' 'toca_junta=false'
+cat > "$ROMPELO_HOME/control.py" <<'PY'
+import os, pathlib, sys
+p = pathlib.Path(os.environ['ROMPELO_HOME'])
+with (p / 'orden').open('a') as f: f.write('control\n')
+print('CANARIO_SALIDA_PRIVADA_CONTROL')
+sys.exit(int((p / 'control-codigo').read_text()))
+PY
+cat > "$ROMPELO_HOME/real.py" <<'PY'
+import os, pathlib, sys
+p = pathlib.Path(os.environ['ROMPELO_HOME'])
+with (p / 'orden').open('a') as f: f.write('real\n')
+print('CANARIO_SALIDA_PRIVADA_REAL\n2 vistos')
+sys.exit(int((p / 'real-codigo').read_text()))
+PY
+python3 - "$ROMPELO_HOME" <<'PY'
+import json, sys
+p=sys.argv[1]
+e={'argv':['python3',p+'/real.py'],'cwd':'repo','min_lineas':2,'triestado':True,
+   'control_positivo':{'argv':['python3',p+'/control.py'],'cwd':'rompelo'}}
+json.dump({'positivo':e},open(p+'/checks/registry.local.json','w'))
+PY
+positivo() { printf '%s' "$1" > "$ROMPELO_HOME/control-codigo"; printf '%s' "$2" > "$ROMPELO_HOME/real-codigo";
+  : > "$ROMPELO_HOME/orden"; "$ASSURE" check > "$T/positivo.txt" 2>&1; rc=$?; }
+registro_positivo() { python3 - "$ROMPELO_HOME/checks/registry.local.json" "$1" "$2" <<'PY'
+import json, sys
+f,k,v=sys.argv[1:];d=json.load(open(f));d['positivo'][k]=json.loads(v);json.dump(d,open(f,'w'))
+PY
+}
+positivo 0 0
+[ "$rc" -eq 1 ] && ok "check rechaza el control ciego" || bad "check aceptó el control ciego"
+espera_bloqueo "control con 0 bloquea el verde" cp0 "su control positivo no detectó el caso malo; el verde no vale"
+python3 - <<'PY'
+import json
+e=json.load(open('.rompelo/evidence/T1/check-positivo.json'))
+assert e.get('instrumento')=='ciego' and e.get('codigo') is None and e['control_positivo']['codigo']==0
+PY
+[ $? -eq 0 ] && ok "evidencia ciego con código real desconocido" || bad "evidencia del control ciego"
+[ "$(cat "$ROMPELO_HOME/orden")" = control ] && ok "control ciego impide ejecutar el check real" || bad "ejecutó el real con instrumento ciego"
+positivo 2 0
+espera_bloqueo "control con 2 no pudo mirar" cp2 "control positivo NO PUDO MIRAR (instrumento, no hallazgo)"
+[ "$rc" -eq 1 ] && [ "$(cat "$ROMPELO_HOME/orden")" = control ] && ok "control con 2 no ejecuta el real" || bad "control con 2 ejecutó el real"
+positivo 3 0
+espera_bloqueo "control con 3 aborta por ruta no prevista" cp3 "control positivo abortó por una ruta no prevista (código 3)"
+[ "$rc" -eq 1 ] && [ "$(cat "$ROMPELO_HOME/orden")" = control ] && ok "control inesperado no ejecuta el real" || bad "control inesperado ejecutó el real"
+positivo 1 2
+espera_bloqueo "triestado 2 distingue instrumento de hallazgo" tri2 "NO PUDO MIRAR (instrumento, no hallazgo; código 2)"
+out="$(hook codex tri2b "$R")"; ! printf '%s' "$out" | grep -q FALLÓ && ok "triestado 2 no dice FALLÓ" || bad "triestado 2 confundido con hallazgo"
+positivo 1 3
+espera_bloqueo "triestado 3 tiene motivo propio" tri3 "abortó por una ruta no prevista (código 3)"
+positivo 1 1
+espera_bloqueo "triestado 1 sigue siendo hallazgo" tri1 "FALLÓ con código 1"
+positivo 1 0
+[ "$rc" -eq 0 ] && ok "control 1 y real 0: check verde" || bad "rechazó control válido"
+espera_paso "control detecta el malo y check limpio: silencio" cpbueno
+[ "$(cat "$ROMPELO_HOME/orden")" = "$(printf 'control\nreal')" ] && ok "el control corre antes del real" || bad "orden incorrecto"
+grep -q '2/2 líneas' "$T/positivo.txt" && grep -q 'control positivo: código 1' "$T/positivo.txt" && ok "informa recuento y resultado del control" || bad "salida sin recuentos/control" "$(cat "$T/positivo.txt")"
+python3 - <<'PY'
+import json
+f='.rompelo/evidence/T1/check-positivo.json';s=open(f).read();e=json.loads(s)
+assert 'CANARIO_SALIDA_PRIVADA' not in s
+assert e['control_positivo']['lineas_salida']==1 and e['lineas_salida']==2
+assert e['control_positivo']['sha_salida'] and e['sha_salida']
+PY
+[ $? -eq 0 ] && ok "solo códigos, recuentos y hashes; ninguna salida guardada" || bad "privacidad de la evidencia"
+registro_positivo min_lineas 3
+positivo 1 0
+[ "$rc" -eq 1 ] && ok "check tampoco llama verde al 0 sin salida mínima" || bad "check dijo verde sin salida mínima"
+espera_bloqueo "control válido no exime salida mínima" cpmin "sin la salida mínima"
+registro_positivo min_lineas 2
+positivo 1 0
+espera_paso "salida suficiente restaura verde" cpminbien
+registro_positivo cwd '"rompelo"'
+espera_bloqueo "cambiar cwd invalida evidencia" cpcwd "cambió en el registro"
+registro_positivo cwd '"repo"'
+espera_paso "cwd restaurado: verde" cpcwdbien
+registro_positivo triestado false
+espera_bloqueo "cambiar triestado invalida evidencia" cpdef "cambió en el registro"
+registro_positivo triestado true
+"$ASSURE" close >/dev/null
+python3 - "$ROMPELO_HOME/checks/registry.local.json" <<'PY'
+import json,sys
+f=sys.argv[1];d=json.load(open(f));d['positivo']['control_positivo']['cwd']='repo';json.dump(d,open(f,'w'))
+PY
+espera_bloqueo "control cambiado invalida incluso el cierre" cpcerrado "cambió en el registro"
+positivo 1 0
+"$ASSURE" close >/dev/null
+espera_paso "nuevo control ejecutado y cierre rehecho: silencio" cpcerradobien
+positivo 0 0
+espera_bloqueo "control recién fallado invalida el cierre sin cambiar el árbol" cpcerradociego "el verde no vale"
+"$ASSURE" verify --ci --json > "$T/cp-ci.json"; rc=$?
+python3 - "$T/cp-ci.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]));assert not d['ok'] and any('el verde no vale' in m for m in d['motivos'])
+PY
+[ $? -eq 0 ] && [ "$rc" -eq 1 ] && ok "CI ejecuta también el control ciego y bloquea" || bad "CI ignoró el control"
+ROMPELO_LANG=en "$ASSURE" verify --ci --json > "$T/cp-en.json"
+grep -q 'positive control did not detect' "$T/cp-en.json" && ! grep -q 'verde no vale' "$T/cp-en.json" && ok "control ciego traducido al inglés" || bad "control en inglés"
+positivo 1 2
+ROMPELO_LANG=en "$ASSURE" verify --ci --json > "$T/cp-en.json"
+grep -q 'COULD NOT INSPECT' "$T/cp-en.json" && ! grep -q 'NO PUDO' "$T/cp-en.json" && ok "triestado traducido al inglés" || bad "triestado en inglés"
+positivo 1 0
+"$ASSURE" verify --ci --json | python3 -c 'import json,sys;assert json.load(sys.stdin)["ok"]' && ok "CI acepta control 1 y real 0" || bad "CI rechazó control válido"
+registro_positivo control_positivo '{"argv":"touch canario","cwd":"repo"}'
+: > "$ROMPELO_HOME/orden"
+"$ASSURE" check >/dev/null 2>&1; rc=$?
+[ "$rc" -ne 0 ] && [ ! -s "$ROMPELO_HOME/orden" ] && ok "control malformado se rechaza antes de ejecutar" || bad "control malformado ejecutó el real"
+espera_bloqueo "control malformado bloquea el cierre" cpinvalido "no pudo evaluar"
 
 echo
 echo "PASS=$PASS FAIL=$FAIL"

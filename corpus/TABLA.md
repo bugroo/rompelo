@@ -10,8 +10,8 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 |---|---|
 | Reparto por clase | **A**: 2 · **C**: 4 · **I**: 16 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 36) |
 | recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 7 · no: 21 |
-| ¿Cuántos tienen ya un control hoy? | sí: 13 · parcial: 9 · **no: 14** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 10 · parcial: 7 · no: 19 |
+| ¿Cuántos tienen ya un control hoy? | sí: 14 · parcial: 11 · **no: 11** |
 
 ## Por tipo de gate que lo habría cazado
 
@@ -96,8 +96,8 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0019 | 2026-09-04 | I | sí: 0 pruebas ejecutadas | `instrumento-control-positivo` | sí | sí |
 | 0020 | 2026-09-04 | I | sí: el mensaje decía timed out | `instrumento-control-positivo` | no | no |
 | 0021 | 2026-09-04 | S | sí: el patrón es grepeable | `stop-checks` | sí | sí |
-| 0022 | 2026-09-04 | I | sí: hash igual antes y después | `instrumento-control-positivo` | sí | no |
-| 0023 | 2026-09-04 | I | sí: el patrón que se busca no casaba con el mutante | `instrumento-control-positivo` | no | no |
+| 0022 | 2026-09-04 | I | sí: hash igual antes y después | `instrumento-control-positivo` | sí | sí |
+| 0023 | 2026-09-04 | I | sí: el patrón que se busca no casaba con el mutante | `instrumento-control-positivo` | sí | sí |
 | 0024 | 2026-09-04 | S | sí: el diff toca ficheros de prueba | `stop-prueba-toca-diff` | no | parcial |
 | 0025 | 2026-09-04 | I | sí: la entidad estaba en el fichero | `instrumento-control-positivo` | no | no |
 | 0026 | 2026-09-04 | C | no: la señal es la ausencia de un check | `deriva-generada` | parcial | no |
@@ -107,9 +107,9 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0030 | 2026-09-05 | I | sí: el contrato y la evidencia de cierre no coincidían y nadie lo comparaba | `instrumento-control-positivo` | sí | no |
 | 0031 | 2026-09-05 | I | no: el libro se llenaba de líneas con código 0 y nada parecía incoherente | `instrumento-control-positivo` | sí | no |
 | 0032 | 2026-09-05 | I | sí: la firma repetida sobre comandos con código 0 era contradictoria, pero nadie comparaba firma con código | `instrumento-control-positivo` | sí | no |
-| 0033 | 2026-09-05 | I | no: el guardián pasaba y nada parecía incoherente; solo se vio mutando (quitar una etiqueta) y viendo que seguía verde | `instrumento-control-positivo` | no | no |
+| 0033 | 2026-09-05 | I | no: el guardián pasaba y nada parecía incoherente; solo se vio mutando (quitar una etiqueta) y viendo que seguía verde | `instrumento-control-positivo` | parcial | no |
 | 0034 | 2026-09-05 | I | no: las pruebas eran del tipo equivocado para el fallo que perseguían | `stop-check-registrado` | parcial | parcial |
-| 0035 | 2026-09-05 | I | no | `instrumento-control-positivo` | no | no |
+| 0035 | 2026-09-05 | I | no | `instrumento-control-positivo` | parcial | no |
 | 0036 | 2026-09-05 | I | sí: 226 comandos sin un solo fallo es una distribución imposible, pero nadie la miraba | `instrumento-control-positivo` | parcial | parcial |
 
 ## Títulos
