@@ -174,7 +174,12 @@ The gate and observer messages come in Spanish by default; set `ROMPELO_LANG=en`
   exit code ([INC-2026-0036](incidents/INC-2026-0036.yaml)). The observer keeps it as unknown and
   derives the error signature from the last line by heuristic; "red check" and "ambiguous green"
   cannot fire on Codex. On Claude Code they can, through `PostToolUseFailure`.
-- **Not verified:** `checks_nivel3` with a real external tool (Stryker, semgrep) in a working repo.
+- Level 3 with real tools, on a ClaveON worktree: gitleaks and ShellCheck registered as
+  `checks_nivel3`, required after `rompelo permiso`, and both red with real findings (placeholders
+  in docs, a publishable key, twelve shell warnings). Adjudication belongs in the tool's own
+  configuration, not in the contract: a red check does not turn green by writing it down.
+- Risk profiles per repo: `por_repo` in `config/riesgo.json` or in `config/riesgo.local.json`
+  (untracked) switches a profile off or changes it for one path.
 
 Level 3 exists: list expensive or external checks (mutation testing, a security scanner) under
 `checks_nivel3` in the contract. They are ignored until the observer has raised the repo to level

@@ -295,6 +295,36 @@ Codex había fusionado los hooks y dejado el cruce como NO VERIFICADO. Se cruzó
   payload (tipo, claves, y los primeros 120 caracteres si es cadena) para verificar nuevos
   agentes sin guardar texto por defecto.
 
-Pendiente de este diseño: §4 D3 más allá del perfil `exterior`; perfiles por repo si los dos
-toques siguen gritando. NO VERIFICADO: `checks_nivel3` con una herramienta externa real.
+### 12.4 · Uso real sobre ClaveON y nivel 3 con herramientas de verdad (05-09, tarde)
+
+Sobre un worktree desechable de `ClaveON_B2C` (`main`, `aee38da`), para no ensuciar el árbol que
+comparten dos sesiones. Contrato `CLAVEON-USO-01` con los checks reales del registro local
+(`claveon.typecheck`, `claveon.build`, `claveon.test`) y dos de nivel 3 registrados hoy:
+`claveon.gitleaks` (gitleaks 8.30, `dir . --redact`) y `claveon.shellcheck` (0.11, los 22
+guiones de `scripts/`).
+
+- Gate antes de nada: bloqueo con los dos checks sin ejecutar. Después de `rompelo check`
+  (tres verdes, 19 s): silencio.
+- `pnpm test` en rojo la primera vez: siete pruebas leen `dist/`, y el worktree no tenía build.
+  Fallan en voz alta, no en silencio, así que está bien; pero el orden importa y el contrato lo
+  fija: `build` antes de `test`.
+- `rompelo permiso herramientas-externas si --recordar` → nivel 3 → el gate exige los dos
+  checks externos → `rompelo check` los ejecuta. **Los dos en rojo con hallazgos reales:**
+  gitleaks, 5 (cuatro son marcadores de posición en documentación, `TU_VERIFY_TOKEN` y
+  similares, y uno es la clave **publicable** de Stripe, pública por diseño); ShellCheck, 12
+  avisos en 8 guiones (`SC2155` ×5, `SC1090` ×5, `SC2034` ×2).
+- Lección de diseño que sale de aquí: un hallazgo de una herramienta se adjudica **en la
+  configuración de la herramienta** (`.gitleaks.toml` con allowlist, directivas de ShellCheck),
+  no en el contrato. `hallazgos` con `rechazado` no pone en verde un check rojo, y no debe:
+  «rojo es rojo». Lo que sí queda a cargo de ClaveON: la allowlist de gitleaks y los 12 avisos.
+- El motivo del gate a nivel 3 por permiso decía «nivel 2 ()»; ahora dice el nivel real y «por
+  permiso, sin patrones». Caso en rojo primero.
+- Perfiles por repo, implementados: `por_repo` en `config/riesgo.json` o en
+  `config/riesgo.local.json` (sin versionar) apaga o cambia un perfil para una ruta. Tres casos.
+
+Limpieza: nivel bajado con motivo, worktree quitado, allowlist y ruta confiada del shim de git
+restauradas. Los dos checks de nivel 3 quedan en `checks/registry.local.json`.
+
+Pendiente de este diseño: §4 D3 más allá del perfil `exterior`. NO VERIFICADO: nada de esta
+sección; lo de ClaveON (allowlist de gitleaks, avisos de ShellCheck) es trabajo suyo.
 

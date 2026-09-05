@@ -223,6 +223,21 @@ reset_estado; nueva_sesion
 codex_txt $SID 'grep -rn foo src' '' >/dev/null; o="$(codex_txt $SID 'grep -rn bar src' '')"
 [ -z "$o" ] && ok "sin código conocido, dos salidas vacías no son «verde ambiguo» (no se sabe si fue verde)" || bad "verde ambiguo codex" "$o"
 
+echo "── perfiles por repo: config/riesgo.json y riesgo.local.json pueden apagar o cambiar un perfil para una ruta"
+reset_estado; nueva_sesion
+python3 - "$ROMPELO_HOME" "$R" <<'PY'
+import json,sys,os
+home,repo=sys.argv[1:3]
+json.dump({"por_repo": {os.path.realpath(repo): {"auth": []}}}, open(os.path.join(home,"config","riesgo.local.json"),"w"))
+PY
+for i in 1 2; do o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"; done
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "perfil auth apagado para este repo: dos toques y silencio" || bad "por_repo apagado" "$o"
+for i in 1 2; do o="$(claude_ok_ev $SID 'wrangler pages deploy dist' 'ok' '')"; done
+printf '%s' "$o" | grep -q 'toca `despliegue`' && ok "los demás perfiles del mismo repo siguen vivos" || bad "por_repo otros" "$o"
+rm "$ROMPELO_HOME/config/riesgo.local.json"; reset_estado; nueva_sesion
+for i in 1 2; do o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"; done
+printf '%s' "$o" | grep -q 'toca `auth`' && ok "sin el fichero local, auth vuelve a saltar (la mutación era la que creía)" || bad "por_repo restaurado" "$o"
+
 echo "── paridad Claude/Codex sobre el mismo flujo"
 reset_estado; nueva_sesion
 A="$(bash_ev $SID 'pnpm test' 1 '' 'Error: x 1' ; bash_ev $SID 'pnpm test' 1 '' 'Error: x 2')"
@@ -258,6 +273,15 @@ printf '%s' "$o" | grep -q 'externo' && ok "el aviso de nivel 2 nombra el check 
 out="$(hook $SID)"; printf '%s' "$out" | grep -q 'externo' && bad "a nivel 2 aún no se exige" "$out" || ok "a nivel 2 aún no se exige"
 "$ROMPELO" permiso firma-repetida si >/dev/null
 out="$(hook $SID)"; printf '%s' "$out" | grep -q 'nivel 3.*`externo` sin ejecutar' && ok "a nivel 3 sin ejecutar: bloquea" || bad "nivel 3 externo" "$out"
+reset_estado; nueva_sesion; "$ROMPELO" permiso herramientas-externas si >/dev/null
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='';json.dump(c,open(f,'w'))
+PY
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'observación: nivel 3 (por permiso' && ! printf '%s' "$out" | grep -q 'nivel 2 ()' && ok "nivel 3 por permiso sin patrones: el motivo dice nivel 3 y por qué, no «nivel 2 ()»" || bad "motivo nivel por permiso" "$out"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='revisado';json.dump(c,open(f,'w'))
+PY
+"$ROMPELO" permiso firma-repetida si >/dev/null
 "$ROMPELO" check | grep -q 'externo' && ok "rompelo check ejecuta también los de nivel 3" || bad "check nivel 3"
 out="$(hook $SID)"; [ -z "$out" ] && ok "ejecutado: silencio" || bad "nivel 3 cumplido" "$out"
 "$ROMPELO" close | grep -q 'externo' && ok "y el informe lo lista" || bad "informe externo"

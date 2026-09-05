@@ -1,22 +1,22 @@
 {
-  "schema": 1,
-  "id": "ROMPELO-CODEX-01",
-  "estado": "cerrada",
-  "base": "f9218b8dd27f42014caff83685425419967a0ff1",
-  "descripcion": "Codex cruzado en vivo (Stop, tope, observador); Codex sin código de salida (INC-0036). Parte 2 de Codex pendiente.",
-  "scope_paths": [
-    "**"
-  ],
-  "checks": [
-    "rompelo.tests",
-    "rompelo.cruce-settings-claude",
-    "rompelo.sin-var-pegada",
-    "rompelo.observe-tests",
-    "rompelo.control-negativo-sesiones"
-  ],
-  "toca_junta": true,
-  "exige_prueba_en_diff": false,
-  "hallazgos": [],
-  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "05-09 mediodía: releído el diff de evento_desde_hook (rama str de Codex, parece_error), cmd_hook (marca en state/marcas) y las 7 pruebas nuevas (5 en rojo primero). Cruces en vivo con codex exec leídos en los rollouts, no solo en la salida."
+ "schema": 1,
+ "id": "ROMPELO-CODEX-01",
+ "estado": "cerrada",
+ "base": "f9218b8dd27f42014caff83685425419967a0ff1",
+ "descripcion": "Perfiles por repo, motivo del gate a nivel 3 por permiso, uso real sobre ClaveON con gitleaks y ShellCheck como checks de nivel 3.",
+ "scope_paths": [
+  "**"
+ ],
+ "checks": [
+  "rompelo.tests",
+  "rompelo.cruce-settings-claude",
+  "rompelo.sin-var-pegada",
+  "rompelo.observe-tests",
+  "rompelo.control-negativo-sesiones"
+ ],
+ "toca_junta": true,
+ "exige_prueba_en_diff": false,
+ "hallazgos": [],
+ "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+ "segunda_pasada": "05-09 tarde («go» 2): releídos perfiles_riesgo (por_repo, dos ficheros), el motivo del gate a nivel 3 y los 4 casos nuevos (2 en rojo primero). Uso real sobre ClaveON leído en las salidas de gitleaks (redactadas) y ShellCheck; limpieza comprobada: worktree fuera, allowlist y ruta confiada restauradas, árbol de ClaveON limpio."
 }

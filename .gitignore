@@ -3,3 +3,4 @@ __pycache__/
 config/repos.json
 checks/registry.local.json
 state/
+config/riesgo.local.json

@@ -11,7 +11,10 @@ no verificado de cada versión está en el relevo enlazado.
 - Codex no manda código de salida en `PostToolUse`: el observador lo deja como desconocido en vez
   de 0 y saca la firma de error de la última línea por heurística (INC-2026-0036).
 - `ROMPELO_DEBUG_FORMA=1` guarda la forma del payload (sin texto por defecto) en `state/forma.jsonl`.
-- Corpus 32 → 36 (INC-0033 a 0036), batería del observador 64 → 71.
+- Corpus 32 → 36 (INC-0033 a 0036), batería del observador 64 → 75.
+- Perfiles de riesgo por repo (`por_repo` en `config/riesgo.json` / `config/riesgo.local.json`).
+- Nivel 3 usado de verdad: gitleaks y ShellCheck como `checks_nivel3` sobre un repo de trabajo.
+- El motivo del gate a nivel 3 por permiso dice el nivel real («por permiso, sin patrones»).
 
 ## v0.1.0 · 2026-09-05
 

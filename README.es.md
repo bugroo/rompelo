@@ -170,7 +170,12 @@ Los mensajes del gate y del observador salen en español; con `ROMPELO_LANG=en` 
   código de salida ([INC-2026-0036](incidents/INC-2026-0036.yaml)). El observador lo deja como
   desconocido y saca la firma de error de la última línea por heurística; «check en rojo» y
   «verde ambiguo» no pueden saltar en Codex. En Claude Code sí, por `PostToolUseFailure`.
-- **No verificado:** `checks_nivel3` con una herramienta externa real (Stryker, semgrep) en un repo de trabajo.
+- Nivel 3 con herramientas reales, sobre un worktree de ClaveON: gitleaks y ShellCheck registrados
+  como `checks_nivel3`, exigidos tras `rompelo permiso`, y los dos en rojo con hallazgos de verdad
+  (marcadores en documentación, una clave publicable, doce avisos de shell). La adjudicación va en
+  la configuración de la herramienta, no en el contrato: un check rojo no se pone verde por escrito.
+- Perfiles de riesgo por repo: `por_repo` en `config/riesgo.json` o en `config/riesgo.local.json`
+  (sin versionar) apaga o cambia un perfil para una ruta.
 
 El nivel 3 existe: los checks caros o externos (mutation testing, un escáner de seguridad) van
 en `checks_nivel3` del contrato. No se exigen hasta que el observador haya subido el repo a nivel

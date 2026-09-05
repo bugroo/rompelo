@@ -29,8 +29,9 @@ EN = {
         "\nDo not declare the task done. Resolve each point (rompelo check / rompelo cruce / finding disposition) and try again. If something cannot be met, say so as NOT VERIFIED and write it in the contract.",
     "[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ": "[rompelo] limit of {tope} blocks reached: task {tid} is left UNVERIFIED. ",
     "rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.": "rompelo could not evaluate the contract ({exc}). An enrolled repo without a readable contract cannot close.",
-    "observación: nivel 2 ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
-        "observation: level 2 ({patrones}). An explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
+        "observation: level {nivel} ({patrones}). An explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "por permiso, sin patrones": "by permission, no patterns",
     "estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but the contract changed after closing. Run `rompelo check` and `rompelo close` again.",
     "estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but there are changes after closing (different fingerprint). Run `rompelo check` and `rompelo close` again.",
     "fuera de scope_paths: {lista}": "outside scope_paths: {lista}",
@@ -307,7 +308,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
         if "exterior" in perfiles and not c.get("toca_exterior"):
             c = dict(c, toca_exterior=True)
         if not str(c.get("segunda_pasada") or "").strip():
-            m.append(_("observación: nivel 2 ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)", patrones=", ".join(sorted(obs.get("patrones") or []))))
+            m.append(_("observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
+                       nivel=int(obs.get("nivel", 0) or 0), patrones=", ".join(sorted(obs.get("patrones") or [])) or _("por permiso, sin patrones")))
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
@@ -754,11 +756,28 @@ def toques_perfil(perfil):
     return int(t.get(perfil, t.get("_defecto", 2)))
 
 
-def perfiles_riesgo():
+RIESGO_LOCAL = os.path.join(ROMPELO_HOME, "config", "riesgo.local.json")  # sin versionar: rutas de esta máquina
+
+
+def perfiles_riesgo(root=None):
+    """Perfiles = código ← config/riesgo.json ← config/riesgo.local.json. En cualquiera de los dos, la clave
+    `por_repo` {ruta: {perfil: [patrones]}} cambia o apaga (lista vacía) un perfil para ese repo: un repo de
+    documentación no tiene `auth` aunque hable de ella todo el día (control negativo real, 05-09)."""
     r = {k: list(v) for k, v in RIESGO.items()}
-    for k, v in leer_json_o(RIESGO_CONF, {}).items():
-        if isinstance(v, list):
-            r[k] = [str(x) for x in v]
+    por_repo = {}
+    for f in (RIESGO_CONF, RIESGO_LOCAL):
+        conf = leer_json_o(f, {})
+        for k, v in conf.items():
+            if isinstance(v, list):
+                r[k] = [str(x) for x in v]
+        if isinstance(conf.get("por_repo"), dict):
+            for ruta, perfiles in conf["por_repo"].items():
+                if isinstance(perfiles, dict):
+                    por_repo.setdefault(os.path.realpath(os.path.expanduser(ruta)), {}).update(perfiles)
+    if root and os.path.realpath(root) in por_repo:
+        for k, v in por_repo[os.path.realpath(root)].items():
+            if isinstance(v, list):
+                r[k] = [str(x) for x in v]
     return r
 
 
@@ -934,7 +953,7 @@ def perfiles_de(evento):
     hits = set()
     if solo_lee(evento):
         return hits
-    for perfil, patrones in perfiles_riesgo().items():
+    for perfil, patrones in perfiles_riesgo(evento.get("repo")).items():
         for pat in patrones:
             try:
                 if re.search(pat, txt, re.M | re.I):
