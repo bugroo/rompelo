@@ -1167,7 +1167,9 @@ def cmd_hook(agente, args):
     marca = os.path.join(ESTADO, "marcas", f"stop-{agente}-{sid}-{tid}")
     n = 0
     try:
-        n = int(open(marca).read().strip() or 0)
+        # una marca de hace más de un día es de otra jornada: se reinicia (las marcas ya no viven en tempdir)
+        if (datetime.datetime.now().timestamp() - os.path.getmtime(marca)) < 86400:
+            n = int(open(marca).read().strip() or 0)
     except Exception:
         pass
     n += 1

@@ -18,7 +18,7 @@ T=$(mktemp -d); export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 git -C "$T" init -q && git -C "$T" config user.email t@t && git -C "$T" config user.name t
 echo a > "$T/a" && git -C "$T" add -A && git -C "$T" commit -qm base
 ( cd "$T" && "$HOME/rompelo/bin/rompelo" init --id CRUCE --check rompelo.tests --junta >/dev/null ) || { echo "init falló"; exit 2; }
-OUT=$(printf '{"session_id":"cruce","cwd":"%s","stop_hook_active":false,"hook_event_name":"Stop"}' "$T" | sh -c "$CMD")
+OUT=$(printf '{"session_id":"cruce-%s","cwd":"%s","stop_hook_active":false,"hook_event_name":"Stop"}' "$$" "$T" | sh -c "$CMD")
 python3 - "$HOME/rompelo/config/repos.json" "$T" <<'PY'
 import json,os,sys
 f,t=sys.argv[1],os.path.realpath(sys.argv[2])
