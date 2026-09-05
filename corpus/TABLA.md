@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (30 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
+Generado desde `incidents/` (32 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
 
 ## Lo que decide
 
@@ -8,16 +8,16 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 10 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 30) |
+| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 12 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 32) |
 | recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 5 · no: 17 |
-| ¿Cuántos tienen ya un control hoy? | sí: 11 · parcial: 7 · **no: 12** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 5 · no: 19 |
+| ¿Cuántos tienen ya un control hoy? | sí: 13 · parcial: 7 · **no: 12** |
 
 ## Por tipo de gate que lo habría cazado
 
 | Gate | Incidentes | Existe hoy |
 |---|---|---|
-| `instrumento-control-positivo` | 12 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030) | no, parcial, sí |
+| `instrumento-control-positivo` | 14 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032) | no, parcial, sí |
 | `deriva-generada` | 4 (0002, 0003, 0012, 0026) | parcial, sí |
 | `pretooluse-destructivo` | 3 (0001, 0007, 0008) | no, sí |
 | `stop-junta` | 3 (0004, 0014, 0027) | no, parcial |
@@ -61,6 +61,8 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | 0028 | 2026-09-04 | S | sí: ShellCheck instalado y no ejecutado | `stop-checks` | sí | sí |
 | 0029 | 2026-09-05 | I | sí: el propio hook bloqueó con «cambios posteriores al cierre» sobre un árbol limpio | `instrumento-control-positivo` | sí | no |
 | 0030 | 2026-09-05 | I | sí: el contrato y la evidencia de cierre no coincidían y nadie lo comparaba | `instrumento-control-positivo` | sí | no |
+| 0031 | 2026-09-05 | I | no: el libro se llenaba de líneas con código 0 y nada parecía incoherente | `instrumento-control-positivo` | sí | no |
+| 0032 | 2026-09-05 | I | sí: la firma repetida sobre comandos con código 0 era contradictoria, pero nadie comparaba firma con código | `instrumento-control-positivo` | sí | no |
 
 ## Títulos
 
@@ -94,3 +96,5 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 - **0028** · se copió la convención de otro guardián del repo y se propagó su fallo con confianza; ShellCheck estaba instalado y no se había pasado (`relato de la sesión rootml-de (backend ClaveON), mensaje entre sesiones del 04-09-2026; no reproducido aquí`)
 - **0029** · La huella de rompelo cambiaba al commitear un fichero nuevo con el mismo contenido: el gate reabría la tarea sin que nada hubiera cambiado (`propio; bloqueo en vivo del hook Stop de rompelo en ~/rompelo, commit c77ffcf`)
 - **0030** · Una tarea cerrada aceptaba un check obligatorio nuevo sin ejecutarlo: el contrato no formaba parte de la huella de cierre (`hallazgo de Codex al revisar rompelo (bin/rompelo:217), reproducido aquí con un caso en la batería`)
+- **0031** · El observador nunca veía un comando fallar en Claude Code: PostToolUse solo se dispara tras éxito y el fallo va por PostToolUseFailure (`cruce en vivo en la sesión 538801e8 (un `ls` a una ruta inexistente no dejó línea en el libro) + doc oficial code.claude.com/docs/en/hooks.md: «PostToolUse hooks fire after a tool has already executed successfully» y «For Bash and PowerShell, a command that ran and exited produces a first line Exit code N» (PostToolUseFailure)`)
+- **0032** · Códigos de salida inventados desde el texto: «exit code: 200» en un stdout y «Exit code 1» dentro de un documento se leían como códigos, y el aviso «Shell cwd was reset» del harness se firmaba como error (`libro real de la sesión 7ae11a81 (código 200 en un comando que salió bien) y de la sesión 538801e8 (códigos 2 y 1 al leer documentación con sed; la misma firma de error en tres comandos correctos seguidos); transcript 7ae11a81: los 35 resultados correctos con stderr eran solo el aviso de cwd`)

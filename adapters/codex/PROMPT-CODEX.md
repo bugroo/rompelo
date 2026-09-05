@@ -42,7 +42,17 @@ Reglas que no se negocian:
    Reporta las tres cosas con la salida literal del bloqueo. Si no llega el bloqueo, no lo
    arregles a ciegas: mide si el hook corrió (`~/.codex/hooks.json`, estado en `config.toml`,
    salida de `printf '{"cwd":"<repo>","session_id":"x"}' | ~/rompelo/bin/rompelo hook codex`).
-4. Anota el resultado en `~/rompelo/adapters/codex/LEEME.md`, sección «Estado», con fecha.
+4. Forma real de `tool_response` en un comando que FALLA. La doc de Codex dice que `PostToolUse`
+   «also runs after commands that exit with a non-zero status», pero no dice qué forma tiene
+   `tool_response` para Bash. `rompelo observe codex` acepta un campo entero `exit_code`
+   (también dentro de `metadata`) o una primera línea `Exit code N`; si Codex manda otra cosa,
+   el observador anota 0 y dos disparadores (firma repetida, check en rojo) quedan ciegos, que
+   es exactamente INC-2026-0031 en Claude Code. Con el hook `PostToolUse` conectado, ejecuta
+   `ls /no-existe` y mira el libro `~/rompelo/state/sesiones/codex-<session>.jsonl`: la última
+   línea tiene que llevar `"codigo": 1` (o 2). Si lleva 0 o null, captura SOLO las claves y la
+   primera línea de `tool_response` (nunca el texto) y reporta la forma para adaptar
+   `evento_desde_hook` en `bin/rompelo`.
+5. Anota el resultado en `~/rompelo/adapters/codex/LEEME.md`, sección «Estado», con fecha.
 
 ## Parte 2 · Módulo «control positivo»: que un check no pueda dar verde sin haber mirado
 

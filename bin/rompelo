@@ -607,7 +607,33 @@ RIESGO = {
     "junta":      [r"functions/api/", r"\bwebhooks?\b", r"\bn8n\b", r"\bworkflows?/", r"process\.env", r"os\.environ", r"import\.meta\.env"],
     "exterior":   [r"^pnpm (add|install)\b", r"^npm (i|install|add)\b", r"^yarn add\b", r"^pip3? install\b", r"^cargo add\b", r"^go get\b", r"package\.json$", r"pyproject\.toml$", r"requirements.*\.txt$"],
 }
-CHECKS_VERDES = ("pnpm test", "npm test", "yarn test", "pytest", "python3 -m pytest", "cargo test", "go test", "make test", "make check", "rompelo check", "vitest", "jest")
+# Un «check verde» es un comando que existe para juzgar el código (D2 reinicia el contador de ediciones con él).
+CHECKS_VERDES = [
+    r"\b(pnpm|npm|yarn|bun)(\s+run)?\s+(test|check|typecheck|lint|build|verify|e2e|smoke|humo|comprobar)\b",
+    r"\bpytest\b", r"\bpython3?\s+-m\s+pytest\b", r"\bcargo\s+(test|check|clippy)\b", r"\bgo\s+(test|vet)\b",
+    r"\bmake\s+(test|check|lint)\b", r"\brompelo\s+(check|verify)\b",
+    r"\b(vitest|jest|tsc|eslint|ruff|mypy|playwright test|astro check)\b", r"scripts?/comprobar-", r"\btests?/[^\s]+\.(sh|py)\b",
+]
+# Programas cuyo silencio significa «no encontré nada» (D2 verde ambiguo). Un `git add` callado es normal.
+BUSCADORES = {"grep", "rg", "ag", "ack", "find", "fd", "git grep", "git diff", "git log", "curl", "wget", "diff", "ls", "jq", "dig", "nslookup", "host", "ss", "netstat", "lsof", "ps", "test"}
+# Programas que solo leen: buscar la palabra «token» no es tocar auth (D1). Con redirección, -i, tee o xargs dejan de contar como lectura.
+LECTURAS = {"grep", "rg", "ag", "cat", "ls", "find", "fd", "head", "tail", "wc", "stat", "file", "diff", "jq", "less", "tree", "du", "df",
+            "which", "type", "echo", "printf", "git log", "git diff", "git status", "git show", "git grep", "git branch", "git rev-parse", "shasum", "md5", "sort", "uniq", "cut", "column"}
+# Ficheros cuya edición repetida no pide un check verde (D2 ediciones sin verde): documentación e imágenes.
+SIN_CHECK = (".md", ".mdx", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf", ".ico")
+
+
+def es_check(cmd):
+    return bool(cmd) and any(re.search(pat, cmd) for pat in CHECKS_VERDES)
+
+
+def solo_lee(evento):
+    txt = evento.get("riesgo_texto") or ""
+    if evento.get("ficheros"):
+        return False
+    if re.search(r"(^|\s)>{1,2}\s*\S|\btee\b|\bxargs\b|\bsed\s+-[a-zA-Z]*i|\bperl\s+-[a-zA-Z]*i", txt):
+        return False
+    return evento.get("prog") in LECTURAS
 
 
 def leer_json_o(f, defecto):
@@ -669,6 +695,11 @@ def programa(cmd):
     if not partes:
         return ""
     prog = os.path.basename(partes[0])
+    if prog in ("cd", "pushd"):
+        # «cd repo && pnpm test» es pnpm test, no cd (control negativo real, 05-09)
+        resto = re.split(r"\s*(?:&&|;|\|\|)\s*", cmd.strip(), 1)
+        if len(resto) == 2 and resto[1].strip():
+            return programa(resto[1])
     if prog in ("sudo", "env", "time", "nice"):
         return programa(" ".join(partes[1:]))
     if len(partes) > 1 and not partes[1].startswith("-") and prog in (
@@ -677,33 +708,68 @@ def programa(cmd):
     return prog
 
 
+RUIDO_STDERR = (r"^Shell cwd was reset to ",)  # avisos del harness, no del comando
+
+
+def limpiar_stderr(texto):
+    return "\n".join(l for l in (texto or "").split("\n") if not any(re.match(pat, l) for pat in RUIDO_STDERR))
+
+
+def codigo_de_texto(texto):
+    """Código de salida SOLO de la primera línea y SOLO con la forma que emiten los agentes
+    («Exit code N», doc oficial de Claude Code para PostToolUseFailure.error). Nunca del cuerpo:
+    un documento que dice «Exit code 1» o un curl que imprime «exit code: 200» no son códigos (INC-0032)."""
+    mo = re.match(r"\s*(?:Error:\s*)?Exit code:?\s*(\d+)\s*$", (texto or "").split("\n", 1)[0])
+    return int(mo.group(1)) if mo else None
+
+
 def evento_desde_hook(ent):
-    """Traduce el PostToolUse de Claude Code o Codex a la línea del libro. Sin texto de comandos
-    ni de salidas: solo programa, hash, código, recuentos, firma y rutas."""
+    """Traduce el PostToolUse / PostToolUseFailure de Claude Code o Codex a la línea del libro. Sin
+    texto de comandos ni de salidas: solo programa, hash, código, recuentos, firma y rutas.
+
+    Claude Code (doc oficial, leída 05-09-2026): PostToolUse «fires after a tool has already executed
+    successfully»; un comando con salida != 0 llega por PostToolUseFailure con `error` = "Exit code N\n…"
+    (INC-0031). Codex: PostToolUse «also runs after commands that exit with a non-zero status»; la forma
+    de tool_response para Bash NO está verificada, se aceptan campos de código y la primera línea."""
+    evento = str(ent.get("hook_event_name") or "PostToolUse")
     tool = str(ent.get("tool_name") or "")
     ti = ent.get("tool_input") or {}
-    resp = ent.get("tool_response")
     if not isinstance(ti, dict):
         ti = {}
-    cmd = str(ti.get("command") or "") if tool in ("Bash", "bash", "shell") else ""
+    es_shell = tool in ("Bash", "bash", "shell")
+    cmd = str(ti.get("command") or "") if es_shell else ""
     stdout, stderr, codigo = "", "", None
-    if isinstance(resp, dict):
-        for k in ("stdout", "output", "content"):
-            if isinstance(resp.get(k), str):
-                stdout += resp[k]
-        stderr = resp.get("stderr") if isinstance(resp.get("stderr"), str) else ""
-        for k in ("exit_code", "exitCode", "code", "returncode"):
-            if isinstance(resp.get(k), int):
-                codigo = resp[k]
-                break
-    elif isinstance(resp, str):
-        stdout = resp
-    if codigo is None:
-        mo = re.search(r"[Ee]xit code:? (\d+)", stderr + "\n" + stdout)
-        if mo:
-            codigo = int(mo.group(1))
-        elif tool in ("Bash", "bash", "shell") and not stderr:
-            codigo = 0 if resp is not None else None
+    fallo = evento == "PostToolUseFailure"
+    if fallo:
+        err = ent.get("error") if isinstance(ent.get("error"), str) else ""
+        codigo = codigo_de_texto(err)
+        # tras la línea de código viene la salida con stdout y stderr entrelazados: vale como stderr para la firma
+        stderr = err.split("\n", 1)[1] if (codigo is not None and "\n" in err) else ("" if codigo is not None else err)
+    else:
+        resp = ent.get("tool_response")
+        if isinstance(resp, dict):
+            for k in ("stdout", "output", "content"):
+                if isinstance(resp.get(k), str):
+                    stdout += resp[k]
+            stderr = resp.get("stderr") if isinstance(resp.get("stderr"), str) else ""
+            meta = resp.get("metadata") if isinstance(resp.get("metadata"), dict) else {}
+            for k in ("exit_code", "exitCode", "code", "returncode"):
+                if isinstance(resp.get(k), int):
+                    codigo = resp[k]
+                    break
+                if isinstance(meta.get(k), int):
+                    codigo = meta[k]
+                    break
+            if codigo is None:
+                codigo = codigo_de_texto(stderr)
+            if codigo is None and es_shell:
+                codigo = 0  # PostToolUse solo llega tras éxito (Claude Code); el texto de stdout no cuenta
+        elif isinstance(resp, str):
+            codigo = codigo_de_texto(resp)
+            stdout = resp.split("\n", 1)[1] if (codigo is not None and "\n" in resp) else resp
+            if codigo is None and es_shell:
+                codigo = 0
+    stderr = limpiar_stderr(stderr)
     ficheros = []
     for k in ("file_path", "path", "notebook_path"):
         if isinstance(ti.get(k), str):
@@ -711,13 +777,21 @@ def evento_desde_hook(ent):
     if tool == "apply_patch" or (cmd.startswith("apply_patch") or "*** Begin Patch" in cmd):
         ficheros += re.findall(r"\*\*\* (?:Add|Update|Delete) File: (.+)", cmd)
     prog = programa(cmd) if cmd else tool.lower()
+    if not cmd:
+        firma = None
+    elif codigo not in (None, 0):
+        firma = firma_error(stderr, prog, codigo)
+    elif fallo:
+        firma = hashlib.sha256(f"{prog}:fallo-sin-codigo".encode()).hexdigest()[:12]  # interrupción o el shell no arrancó
+    else:
+        firma = None  # un comando que salió bien no tiene firma de error, diga lo que diga stderr
     return {
-        "t": ahora(), "tool": tool, "prog": prog,
+        "t": ahora(), "tool": tool, "evento": evento, "prog": prog,
         "cmd_sha": hashlib.sha256(cmd.encode()).hexdigest()[:12] if cmd else None,
-        "cmd_es_check": bool(cmd) and any(cmd.strip().startswith(x) or f" {x}" in f" {cmd}" for x in CHECKS_VERDES),
-        "codigo": codigo, "stderr_lineas": (stderr or "").count("\n") + (1 if (stderr or "").strip() else 0),
+        "cmd_es_check": es_check(cmd),
+        "codigo": codigo, "stderr_lineas": stderr.count("\n") + (1 if stderr.strip() else 0),
         "stdout_vacio": not (stdout or "").strip(),
-        "firma": firma_error(stderr, prog, codigo) if cmd else None,
+        "firma": firma,
         "ficheros": ficheros,
         # Para D1 se mira el comando SIN los cuerpos de heredoc: ahí va texto, no órdenes, y un
         # documento que habla de functions/api no es tocar functions/api (falso positivo en vivo, 05-09).
@@ -728,6 +802,8 @@ def evento_desde_hook(ent):
 def perfiles_de(evento):
     txt = evento.get("riesgo_texto") or ""
     hits = set()
+    if solo_lee(evento):
+        return hits
     for perfil, patrones in perfiles_riesgo().items():
         for pat in patrones:
             try:
@@ -756,14 +832,18 @@ def patrones_de(libro, u):
     for e in libro:
         if e.get("cmd_es_check") and e.get("codigo") == 0:
             ediciones.clear()
+        root = e.get("repo") or ""
         for f in e.get("ficheros") or []:
-            ediciones[f] += 1
+            dentro = root and os.path.realpath(f).startswith(root.rstrip(os.sep) + os.sep)
+            if dentro and not f.lower().endswith(SIN_CHECK):
+                ediciones[f] += 1
     for f, n in ediciones.items():
         if n >= u["ediciones_sin_verde"]:
             out["ediciones-sin-verde"] = f"`{f}` editado {n} veces sin un check en verde entre medias"
             break
     ambiguos = collections.Counter(e.get("prog") for e in libro
-                                   if e.get("cmd_sha") and e.get("codigo") == 0 and (e.get("stdout_vacio") or e.get("stderr_lineas", 0) > 0))
+                                   if e.get("cmd_sha") and e.get("codigo") == 0 and (e.get("stdout_vacio") or e.get("stderr_lineas", 0) > 0)
+                                   and (e.get("cmd_es_check") or e.get("prog") in BUSCADORES))
     for p, n in ambiguos.items():
         if n >= u["verde_ambiguo"]:
             out["verde-ambiguo"] = f"`{p}` salió con 0 pero sin salida o con stderr {n} veces: un limpio que no se distingue de «no miré»"

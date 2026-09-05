@@ -29,6 +29,23 @@ ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Edit
 p=subprocess.run([r,"observe",ag],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
 PY
 }
+# Claude Code real: PostToolUse solo llega en éxito y tool_response es {stdout, stderr, interrupted, isImage}, SIN código.
+claude_ok_ev() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" "$4" <<'PY'
+import json,subprocess,sys
+r,sid,cwd,cmd,out,err=sys.argv[1:7]
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"interrupted":False,"isImage":False}}
+p=subprocess.run([r,"observe","claude"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+PY
+}
+# Claude Code real: un comando que sale con != 0 llega por PostToolUseFailure con `error` = "Exit code N\n<salida>".
+fail_ev() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" "${4:-false}" <<'PY'
+import json,subprocess,sys
+r,sid,cwd,cmd,err,intr=sys.argv[1:7]
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":cmd},"error":err,"is_interrupt":intr=="true"}
+p=subprocess.run([r,"observe","claude"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+PY
+}
+ultimo_codigo() { tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" | python3 -c "import json,sys;print(json.load(sys.stdin).get('codigo'))"; }
 nivel() { python3 -c "import json,glob;d=[json.load(open(f)) for f in glob.glob('$ROMPELO_HOME/state/repos/*.json')];print(d[0].get('nivel',0) if d else 0)"; }
 reset_estado() { rm -rf "$ROMPELO_HOME/state"; }
 hook() { printf '{"session_id":"%s","cwd":"%s","stop_hook_active":false}' "$1" "$R" | "$ROMPELO" hook claude; }
@@ -86,12 +103,12 @@ PY
 
 echo "── D2 ediciones sin verde (thrashing) y su reinicio con un check verde"
 reset_estado; nueva_sesion
-for i in 1 2 3; do edit_ev $SID src/a.txt >/dev/null; done
-o="$(edit_ev $SID src/a.txt)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "cuarta edición sin verde: aviso" || bad "thrashing" "$o"
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "cuarta edición sin verde: aviso" || bad "thrashing" "$o"
 reset_estado; nueva_sesion
-for i in 1 2 3; do edit_ev $SID src/a.txt >/dev/null; done
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
 bash_ev $SID 'pnpm test' 0 '12 passed' '' >/dev/null
-o="$(edit_ev $SID src/a.txt)"; [ -z "$o" ] && ok "un check verde entre medias reinicia el contador" || bad "reinicio" "$o"
+o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && ok "un check verde entre medias reinicia el contador" || bad "reinicio" "$o"
 
 echo "── D2 verde ambiguo: 0 sin salida dos veces"
 reset_estado; nueva_sesion
@@ -104,6 +121,55 @@ o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1')"; printf '%s' "$o" | grep -q
 reset_estado; nueva_sesion; printf '{"firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
 bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1' >/dev/null; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 2')"; [ -z "$o" ] && ok "umbral 99: no salta" || bad "umbral 99" "$o"
 rm "$ROMPELO_HOME/config/observacion.json"
+
+echo "── Claude Code de verdad: el fallo llega por PostToolUseFailure, no por PostToolUse (INC-0031)"
+reset_estado; nueva_sesion
+o1="$(fail_ev $SID 'pnpm test' $'Exit code 1\nError: expected 200 got 500 at line 41')"
+[ -z "$o1" ] && [ "$(ultimo_codigo)" = 1 ] && ok "primer fallo: código 1 leído de la primera línea de error, sin aviso" || bad "PostToolUseFailure 1" "$o1 codigo=$(ultimo_codigo)"
+o2="$(fail_ev $SID 'pnpm test' $'Exit code 1\nError: expected 200 got 503 at line 97')"
+printf '%s' "$o2" | grep -q 'mismo error 2 veces' && printf '%s' "$o2" | grep -q 'en rojo 2 veces' && ok "segundo fallo: firma repetida y check en rojo" || bad "PostToolUseFailure 2" "$o2"
+o3="$(fail_ev $SID 'sleep 999' 'Command timed out after 2m 0s' true)"
+[ -z "$o3" ] && [ "$(ultimo_codigo)" = None ] && ok "interrupción sin línea de código: código desconocido, sin aviso" || bad "interrupción" "$o3 codigo=$(ultimo_codigo)"
+
+echo "── ruido del harness: «Shell cwd was reset» en stderr no es un error ni un verde ambiguo (INC-0032)"
+reset_estado; nueva_sesion
+for i in 1 2 3; do o="$(claude_ok_ev $SID 'cd /tmp && git status' 'clean' 'Shell cwd was reset to /Users/x')"; done
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "tres comandos con el aviso de cwd: silencio y nivel 0" || bad "ruido cwd" "$o nivel=$(nivel)"
+tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" | grep -q '"firma": null' && ok "un comando que salió bien no lleva firma de error" || bad "firma en éxito" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+
+echo "── el código de salida no se lee del texto de la salida (INC-0032)"
+nueva_sesion
+claude_ok_ev $SID 'curl -s https://x' 'HTTP exit code: 200 ok' '' >/dev/null
+[ "$(ultimo_codigo)" = 0 ] && ok "«exit code: 200» en stdout no es un código de salida" || bad "código desde stdout" "codigo=$(ultimo_codigo)"
+claude_ok_ev $SID 'cat doc.md' $'la doc dice: exits with code 2\nExit code 1 aparece en la doc' '' >/dev/null
+[ "$(ultimo_codigo)" = 0 ] && ok "«Exit code 1» dentro de un documento tampoco" || bad "código desde doc" "codigo=$(ultimo_codigo)"
+
+echo "── control negativo con sesiones reales (05-09, 6 sesiones, 2.500 eventos): lo que saltó y no debía"
+reset_estado; nueva_sesion
+for i in 1 2; do o="$(claude_ok_ev $SID 'git add -A' '' '')"; done
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "dos «git add» sin salida: silencio (callar es su comportamiento normal, no «no miré»)" || bad "git add silencioso" "$o"
+claude_ok_ev $SID 'cd /tmp && grep -rn foo src' '' '' >/dev/null
+tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" | grep -q '"prog": "grep"' && ok "«cd x && grep …» se anota como grep, no como cd" || bad "prog tras cd" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+reset_estado; nueva_sesion
+for i in 1 2 3 4; do o="$(edit_ev $SID docs/notas.md)"; done
+[ -z "$o" ] && ok "cuatro ediciones de un .md: silencio (documentación no necesita un check verde)" || bad "md" "$o"
+reset_estado; nueva_sesion
+for i in 1 2 3 4; do o="$(edit_ev $SID /tmp/fuera-del-repo.ts)"; done
+[ -z "$o" ] && ok "cuatro ediciones de un fichero fuera del repo: silencio" || bad "fuera del repo" "$o"
+reset_estado; nueva_sesion
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+claude_ok_ev $SID 'pnpm run check' '0 errors' '' >/dev/null
+o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && ok "«pnpm run check» en verde cuenta como check y reinicia el contador" || bad "pnpm run check" "$o"
+reset_estado; nueva_sesion
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "y sin ese check, la cuarta edición de código sí avisa (control positivo)" || bad "thrashing código" "$o"
+reset_estado; nueva_sesion
+o="$(claude_ok_ev $SID 'grep -rn token src' 'src/a.ts:1: token' '')"
+[ -z "$o" ] && ok "buscar la palabra token no es tocar auth (lectura)" || bad "grep auth" "$o"
+o="$(claude_ok_ev $SID 'grep -i token src/a.ts' 'src/a.ts:1: token' '')"
+[ -z "$o" ] && ok "«grep -i» sigue siendo lectura (la -i de sed es otra)" || bad "grep -i" "$o"
+o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
+printf '%s' "$o" | grep -q 'toca `auth`' && ok "escribir en src/auth sí dispara" || bad "sed auth" "$o"
 
 echo "── paridad Claude/Codex sobre el mismo flujo"
 reset_estado; nueva_sesion

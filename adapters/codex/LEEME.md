@@ -95,6 +95,15 @@ siguen pendientes; `ROMPELO-CODEX-01` permanece abierto.
 La batería previa tiene dos pasadas `PASS=58 FAIL=0`; no se ha modificado el
 evaluador ni la batería. El bloqueo inicial de escritura queda resuelto.
 
+### 05-09-2026 · comandos que fallan
+
+En Claude Code, `PostToolUse` solo llega tras éxito y el fallo va por `PostToolUseFailure`
+(INC-2026-0031; arreglado y cruzado en vivo). Codex no tiene ese evento: su doc dice que
+`PostToolUse` «also runs after commands that exit with a non-zero status», así que
+`adapters/codex/hooks.json` no cambia. **NO VERIFICADO:** la forma de `tool_response` para un
+Bash que falla en Codex; el observador acepta `exit_code` (también en `metadata`) o una primera
+línea `Exit code N`. Comprobación concreta en `PROMPT-CODEX.md`, Parte 1, punto 4.
+
 ### 04-09-2026 · historial del bloqueo inicial de instalación (resuelto)
 
 **NO VERIFICADO en vivo desde Codex.** El encargo se inició sobre `f9218b8`, con el

@@ -180,8 +180,69 @@ El primer cruce real lo hizo el propio observador sin provocarlo: conectado el h
 **cuerpo de un heredoc** que escribía prosa, no en un comando. Arreglado quitando los cuerpos de
 heredoc antes de evaluar D1, con caso en rojo primero.
 
+### 12.1 · Segundo cruce y control negativo con sesiones reales (05-09, mañana)
+
+**El observador nunca había visto fallar un comando en Claude Code.** Un `ls` a una ruta
+inexistente, ejecutado a propósito, no dejó línea en el libro. La doc oficial lo dice: `PostToolUse`
+«fires after a tool has already executed successfully»; el fallo llega por `PostToolUseFailure`,
+con `error` = «Exit code N» y la salida detrás. Sin ese evento, dos de los cuatro patrones de D2
+(firma repetida, check en rojo) eran incapaces de saltar en vivo, y los 30 casos de la batería
+estaban en verde porque los eventos sintéticos llevaban `exit_code` dentro de `tool_response`,
+cosa que Claude Code no manda. Es [INC-2026-0031](../incidents/INC-2026-0031.yaml). Arreglado
+(hook `PostToolUseFailure` en el fragmento y en `settings.json`, caso con la forma real visto en
+rojo 31/37) y cruzado en vivo: el siguiente `ls` fallido quedó en el libro con código 1 y firma.
+
+Al mirar el libro real salió lo segundo, [INC-2026-0032](../incidents/INC-2026-0032.yaml): el
+código de salida se buscaba con una expresión sobre stdout, y un `curl` que imprimía «exit
+code: 200» o un `sed` que leía documentación con «Exit code 1» dentro quedaban anotados con
+esos códigos; y el aviso del harness «Shell cwd was reset to …», que viene en stderr de todo
+comando con `cd`, generaba la misma firma de error en tres comandos correctos seguidos. Cuatro
+casos en rojo, arreglo: el código solo de la primera línea y solo con la forma `Exit code N`;
+sin firma para un comando que salió bien; avisos del harness fuera de stderr antes de contar.
+
+**Control negativo con sesiones reales (§9.2).** `tests/control-negativo-sesiones.py` reproduce,
+desde los transcripts locales de `~/.claude/projects/`, los eventos que el hook habría recibido
+(éxito → `PostToolUse` con `{stdout, stderr, interrupted, isImage}`; fallo → `PostToolUseFailure`
+con `error`) contra un `ROMPELO_HOME` desechable cuya allowlist contiene los repos de esas
+sesiones. No imprime ni guarda texto de comandos ni de salidas. Seis sesiones, unos 2.500 eventos
+reproducidos, 38 de ellos fallos:
+
+| Pasada | Alarmas de patrón (D2) | Cuáles |
+|---|---|---|
+| antes | 7 | `cd` «salió con 0 sin salida» ×3; una captura `.png` escrita 4 veces; un `.md` en Downloads editado 4 veces; `docs/PROBLEMAS.md` ×4; `index.astro` ×4 |
+| después | 2 | dos `grep` vacíos seguidos; `index.astro` editado 4 veces sin check |
+
+Las dos que quedan son verdaderas por diseño: una búsqueda que no encuentra nada dos veces es
+justo el «limpio que no se distingue de no miré», y cuatro ediciones de código sin un check
+entre medias es el patrón de José. Las cinco falsas y su arreglo, cada una con caso en rojo:
+
+- `cd repo && pnpm test` se anotaba como `cd` → `programa()` salta el `cd … &&` inicial.
+- «verde ambiguo» contaba cualquier programa callado (`git add`, `mkdir`) → solo buscadores
+  (`grep`, `rg`, `find`, `curl`, `git diff`…) y checks.
+- «ediciones sin verde» contaba documentación, imágenes y ficheros fuera del repo → solo código
+  dentro del repo; `.md`, `.txt`, imágenes y PDF no cuentan.
+- La lista de checks verdes era literal (`pnpm test`) y no reconocía `pnpm run check`,
+  `astro check`, `scripts/comprobar-*.sh` → expresiones en `CHECKS_VERDES`.
+- D1 disparaba `auth` por `grep -rn token src` → los programas de solo lectura (sin redirección,
+  `-i`, `tee` ni `xargs`) no cuentan para D1.
+
+Lo que el control negativo enseña y **no** se ha cambiado, para decidirlo José: D1 salta mucho
+en sesiones reales (en una sesión con seis repos, 16 avisos de perfil; `auth` y `secretos` salen
+en las seis sesiones, porque en esta casa `pass show`, `.env` y `session` están en todas partes).
+Cada aviso sube el repo a nivel 2 y el gate exige segunda pasada. Es lo diseñado en §4 D1, pero
+en uso real puede ser el «guardián que grita siempre» de §1. Opciones: D1 solo con escritura
+(hoy ya excluye lecturas), umbral de dos toques antes de subir, o perfiles por repo en
+`config/riesgo.json`.
+
+El check `rompelo.control-negativo-sesiones` (solo local; en CI no hay transcripts) exige
+**exactamente** las dos alarmas legítimas: un observador que dejara de mirar daría cero y pasaría
+un simple «no más de dos». Y si una sesión reproduce fallos y el libro no tiene ningún código
+distinto de 0, falla con «el observador no ve los fallos»: visto en rojo con una copia mutada
+de `bin/rompelo` que no lee códigos.
+
 Pendiente de este diseño: §4 D3 más allá del perfil `exterior`, §5 nivel 3 con herramientas
-externas registradas, §8 informe con patrones y permisos (hoy el informe no los lista), §9.2
-control negativo con sesiones reales y §9.3 anotar en cada incidente el disparador que lo
-habría visto.
+externas registradas, §8 informe con patrones y permisos (hoy el informe no los lista), §9.3
+anotar en cada incidente el disparador que lo habría visto, y la decisión de arriba sobre D1.
+NO VERIFICADO: la forma de `tool_response` de Codex para un comando que falla
+(`adapters/codex/PROMPT-CODEX.md`, Parte 1, punto 4).
 

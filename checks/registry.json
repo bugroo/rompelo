@@ -36,5 +36,23 @@
     "cwd": "rompelo",
     "min_lineas": 10,
     "descripcion": "batería de la capa de observación"
+  },
+  "rompelo.control-negativo-sesiones": {
+    "argv": [
+      "python3",
+      "tests/control-negativo-sesiones.py",
+      "--sesiones",
+      "5",
+      "--max-eventos",
+      "600",
+      "--ids",
+      "49be3266,7ae11a81,9b2dd868,22029fbd,26f64f68",
+      "--alarmas-esperadas",
+      "2"
+    ],
+    "cwd": "rompelo",
+    "min_lineas": 10,
+    "solo_local": true,
+    "_nota": "control negativo del observador con 5 sesiones reales de esta máquina (transcripts locales); las 2 alarmas esperadas son verdaderas (dos grep vacíos; un .astro editado 4 veces sin check). Solo local: en CI no hay transcripts."
   }
 }

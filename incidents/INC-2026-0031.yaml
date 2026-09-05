@@ -1,0 +1,13 @@
+id: INC-2026-0031
+titulo: "El observador nunca veía un comando fallar en Claude Code: PostToolUse solo se dispara tras éxito y el fallo va por PostToolUseFailure"
+fecha: 2026-09-05
+fuente: "cruce en vivo en la sesión 538801e8 (un `ls` a una ruta inexistente no dejó línea en el libro) + doc oficial code.claude.com/docs/en/hooks.md: «PostToolUse hooks fire after a tool has already executed successfully» y «For Bash and PowerShell, a command that ran and exited produces a first line Exit code N» (PostToolUseFailure)"
+tipo: instrumento
+evidencia_verde: "30 casos de la batería en verde, incluido «firma repetida» y «check en rojo»; los eventos sintéticos llevaban exit_code dentro de tool_response, cosa que Claude Code nunca envía"
+lo_que_faltaba: "que el adaptador escuchara también PostToolUseFailure y leyera el código de la primera línea de `error`; sin eso, dos disparadores de los cuatro (firma repetida, check en rojo) eran incapaces de saltar en vivo"
+gate: instrumento-control-positivo
+gate_descripcion: "caso con la forma real de PostToolUseFailure visto en rojo (31/37) antes del arreglo; hook conectado y cruzado con un fallo real"
+existe_hoy: "sí"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "no: el libro se llenaba de líneas con código 0 y nada parecía incoherente"

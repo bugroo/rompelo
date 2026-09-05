@@ -1,0 +1,13 @@
+id: INC-2026-0032
+titulo: "Códigos de salida inventados desde el texto: «exit code: 200» en un stdout y «Exit code 1» dentro de un documento se leían como códigos, y el aviso «Shell cwd was reset» del harness se firmaba como error"
+fecha: 2026-09-05
+fuente: "libro real de la sesión 7ae11a81 (código 200 en un comando que salió bien) y de la sesión 538801e8 (códigos 2 y 1 al leer documentación con sed; la misma firma de error en tres comandos correctos seguidos); transcript 7ae11a81: los 35 resultados correctos con stderr eran solo el aviso de cwd"
+tipo: instrumento
+evidencia_verde: "cada línea del libro tenía un código y una firma; nada estaba vacío"
+lo_que_faltaba: "leer el código solo de la primera línea y solo con la forma «Exit code N»; no firmar como error un comando que salió bien; quitar los avisos del harness de stderr antes de contar"
+gate: instrumento-control-positivo
+gate_descripcion: "cuatro casos vistos en rojo (código desde stdout, código desde documento, firma en éxito, ruido cwd) antes del arreglo"
+existe_hoy: "sí"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "sí: la firma repetida sobre comandos con código 0 era contradictoria, pero nadie comparaba firma con código"

@@ -19,9 +19,9 @@ Documentación en español: [README.es.md](README.es.md).
 
 ## The problem it is built around
 
-![Bar chart of 30 real incidents by class: blind instrument 10, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
+![Bar chart of 32 real incidents by class: blind instrument 12, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
 
-Thirty real incidents from one month of agent-written code, each written down with what
+Thirty-two real incidents from one month of agent-written code, each written down with what
 looked green at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md), generated
 from [incidents/](incidents/)). The largest class is not "the test failed". It is "the check
 could not fail": a validator run on the wrong artifact, a guard that crashed and exited with
@@ -153,9 +153,21 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
   block with the right reasons, and the configured `settings.json` line is replayed by
   [`tests/cruce-settings-claude.sh`](tests/cruce-settings-claude.sh), which has been seen to
   return all three of its exit codes.
+- The observer is crossed live in Claude Code through both paths: `PostToolUse` (which Claude
+  Code only sends when the tool succeeded) and `PostToolUseFailure` (where a command with a
+  non-zero exit arrives). Until 05-09 it listened to the first one only, so two of its four
+  patterns could never fire: that is [INC-2026-0031](incidents/INC-2026-0031.yaml), filed in the
+  corpus as one more blind-instrument incident. The first two crossings also exposed two false
+  positives (prose inside a heredoc read as a command; exit codes read from output text), fixed
+  with a red case first.
+- Negative control with real sessions: [`tests/control-negativo-sesiones.py`](tests/control-negativo-sesiones.py)
+  replays, from local transcripts, what the hook would have received (storing and printing no
+  text) and counts alarms. Five sessions, about 2,300 events: from 7 alarms down to 2, both
+  true; the five false positives are fixed with a red case each. The check requires those two
+  to keep firing: an observer that stopped looking would report zero.
 - **Not verified:** the Codex side live. The adapter follows the official hook contract; the
-  install and trust steps belong to the user. The observation layer in
-  the observer has been crossed live once, by accident: while this documentation was being written, the `PostToolUse` hook raised the repo to level 2 and, in doing so, exposed a false positive (risk words inside a heredoc that wrote prose), fixed with a red case first. Level 3 with external tools is not built.
+  install and trust steps belong to the user. Nor the exact shape in which Codex delivers a
+  failing command. Level 3 with external tools is not built.
 
 ## Roadmap, in order
 

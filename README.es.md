@@ -16,9 +16,9 @@ English documentation: [README.md](README.md).
 
 ## El problema del que parte
 
-![Gráfico de barras de 30 incidentes reales por clase: instrumento ciego 10, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
+![Gráfico de barras de 32 incidentes reales por clase: instrumento ciego 12, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
 
-Treinta incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
+Treinta y dos incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
 que parecía verde cuando el agente dijo «hecho» ([corpus/TABLA.md](corpus/TABLA.md), generado
 desde [incidents/](incidents/)). La clase mayor no es «la prueba falló». Es «la comprobación no
 podía fallar»: un validador sobre el artefacto equivocado, un guardián que muere y sale con el
@@ -147,9 +147,21 @@ tu cargo (hallazgos aceptados sin corregir).
 - El lado de Claude Code está cruzado en vivo: terminar un turno con el contrato sin cumplir
   devolvió el bloqueo con los motivos correctos, y la línea configurada en `settings.json` la
   reproduce [`tests/cruce-settings-claude.sh`](tests/cruce-settings-claude.sh), visto dar sus tres códigos.
+- El observador está cruzado en vivo en Claude Code por los dos caminos: `PostToolUse` (que en
+  Claude Code solo llega cuando la herramienta salió bien) y `PostToolUseFailure` (por donde
+  llega un comando con salida distinta de 0). Hasta el 05-09 solo escuchaba el primero, así
+  que dos de sus cuatro patrones no podían saltar nunca: eso es [INC-2026-0031](incidents/INC-2026-0031.yaml),
+  y está en el corpus como un incidente más de instrumento ciego. Los dos primeros cruces
+  destaparon además dos falsos positivos (prosa dentro de un heredoc leída como comando;
+  códigos de salida leídos del texto), arreglados con caso en rojo primero.
+- Control negativo con sesiones reales: [`tests/control-negativo-sesiones.py`](tests/control-negativo-sesiones.py)
+  reproduce desde los transcripts locales lo que el hook habría recibido (sin guardar ni imprimir
+  texto) y cuenta alarmas. Cinco sesiones, unos 2.300 eventos: de 7 alarmas a 2, las dos
+  verdaderas; los cinco falsos positivos están arreglados con caso en rojo. El check exige que
+  esas dos sigan saltando: un observador que dejara de mirar daría cero.
 - **No verificado:** el lado de Codex en vivo. El adaptador sigue el contrato oficial del hook;
-  instalarlo y confiarlo es del usuario. La capa de observación de
-  el observador se cruzó en vivo una vez, sin querer: mientras se escribía esta documentación, el hook `PostToolUse` subió el repo a nivel 2 y destapó un falso positivo (palabras de riesgo dentro de un heredoc que escribía prosa), arreglado con caso en rojo primero. El nivel 3 con herramientas externas no está construido.
+  instalarlo y confiarlo es del usuario. Tampoco la forma exacta con la que Codex entrega un
+  comando que falla. El nivel 3 con herramientas externas no está construido.
 
 ## Hoja de ruta, en orden
 
