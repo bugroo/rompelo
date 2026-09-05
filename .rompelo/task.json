@@ -3,7 +3,7 @@
   "id": "ROMPELO-CODEX-01",
   "estado": "cerrada",
   "base": "f9218b8dd27f42014caff83685425419967a0ff1",
-  "descripcion": "v0.1.0: informe con observación, checks_nivel3 con permiso, mensajes en inglés, disparador por incidente. Codex sigue NO VERIFICADO en vivo.",
+  "descripcion": "Codex cruzado en vivo (Stop, tope, observador); Codex sin código de salida (INC-0036). Parte 2 de Codex pendiente.",
   "scope_paths": [
     "**"
   ],
@@ -18,5 +18,5 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "05-09 tarde: releídos los diffs de motivos_bloqueo (plantillas EN, checks_exigidos), cmd_observe (aviso con checks_nivel3) e informe_llano; 19 casos nuevos en la batería del observador, 9 vistos en rojo. Corpus anotado a mano con disparador, revisado título a título."
+  "segunda_pasada": "05-09 mediodía: releído el diff de evento_desde_hook (rama str de Codex, parece_error), cmd_hook (marca en state/marcas) y las 7 pruebas nuevas (5 en rojo primero). Cruces en vivo con codex exec leídos en los rollouts, no solo en la salida."
 }

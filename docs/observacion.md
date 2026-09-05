@@ -265,9 +265,36 @@ de `bin/rompelo` que no lee códigos.
   batería comprueba que un bloqueo inglés no lleva restos en español y que sin la variable sigue
   en español.
 - §9.3: cada incidente lleva `disparador`; `corpus/TABLA.md` tiene la sección «Qué lo habría
-  visto». Seis de 35 no tienen disparador ni gate (clases R, T y A: viven fuera del cierre).
+  visto». Seis de 36 no tienen disparador ni gate (clases R, T y A: viven fuera del cierre).
+
+### 12.3 · Codex en vivo (05-09, mediodía, con `codex exec` desde esta sesión)
+
+Codex había fusionado los hooks y dejado el cruce como NO VERIFICADO. Se cruzó desde aquí con
+`codex exec` (no interactivo) sobre repos desechables alistados con `rompelo init`:
+
+- **Stop.** Con el contrato sin cumplir, el hook devolvió el bloqueo literal
+  «`[rompelo] La tarea CRUCE-CODEX NO puede darse por terminada (1/3)`: check sin ejecutar; junta
+  sin cruce real». Codex cumplió el contrato por su cuenta (`rompelo check`, `rompelo cruce`,
+  `rompelo close`) y el siguiente Stop fue silencio. Con un modelo instruido para insistir: tres
+  bloqueos y a la cuarta el aviso al usuario (`systemMessage`), sin bloquear.
+- **La marca del tope no se escribía bajo Codex.** Iba a `tempfile.gettempdir()`, que dentro del
+  sandbox de Codex no era escribible (el hook lo tragaba en silencio y cada intento contaba como
+  el primero: el tope nunca llegaba). Ahora vive en `state/marcas/stop-<agente>-<sesión>-<tarea>`.
+  Medido después: la marca marcó 4 y el cuarto intento no bloqueó.
+- **Observador.** `PostToolUse` de Codex llega para cada herramienta (226 comandos Bash de cinco
+  sesiones de Codex en el libro antes de este cruce). Todos con código 0, y eso era la pista:
+  **Codex no manda código de salida.** Su `tool_response` de Bash es solo el texto que el modelo
+  imprimió (en el rollout: `tools.exec_command(...)` y `text(r.output)`); no hay `exit_code` ni en
+  el payload ni en el rollout. Un `ls /no-existe` a propósito quedó anotado como 0
+  ([INC-2026-0036](../incidents/INC-2026-0036.yaml)). Ahora queda como desconocido (`null`) y
+  la firma de error sale de la última línea por heurística (`parece_error`: «No such file»,
+  «Error», «FAILED», «Traceback»…), documentada como tal. En Codex, «firma repetida» funciona
+  por texto; «check en rojo» y «verde ambiguo» **no pueden saltar** porque exigen código. En
+  Claude Code sí, por `PostToolUseFailure`.
+- Bajo `ROMPELO_DEBUG_FORMA=1`, `rompelo observe` guarda en `state/forma.jsonl` la forma del
+  payload (tipo, claves, y los primeros 120 caracteres si es cadena) para verificar nuevos
+  agentes sin guardar texto por defecto.
 
 Pendiente de este diseño: §4 D3 más allá del perfil `exterior`; perfiles por repo si los dos
-toques siguen gritando. NO VERIFICADO: la forma de `tool_response` de Codex para un comando que
-falla (`adapters/codex/PROMPT-CODEX.md`, Parte 1, punto 4).
+toques siguen gritando. NO VERIFICADO: `checks_nivel3` con una herramienta externa real.
 

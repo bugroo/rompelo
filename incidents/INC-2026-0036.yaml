@@ -1,0 +1,14 @@
+id: INC-2026-0036
+titulo: "En Codex, tool_response de Bash es solo el texto que el modelo imprimió (text(r.output)): sin código de salida, un ls roto llegaba como verde y el observador estaba ciego a los fallos"
+fecha: 2026-09-05
+fuente: "medido con codex exec desde esta sesión: 226 comandos Bash de cinco sesiones de Codex en el libro, todos con código 0; luego un `ls /no-existe` a propósito registrado como 0; rollout de Codex: la llamada era `tools.exec_command(...)` y `text(r.output)`, sin el código"
+tipo: instrumento
+evidencia_verde: "el libro de cada sesión de Codex tenía un código por comando y todos eran 0; nada parecía incoherente hasta contar: 226 comandos y ni un fallo"
+lo_que_faltaba: "que el observador no inventara un 0 cuando el agente no manda código: ahora queda desconocido (null) y la firma de error sale de la última línea por heurística, documentada como tal"
+gate: instrumento-control-positivo
+gate_descripcion: "cinco casos con la forma real de Codex vistos en rojo; el check de control negativo real ya exigía códigos distintos de 0 para Claude Code y ahora también cubre la forma de Codex"
+existe_hoy: "parcial"
+spike_cubre: "parcial"
+clase: I
+senal_al_stop: "sí: 226 comandos sin un solo fallo es una distribución imposible, pero nadie la miraba"
+disparador: "control negativo real por agente: contar los códigos del libro; un agente sin fallos en 200 comandos es un instrumento ciego"

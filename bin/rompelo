@@ -820,6 +820,16 @@ def limpiar_stderr(texto):
     return "\n".join(l for l in (texto or "").split("\n") if not any(re.match(pat, l) for pat in RUIDO_STDERR))
 
 
+PARECE_ERROR = re.compile(r"\b(error|fail(?:ed|ure|s)?|traceback|exception|no such file|not found|denied|fatal|panic|cannot|command not found|abort(?:ed)?)\b", re.I)
+
+
+def parece_error(texto):
+    """Sin código de salida (Codex), la última línea del texto decide si hay firma. Es heurística: acierta con
+    «No such file», «Error:», «FAILED», y falla con un test runner que solo imprime «12 passed, 1 skipped»."""
+    lineas = [l for l in (texto or "").split("\n") if l.strip()]
+    return bool(lineas) and bool(PARECE_ERROR.search(lineas[-1]))
+
+
 def codigo_de_texto(texto):
     """Código de salida SOLO de la primera línea y SOLO con la forma que emiten los agentes
     («Exit code N», doc oficial de Claude Code para PostToolUseFailure.error). Nunca del cuerpo:
@@ -844,6 +854,7 @@ def evento_desde_hook(ent):
     es_shell = tool in ("Bash", "bash", "shell")
     cmd = str(ti.get("command") or "") if es_shell else ""
     stdout, stderr, codigo = "", "", None
+    sin_codigo = False  # el agente no manda código de salida (Codex): la firma sale del texto, por heurística
     fallo = evento == "PostToolUseFailure"
     if fallo:
         err = ent.get("error") if isinstance(ent.get("error"), str) else ""
@@ -852,6 +863,15 @@ def evento_desde_hook(ent):
         stderr = err.split("\n", 1)[1] if (codigo is not None and "\n" in err) else ("" if codigo is not None else err)
     else:
         resp = ent.get("tool_response")
+        if isinstance(resp, str) and resp.lstrip().startswith("{"):
+            # Codex manda la salida de Bash como CADENA JSON {"output": …, "metadata": {"exit_code": N, …}}
+            # (medido con `codex exec` el 05-09-2026, INC-2026-0036). Se abre y se trata como dict.
+            try:
+                abierto = json.loads(resp)
+                if isinstance(abierto, dict):
+                    resp = abierto
+            except ValueError:
+                pass
         if isinstance(resp, dict):
             for k in ("stdout", "output", "content"):
                 if isinstance(resp.get(k), str):
@@ -870,10 +890,13 @@ def evento_desde_hook(ent):
             if codigo is None and es_shell:
                 codigo = 0  # PostToolUse solo llega tras éxito (Claude Code); el texto de stdout no cuenta
         elif isinstance(resp, str):
+            # Codex (medido con `codex exec`, 05-09-2026): tool_response de Bash es SOLO el texto que el modelo
+            # imprimió (`text(r.output)`), sin código de salida. Se deja desconocido (None), no 0: un «ls» roto
+            # llegaba como verde y el observador estaba ciego a los fallos en Codex (INC-2026-0036).
             codigo = codigo_de_texto(resp)
             stdout = resp.split("\n", 1)[1] if (codigo is not None and "\n" in resp) else resp
             if codigo is None and es_shell:
-                codigo = 0
+                sin_codigo = True
     stderr = limpiar_stderr(stderr)
     ficheros = []
     for k in ("file_path", "path", "notebook_path"):
@@ -888,6 +911,8 @@ def evento_desde_hook(ent):
         firma = firma_error(stderr, prog, codigo)
     elif fallo:
         firma = hashlib.sha256(f"{prog}:fallo-sin-codigo".encode()).hexdigest()[:12]  # interrupción o el shell no arrancó
+    elif sin_codigo and parece_error(stdout):
+        firma = firma_error(stdout, prog, None)  # heurística sobre la última línea; documentada en docs/observacion.md §12.3
     else:
         firma = None  # un comando que salió bien no tiene firma de error, diga lo que diga stderr
     return {
@@ -968,6 +993,23 @@ def cmd_observe(agente, args):
         root = raiz_repo(cwd)
         ev = evento_desde_hook(ent)
         ev["repo"] = root
+        if os.environ.get("ROMPELO_DEBUG_FORMA"):
+            # Solo la FORMA del payload (tipo y claves), nunca texto: sirve para verificar qué manda cada
+            # agente en un comando que falla (NO VERIFICADO en Codex, docs/observacion.md §12.2).
+            resp = ent.get("tool_response")
+            forma = {"t": ahora(), "agente": agente, "evento": ev["evento"], "tool": ev["tool"], "codigo": ev["codigo"],
+                     "tool_use_id": str(ent.get("tool_use_id") or "")[:20], "transcript": bool(ent.get("transcript_path")),
+                     "tipo": type(resp).__name__, "claves": sorted(resp.keys())[:20] if isinstance(resp, dict) else None,
+                     "claves_error": sorted(k for k in ent.keys() if k not in ("tool_input", "tool_response")),
+                     "primera_linea_exit": bool(re.match(r"\s*(?:Error:\s*)?Exit code", (resp if isinstance(resp, str) else "").split("\n", 1)[0]))}
+            if isinstance(resp, dict):
+                forma["subclaves"] = {k: sorted(v.keys())[:10] for k, v in resp.items() if isinstance(v, dict)}
+                forma["tipos"] = {k: type(v).__name__ for k, v in resp.items()}
+            elif isinstance(resp, str):
+                forma["cabeza"] = resp[:120]  # solo bajo la variable de depuración, puesta a mano por el operador
+            os.makedirs(ESTADO, exist_ok=True)
+            with open(os.path.join(ESTADO, "forma.jsonl"), "a") as fh:
+                fh.write(json.dumps(forma, ensure_ascii=False) + "\n")
         os.makedirs(os.path.join(ESTADO, "sesiones"), exist_ok=True)
         libro_f = os.path.join(ESTADO, "sesiones", f"{agente}-{sid}.jsonl")
         libro = []
@@ -1100,7 +1142,10 @@ def cmd_hook(agente, args):
         m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
     if not m:
         return 0
-    marca = os.path.join(tempfile.gettempdir(), f"rompelo-stop-{sid}-{tid}")
+    # La marca del tope vive en el estado de rompelo, no en el tempdir: bajo el sandbox de Codex el
+    # tempdir del hook no era escribible y el tope de 3 nunca llegaba (medido con codex exec, 05-09).
+    os.makedirs(os.path.join(ESTADO, "marcas"), exist_ok=True)
+    marca = os.path.join(ESTADO, "marcas", f"stop-{agente}-{sid}-{tid}")
     n = 0
     try:
         n = int(open(marca).read().strip() or 0)

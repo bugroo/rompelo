@@ -19,9 +19,9 @@ Documentación en español: [README.es.md](README.es.md).
 
 ## The problem it is built around
 
-![Bar chart of 35 real incidents by class: blind instrument 15, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
+![Bar chart of 36 real incidents by class: blind instrument 16, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
 
-Thirty-five real incidents from one month of agent-written code, each written down with what
+Thirty-six real incidents from one month of agent-written code, each written down with what
 looked green at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md), generated
 from [incidents/](incidents/)). The largest class is not "the test failed". It is "the check
 could not fail": a validator run on the wrong artifact, a guard that crashed and exited with
@@ -166,9 +166,15 @@ The gate and observer messages come in Spanish by default; set `ROMPELO_LANG=en`
   text) and counts alarms. Five sessions, about 2,300 events: from 7 alarms down to 2, both
   true; the five false positives are fixed with a red case each. The check requires those two
   to keep firing: an observer that stopped looking would report zero.
-- **Not verified:** the Codex side live. The adapter follows the official hook contract; the
-  install and trust steps belong to the user. Nor the exact shape in which Codex delivers a
-  failing command. Level 3 with external tools is not built.
+- The Codex side is crossed live (05-09, with `codex exec` on a disposable repo): with the contract
+  unmet, the `Stop` hook returned the block with the two right reasons, Codex met the contract on
+  its own (`check`, `cruce`, `close`) and the next stop was silence; with a model that insists,
+  three blocks and on the fourth the warning to the user. The observer receives every Codex tool too.
+- **Limit measured in Codex:** its `PostToolUse` delivers only the text the model printed, with no
+  exit code ([INC-2026-0036](incidents/INC-2026-0036.yaml)). The observer keeps it as unknown and
+  derives the error signature from the last line by heuristic; "red check" and "ambiguous green"
+  cannot fire on Codex. On Claude Code they can, through `PostToolUseFailure`.
+- **Not verified:** `checks_nivel3` with a real external tool (Stryker, semgrep) in a working repo.
 
 Level 3 exists: list expensive or external checks (mutation testing, a security scanner) under
 `checks_nivel3` in the contract. They are ignored until the observer has raised the repo to level

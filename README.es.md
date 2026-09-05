@@ -16,9 +16,9 @@ English documentation: [README.md](README.md).
 
 ## El problema del que parte
 
-![Gráfico de barras de 35 incidentes reales por clase: instrumento ciego 15, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
+![Gráfico de barras de 36 incidentes reales por clase: instrumento ciego 16, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
 
-Treinta y cinco incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
+Treinta y seis incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
 que parecía verde cuando el agente dijo «hecho» ([corpus/TABLA.md](corpus/TABLA.md), generado
 desde [incidents/](incidents/)). La clase mayor no es «la prueba falló». Es «la comprobación no
 podía fallar»: un validador sobre el artefacto equivocado, un guardián que muere y sale con el
@@ -161,9 +161,16 @@ Los mensajes del gate y del observador salen en español; con `ROMPELO_LANG=en` 
   texto) y cuenta alarmas. Cinco sesiones, unos 2.300 eventos: de 7 alarmas a 2, las dos
   verdaderas; los cinco falsos positivos están arreglados con caso en rojo. El check exige que
   esas dos sigan saltando: un observador que dejara de mirar daría cero.
-- **No verificado:** el lado de Codex en vivo. El adaptador sigue el contrato oficial del hook;
-  instalarlo y confiarlo es del usuario. Tampoco la forma exacta con la que Codex entrega un
-  comando que falla. El nivel 3 con herramientas externas no está construido.
+- El lado de Codex está cruzado en vivo (05-09, con `codex exec` sobre un repo desechable): con el
+  contrato sin cumplir, el hook `Stop` devolvió el bloqueo con los dos motivos correctos, Codex
+  cumplió el contrato por su cuenta (`check`, `cruce`, `close`) y el siguiente cierre fue silencio;
+  con un modelo que insiste, tres bloqueos y a la cuarta el aviso al usuario. El observador también
+  recibe cada herramienta de Codex.
+- **Límite medido en Codex:** su `PostToolUse` entrega solo el texto que el modelo imprimió, sin
+  código de salida ([INC-2026-0036](incidents/INC-2026-0036.yaml)). El observador lo deja como
+  desconocido y saca la firma de error de la última línea por heurística; «check en rojo» y
+  «verde ambiguo» no pueden saltar en Codex. En Claude Code sí, por `PostToolUseFailure`.
+- **No verificado:** `checks_nivel3` con una herramienta externa real (Stryker, semgrep) en un repo de trabajo.
 
 El nivel 3 existe: los checks caros o externos (mutation testing, un escáner de seguridad) van
 en `checks_nivel3` del contrato. No se exigen hasta que el observador haya subido el repo a nivel

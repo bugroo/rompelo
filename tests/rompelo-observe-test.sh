@@ -184,6 +184,45 @@ reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 2, "exterior"
 o="$(bash_ev $SID 'pnpm add left-pad' 0 'added 1 package' '')"; printf '%s' "$o" | grep -q 'toca `exterior`' && ok "excepción por perfil: exterior a un toque" || bad "excepción exterior" "$o"
 rm "$ROMPELO_HOME/config/observacion.json"
 
+echo "── Codex: si tool_response fuera una cadena JSON {output, metadata:{exit_code}}, se abre (forma admitida, no la medida)"
+reset_estado; nueva_sesion
+python3 - "$ROMPELO" $SID "$R" <<'PY'
+import json,subprocess,sys
+r,sid,cwd=sys.argv[1:4]
+resp=json.dumps({"output":"ls: /no-existe: No such file or directory","metadata":{"exit_code":1,"duration_seconds":0.01}})
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls /no-existe"},"tool_response":resp}
+subprocess.run([r,"observe","codex"],input=json.dumps(ev),capture_output=True,text=True)
+PY
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 1' && ok "el código sale de metadata.exit_code dentro de la cadena JSON" || bad "codex str json" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+python3 - "$ROMPELO" $SID "$R" <<'PY'
+import json,subprocess,sys
+r,sid,cwd=sys.argv[1:4]
+resp=json.dumps({"output":"hola\n","metadata":{"exit_code":0,"duration_seconds":0.01}})
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo hola"},"tool_response":resp}
+subprocess.run([r,"observe","codex"],input=json.dumps(ev),capture_output=True,text=True)
+PY
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 0' && tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"stdout_vacio": false' && ok "y con 0 la salida cuenta como salida (no como cadena opaca)" || bad "codex str json 0" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+
+echo "── Codex de verdad (medido con codex exec, 05-09): tool_response es SOLO el texto que el modelo imprimió, sin código de salida"
+reset_estado; nueva_sesion
+codex_txt() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" <<'PY'
+import json,subprocess,sys
+r,sid,cwd,cmd,txt=sys.argv[1:6]
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":txt}
+p=subprocess.run([r,"observe","codex"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+PY
+}
+codex_txt $SID 'ls /no-existe' $'ls: /no-existe: No such file or directory\n' >/dev/null
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": null' && ok "sin código en el payload: código desconocido (null), no 0" || bad "codex sin código" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"firma": "' && ok "la última línea parece un error: lleva firma (heurística, documentada)" || bad "firma heurística" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+o="$(codex_txt $SID 'ls /tampoco' $'ls: /tampoco: No such file or directory\n')"
+printf '%s' "$o" | grep -q 'mismo error 2 veces' && ok "dos errores iguales por texto: firma repetida salta también en Codex" || bad "firma repetida codex" "$o"
+codex_txt $SID 'echo hola' $'hola\n' >/dev/null
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"firma": null' && ok "una salida normal no lleva firma" || bad "firma en salida normal" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+reset_estado; nueva_sesion
+codex_txt $SID 'grep -rn foo src' '' >/dev/null; o="$(codex_txt $SID 'grep -rn bar src' '')"
+[ -z "$o" ] && ok "sin código conocido, dos salidas vacías no son «verde ambiguo» (no se sabe si fue verde)" || bad "verde ambiguo codex" "$o"
+
 echo "── paridad Claude/Codex sobre el mismo flujo"
 reset_estado; nueva_sesion
 A="$(bash_ev $SID 'pnpm test' 1 '' 'Error: x 1' ; bash_ev $SID 'pnpm test' 1 '' 'Error: x 2')"

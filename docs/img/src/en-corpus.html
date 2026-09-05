@@ -14,16 +14,16 @@ h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 10px;font-wei
 .note{font-size:15px;color:var(--muted);margin-top:8px}
 </style></head><body><div class="wrap">
 <h1>Most real failures had green tests</h1>
-<p class="sub">35 incidents from agent-written code (August and September 2026), classified by what was visible when the agent said “done”.</p>
+<p class="sub">36 incidents from agent-written code (August and September 2026), classified by what was visible when the agent said “done”.</p>
 <div class="rows">
- <div class="row hi"><div class="lab"><b>I</b>blind instrument</div><div><div class="bar" style="width:100%"></div></div><div class="val">15</div></div>
- <div class="row"><div class="lab"><b>S</b>signal at Stop</div><div><div class="bar" style="width:40%"></div></div><div class="val">6</div></div>
- <div class="row"><div class="lab"><b>C</b>context or scope</div><div><div class="bar" style="width:27%"></div></div><div class="val">4</div></div>
- <div class="row"><div class="lab"><b>M</b>mixed</div><div><div class="bar" style="width:20%"></div></div><div class="val">3</div></div>
- <div class="row"><div class="lab"><b>T</b>at tool time</div><div><div class="bar" style="width:20%"></div></div><div class="val">3</div></div>
+ <div class="row hi"><div class="lab"><b>I</b>blind instrument</div><div><div class="bar" style="width:100%"></div></div><div class="val">16</div></div>
+ <div class="row"><div class="lab"><b>S</b>signal at Stop</div><div><div class="bar" style="width:38%"></div></div><div class="val">6</div></div>
+ <div class="row"><div class="lab"><b>C</b>context or scope</div><div><div class="bar" style="width:25%"></div></div><div class="val">4</div></div>
+ <div class="row"><div class="lab"><b>M</b>mixed</div><div><div class="bar" style="width:19%"></div></div><div class="val">3</div></div>
+ <div class="row"><div class="lab"><b>T</b>at tool time</div><div><div class="bar" style="width:19%"></div></div><div class="val">3</div></div>
  <div class="row"><div class="lab"><b>A</b>audit</div><div><div class="bar" style="width:13%"></div></div><div class="val">2</div></div>
  <div class="row"><div class="lab"><b>R</b>only in production, days later</div><div><div class="bar" style="width:13%"></div></div><div class="val">2</div></div>
 </div>
 <p class="note"><span style="color:var(--red);font-weight:700">Blind instrument</span>: the check could not fail. A validator on the wrong artifact, a guard that crashes and exits with the “finding” code, a 0 after a timeout, “no tests” read as zero failures, a mutation that never applied.</p>
-<div class="foot">Source: corpus/TABLA.md, generated from incidents/*.yaml. Nineteen first-hand incidents and sixteen reported by other sessions, not reproduced.</div>
+<div class="foot">Source: corpus/TABLA.md, generated from incidents/*.yaml. Twenty first-hand incidents and sixteen reported by other sessions, not reproduced.</div>
 </div></body></html>

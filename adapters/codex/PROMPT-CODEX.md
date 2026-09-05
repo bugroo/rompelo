@@ -24,6 +24,11 @@ Reglas que no se negocian:
 
 ## Parte 1 · Instalar el hook Stop de rompelo en Codex y cruzarlo en vivo
 
+> **Hecha el 05-09-2026.** Hooks fusionados y confiados; cruce en vivo con `codex exec` desde Claude
+> Code (bloqueo literal, cierre, silencio, tope de tres). Punto 4 respondido: Codex no manda código
+> de salida; el observador firma por heurística de texto (INC-2026-0036, `LEEME.md`). Si retomas
+> este encargo, salta directamente a la Parte 2.
+
 1. Fusiona, sin sustituir, las entradas `Stop` y `PostToolUse` de
    `~/rompelo/adapters/codex/hooks.json` en `~/.codex/hooks.json`. Ya existen dos hooks Stop
    (`global_protocol.py` y el de ai-memory); se quedan. Si hay una entrada antigua que apunta a

@@ -3,6 +3,16 @@
 Formato: una entrada por versión, lo que cambia para quien usa la herramienta. Lo verificado y lo
 no verificado de cada versión está en el relevo enlazado.
 
+## Sin publicar
+
+- Codex cruzado en vivo con `codex exec`: bloqueo del `Stop` con motivos, cierre por el propio
+  agente, silencio después, tope de tres bloqueos. La marca del tope pasa de `tempdir` a
+  `state/marcas/` (bajo el sandbox de Codex no se escribía y el tope nunca llegaba).
+- Codex no manda código de salida en `PostToolUse`: el observador lo deja como desconocido en vez
+  de 0 y saca la firma de error de la última línea por heurística (INC-2026-0036).
+- `ROMPELO_DEBUG_FORMA=1` guarda la forma del payload (sin texto por defecto) en `state/forma.jsonl`.
+- Corpus 32 → 36 (INC-0033 a 0036), batería del observador 64 → 71.
+
 ## v0.1.0 · 2026-09-05
 
 Primera versión etiquetada. Relevo: [docs/RELEVO-2026-09-05.md](docs/RELEVO-2026-09-05.md).

@@ -42,6 +42,23 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 05-09-2026 (mediodía) · cruzado en vivo desde Claude Code con `codex exec`
+
+Los hooks corren y están confiados (José los aceptó en `/hooks`). Cruce sobre repos desechables:
+
+- Stop con contrato sin cumplir → bloqueo literal «`[rompelo] La tarea CRUCE-CODEX NO puede darse
+  por terminada (1/3)`: check `rompelo.sin-var-pegada` sin ejecutar; `toca_junta: true` y no hay
+  cruce real registrado». Codex cumplió el contrato solo (`check`, `cruce`, `close`) y el siguiente
+  Stop fue silencio. Con instrucción de insistir: tres bloqueos, a la cuarta `systemMessage`.
+- La marca del tope no se escribía bajo el sandbox de Codex (tempdir no escribible): movida a
+  `~/rompelo/state/marcas/`. Verificado: la marca cuenta 4 y el cuarto intento no bloquea.
+- `PostToolUse` llega para cada herramienta. **Codex no manda código de salida** en
+  `tool_response` de Bash: es solo el texto que el modelo imprimió (`text(r.output)`). El
+  observador lo deja desconocido y firma por heurística de texto (INC-2026-0036). «Check en rojo» y
+  «verde ambiguo» no pueden saltar en Codex.
+
+Con esto, la Parte 1 del `PROMPT-CODEX.md` queda cerrada (puntos 3 y 4 respondidos). Queda la Parte 2.
+
 ### 05-09-2026 · Stop y PostToolUse fusionados; revisión humana pendiente
 
 Estado comprobado en disco el 05-09 a las 07:30 UTC. La ruta directa de `Stop`

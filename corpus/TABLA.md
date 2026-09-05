@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (35 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
+Generado desde `incidents/` (36 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
 
 ## Lo que decide
 
@@ -8,16 +8,16 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 15 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 35) |
+| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 16 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 36) |
 | recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 6 · no: 21 |
-| ¿Cuántos tienen ya un control hoy? | sí: 13 · parcial: 8 · **no: 14** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 7 · no: 21 |
+| ¿Cuántos tienen ya un control hoy? | sí: 13 · parcial: 9 · **no: 14** |
 
 ## Por tipo de gate que lo habría cazado
 
 | Gate | Incidentes | Existe hoy |
 |---|---|---|
-| `instrumento-control-positivo` | 16 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032, 0033, 0035) | no, parcial, sí |
+| `instrumento-control-positivo` | 17 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032, 0033, 0035, 0036) | no, parcial, sí |
 | `deriva-generada` | 4 (0002, 0003, 0012, 0026) | parcial, sí |
 | `pretooluse-destructivo` | 3 (0001, 0007, 0008) | no, sí |
 | `stop-junta` | 3 (0004, 0014, 0027) | no, parcial |
@@ -30,7 +30,7 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 ## Qué lo habría visto (observación + gate)
 
-Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **6 de 35** (0006, 0007, 0009, 0010, 0015, 0026): clases R, T y A, que viven fuera del cierre de una tarea.
+Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **6 de 36** (0006, 0007, 0009, 0010, 0015, 0026): clases R, T y A, que viven fuera del cierre de una tarea.
 
 | Id | Clase | Disparador |
 |---|---|---|
@@ -69,6 +69,7 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0033 | I | control positivo contando lo que el guardián VIO (7 secciones), visto en rojo con una etiqueta quitada |
 | 0034 | I | gate con check registrado que mira lo que sale (render), no la presencia; el observador no lo ve |
 | 0035 | I | control positivo por mutación (quitar el prefijo CSS) visto en rojo; sin él, la cobertura del requisito es cero y nadie lo sabe |
+| 0036 | I | control negativo real por agente: contar los códigos del libro; un agente sin fallos en 200 comandos es un instrumento ciego |
 
 ## Los incidentes
 
@@ -109,6 +110,7 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0033 | 2026-09-05 | I | no: el guardián pasaba y nada parecía incoherente; solo se vio mutando (quitar una etiqueta) y viendo que seguía verde | `instrumento-control-positivo` | no | no |
 | 0034 | 2026-09-05 | I | no: las pruebas eran del tipo equivocado para el fallo que perseguían | `stop-check-registrado` | parcial | parcial |
 | 0035 | 2026-09-05 | I | no | `instrumento-control-positivo` | no | no |
+| 0036 | 2026-09-05 | I | sí: 226 comandos sin un solo fallo es una distribución imposible, pero nadie la miraba | `instrumento-control-positivo` | parcial | parcial |
 
 ## Títulos
 
@@ -147,3 +149,4 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 - **0033** · El guardián legal de la «Anzeige» contaba rejillas con una cadena literal; una clase añadida delante le quitó una sección y habría dado verde con una etiqueta de menos (§ 5a Abs. 4 UWG) (`relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí`)
 - **0034** · Once pruebas de contenido en verde sobre un correo ilegible: los helpers escapaban el HTML que recibían y treinta líneas de <div style=…> salían como texto visible (`relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí`)
 - **0035** · Quitado el prefijo de especificidad de .rga-article .hw-ad-label y la suite siguió verde: la palabra «Anzeige» seguía en la página pero con tinta y márgenes de párrafo, cumplida en presencia e incumplida en forma (`relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí`)
+- **0036** · En Codex, tool_response de Bash es solo el texto que el modelo imprimió (text(r.output)): sin código de salida, un ls roto llegaba como verde y el observador estaba ciego a los fallos (`medido con codex exec desde esta sesión: 226 comandos Bash de cinco sesiones de Codex en el libro, todos con código 0; luego un `ls /no-existe` a propósito registrado como 0; rollout de Codex: la llamada era `tools.exec_command(...)` y `text(r.output)`, sin el código`)
