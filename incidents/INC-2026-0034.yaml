@@ -1,0 +1,14 @@
+id: INC-2026-0034
+titulo: "Once pruebas de contenido en verde sobre un correo ilegible: los helpers escapaban el HTML que recibían y treinta líneas de <div style=…> salían como texto visible"
+fecha: 2026-09-05
+fuente: "relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí"
+tipo: prueba-ciega
+evidencia_verde: "once pruebas de contenido en verde: comprobaban que el texto estaba, y estaba; solo la captura enseñó que salía como marcado"
+lo_que_faltaba: "una aserción sobre lo que SALE (render o estructura), no sobre lo que aparece: la presencia se comprueba leyendo, la forma solo renderizando"
+gate: stop-check-registrado
+gate_descripcion: "check registrado de humo renderizado (captura o parseo del HTML final) en el contrato; una prueba de subcadena no puede distinguir «está» de «está deformado»"
+existe_hoy: "parcial"
+spike_cubre: "parcial"
+clase: I
+senal_al_stop: "no: las pruebas eran del tipo equivocado para el fallo que perseguían"
+disparador: "gate con check registrado que mira lo que sale (render), no la presencia; el observador no lo ve"

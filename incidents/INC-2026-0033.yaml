@@ -1,0 +1,14 @@
+id: INC-2026-0033
+titulo: "El guardián legal de la «Anzeige» contaba rejillas con una cadena literal; una clase añadida delante le quitó una sección y habría dado verde con una etiqueta de menos (§ 5a Abs. 4 UWG)"
+fecha: 2026-09-05
+fuente: "relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí"
+tipo: prueba-ciega
+evidencia_verde: "suite en verde; el contador veía 6 secciones donde hay 7 porque buscaba /<div class=\"emp-grid\" data-reveal-group>/ y el rediseño puso rej-3 delante"
+lo_que_faltaba: "contar por estructura (la clase dentro de la lista, no la cadena fija) y un control positivo sobre lo que el guardián VIO: el número de secciones, no el número de discrepancias"
+gate: instrumento-control-positivo
+gate_descripcion: "control positivo por check (Parte 2 del prompt de Codex): el instrumento tiene que ver las N secciones conocidas antes de que su verde valga; hoy rompelo solo exige min_lineas"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "no: el guardián pasaba y nada parecía incoherente; solo se vio mutando (quitar una etiqueta) y viendo que seguía verde"
+disparador: "control positivo contando lo que el guardián VIO (7 secciones), visto en rojo con una etiqueta quitada"

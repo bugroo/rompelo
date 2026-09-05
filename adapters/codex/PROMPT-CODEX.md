@@ -14,7 +14,7 @@ Reglas que no se negocian:
   ROJO con un caso que la incumple y luego en VERDE con uno bueno, y las dos cosas quedan en
   `~/rompelo/tests/rompelo-stop-test.sh`. Antes de tocar nada, las dos baterías tienen que estar en
   verde: `bash ~/rompelo/tests/rompelo-stop-test.sh` (hoy: PASS=77 FAIL=0) y
-  `bash ~/rompelo/tests/rompelo-observe-test.sh` (hoy: PASS=51 FAIL=0).
+  `bash ~/rompelo/tests/rompelo-observe-test.sh` (hoy: PASS=64 FAIL=0).
 - Cuando mutes un fichero para ver rojo, comprueba que la mutación ocurrió (grep del cambio) y
   que crea el fallo que buscas. Una mutación que no casa no prueba nada.
 - Commits en `~/rompelo` con mensajes en español y sin ninguna atribución a IA
@@ -60,7 +60,7 @@ Reglas que no se negocian:
 
 ## Parte 2 · Módulo «control positivo»: que un check no pueda dar verde sin haber mirado
 
-Motivo, medido en `~/rompelo/corpus/TABLA.md`: de 32 incidentes reales, la clase mayor (12) es
+Motivo, medido en `~/rompelo/corpus/TABLA.md`: de 35 incidentes reales, la clase mayor (15) es
 «la comprobación no podía fallar»: validador sobre el artefacto equivocado, instrumento que
 muere y sale con el código de hallazgo, `pnpm audit` con 0 tras un timeout, «no tests» leído
 como 0 fallos, mutación que no casó, un observador que nunca recibía los fallos (INC-0031).

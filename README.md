@@ -19,9 +19,9 @@ Documentación en español: [README.es.md](README.es.md).
 
 ## The problem it is built around
 
-![Bar chart of 32 real incidents by class: blind instrument 12, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
+![Bar chart of 35 real incidents by class: blind instrument 15, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
 
-Thirty-two real incidents from one month of agent-written code, each written down with what
+Thirty-five real incidents from one month of agent-written code, each written down with what
 looked green at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md), generated
 from [incidents/](incidents/)). The largest class is not "the test failed". It is "the check
 could not fail": a validator run on the wrong artifact, a guard that crashed and exited with

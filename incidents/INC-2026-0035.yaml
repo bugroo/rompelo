@@ -1,0 +1,14 @@
+id: INC-2026-0035
+titulo: "Quitado el prefijo de especificidad de .rga-article .hw-ad-label y la suite siguió verde: la palabra «Anzeige» seguía en la página pero con tinta y márgenes de párrafo, cumplida en presencia e incumplida en forma"
+fecha: 2026-09-05
+fuente: "relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí"
+tipo: prueba-ciega
+evidencia_verde: "suite completa en verde con la regla CSS mutada; ningún test miraba la especificidad"
+lo_que_faltaba: "una mutación a propósito (quitar el prefijo) como control positivo de la suite: si nada se pone rojo, ese requisito no está cubierto"
+gate: instrumento-control-positivo
+gate_descripcion: "control positivo por mutación registrado junto al check: la suite tiene que ponerse roja con el prefijo quitado; hoy rompelo no lo exige"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "no"
+disparador: "control positivo por mutación (quitar el prefijo CSS) visto en rojo; sin él, la cobertura del requisito es cero y nadie lo sabe"

@@ -265,7 +265,7 @@ de `bin/rompelo` que no lee códigos.
   batería comprueba que un bloqueo inglés no lleva restos en español y que sin la variable sigue
   en español.
 - §9.3: cada incidente lleva `disparador`; `corpus/TABLA.md` tiene la sección «Qué lo habría
-  visto». Seis de 32 no tienen disparador ni gate (clases R, T y A: viven fuera del cierre).
+  visto». Seis de 35 no tienen disparador ni gate (clases R, T y A: viven fuera del cierre).
 
 Pendiente de este diseño: §4 D3 más allá del perfil `exterior`; perfiles por repo si los dos
 toques siguen gritando. NO VERIFICADO: la forma de `tool_response` de Codex para un comando que

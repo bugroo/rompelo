@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (32 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
+Generado desde `incidents/` (35 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
 
 ## Lo que decide
 
@@ -8,16 +8,16 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 12 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 32) |
+| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 15 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 35) |
 | recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 5 · no: 19 |
-| ¿Cuántos tienen ya un control hoy? | sí: 13 · parcial: 7 · **no: 12** |
+| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 8 · parcial: 6 · no: 21 |
+| ¿Cuántos tienen ya un control hoy? | sí: 13 · parcial: 8 · **no: 14** |
 
 ## Por tipo de gate que lo habría cazado
 
 | Gate | Incidentes | Existe hoy |
 |---|---|---|
-| `instrumento-control-positivo` | 14 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032) | no, parcial, sí |
+| `instrumento-control-positivo` | 16 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032, 0033, 0035) | no, parcial, sí |
 | `deriva-generada` | 4 (0002, 0003, 0012, 0026) | parcial, sí |
 | `pretooluse-destructivo` | 3 (0001, 0007, 0008) | no, sí |
 | `stop-junta` | 3 (0004, 0014, 0027) | no, parcial |
@@ -26,10 +26,11 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | `stop-hallazgos` | 1 (0009) | no |
 | `alerta-operacional` | 1 (0010) | sí |
 | `ledger-auditoria` | 1 (0015) | no |
+| `stop-check-registrado` | 1 (0034) | parcial |
 
 ## Qué lo habría visto (observación + gate)
 
-Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **6 de 32** (0006, 0007, 0009, 0010, 0015, 0026): clases R, T y A, que viven fuera del cierre de una tarea.
+Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **6 de 35** (0006, 0007, 0009, 0010, 0015, 0026): clases R, T y A, que viven fuera del cierre de una tarea.
 
 | Id | Clase | Disparador |
 |---|---|---|
@@ -65,6 +66,9 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0030 | I | batería en rojo primero (hash del contrato en el cierre) |
 | 0031 | I | cruce en vivo del observador (un ls fallido sin línea en el libro) |
 | 0032 | I | control negativo con sesiones reales (libro con códigos imposibles) |
+| 0033 | I | control positivo contando lo que el guardián VIO (7 secciones), visto en rojo con una etiqueta quitada |
+| 0034 | I | gate con check registrado que mira lo que sale (render), no la presencia; el observador no lo ve |
+| 0035 | I | control positivo por mutación (quitar el prefijo CSS) visto en rojo; sin él, la cobertura del requisito es cero y nadie lo sabe |
 
 ## Los incidentes
 
@@ -102,6 +106,9 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0030 | 2026-09-05 | I | sí: el contrato y la evidencia de cierre no coincidían y nadie lo comparaba | `instrumento-control-positivo` | sí | no |
 | 0031 | 2026-09-05 | I | no: el libro se llenaba de líneas con código 0 y nada parecía incoherente | `instrumento-control-positivo` | sí | no |
 | 0032 | 2026-09-05 | I | sí: la firma repetida sobre comandos con código 0 era contradictoria, pero nadie comparaba firma con código | `instrumento-control-positivo` | sí | no |
+| 0033 | 2026-09-05 | I | no: el guardián pasaba y nada parecía incoherente; solo se vio mutando (quitar una etiqueta) y viendo que seguía verde | `instrumento-control-positivo` | no | no |
+| 0034 | 2026-09-05 | I | no: las pruebas eran del tipo equivocado para el fallo que perseguían | `stop-check-registrado` | parcial | parcial |
+| 0035 | 2026-09-05 | I | no | `instrumento-control-positivo` | no | no |
 
 ## Títulos
 
@@ -137,3 +144,6 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 - **0030** · Una tarea cerrada aceptaba un check obligatorio nuevo sin ejecutarlo: el contrato no formaba parte de la huella de cierre (`hallazgo de Codex al revisar rompelo (bin/rompelo:217), reproducido aquí con un caso en la batería`)
 - **0031** · El observador nunca veía un comando fallar en Claude Code: PostToolUse solo se dispara tras éxito y el fallo va por PostToolUseFailure (`cruce en vivo en la sesión 538801e8 (un `ls` a una ruta inexistente no dejó línea en el libro) + doc oficial code.claude.com/docs/en/hooks.md: «PostToolUse hooks fire after a tool has already executed successfully» y «For Bash and PowerShell, a command that ran and exited produces a first line Exit code N» (PostToolUseFailure)`)
 - **0032** · Códigos de salida inventados desde el texto: «exit code: 200» en un stdout y «Exit code 1» dentro de un documento se leían como códigos, y el aviso «Shell cwd was reset» del harness se firmaba como error (`libro real de la sesión 7ae11a81 (código 200 en un comando que salió bien) y de la sesión 538801e8 (códigos 2 y 1 al leer documentación con sed; la misma firma de error en tres comandos correctos seguidos); transcript 7ae11a81: los 35 resultados correctos con stderr eran solo el aviso de cwd`)
+- **0033** · El guardián legal de la «Anzeige» contaba rejillas con una cadena literal; una clase añadida delante le quitó una sección y habría dado verde con una etiqueta de menos (§ 5a Abs. 4 UWG) (`relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí`)
+- **0034** · Once pruebas de contenido en verde sobre un correo ilegible: los helpers escapaban el HTML que recibían y treinta líneas de <div style=…> salían como texto visible (`relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí`)
+- **0035** · Quitado el prefijo de especificidad de .rga-article .hw-ad-label y la suite siguió verde: la palabra «Anzeige» seguía en la página pero con tinta y márgenes de párrafo, cumplida en presencia e incumplida en forma (`relato de la sesión redesign-status-compact (ClaveON_B2C-rediseno), mensaje entre sesiones del 05-09-2026 enviado por José; visto en rojo a propósito por esa sesión partiendo de verde; no reproducido aquí`)

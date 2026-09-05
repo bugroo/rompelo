@@ -16,9 +16,9 @@ English documentation: [README.md](README.md).
 
 ## El problema del que parte
 
-![Gráfico de barras de 32 incidentes reales por clase: instrumento ciego 12, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
+![Gráfico de barras de 35 incidentes reales por clase: instrumento ciego 15, señal al parar 6, contexto 4, mixto 3, al ejecutar la herramienta 3, auditoría 2, producción 2](docs/img/es/corpus.png)
 
-Treinta y dos incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
+Treinta y cinco incidentes reales de un mes de código escrito por agentes, cada uno anotado con lo
 que parecía verde cuando el agente dijo «hecho» ([corpus/TABLA.md](corpus/TABLA.md), generado
 desde [incidents/](incidents/)). La clase mayor no es «la prueba falló». Es «la comprobación no
 podía fallar»: un validador sobre el artefacto equivocado, un guardián que muere y sale con el
