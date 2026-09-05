@@ -11,3 +11,4 @@ existe_hoy: "sí"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "no: el libro se llenaba de líneas con código 0 y nada parecía incoherente"
+disparador: "cruce en vivo del observador (un ls fallido sin línea en el libro)"

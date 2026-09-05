@@ -11,3 +11,4 @@ existe_hoy: "no"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: el mensaje decía timed out"
+disparador: "D2 check-en-rojo (el mismo check rojo dos veces)"

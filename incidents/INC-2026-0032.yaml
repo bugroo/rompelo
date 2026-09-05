@@ -11,3 +11,4 @@ existe_hoy: "sí"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: la firma repetida sobre comandos con código 0 era contradictoria, pero nadie comparaba firma con código"
+disparador: "control negativo con sesiones reales (libro con códigos imposibles)"

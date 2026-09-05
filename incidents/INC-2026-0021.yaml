@@ -11,3 +11,4 @@ existe_hoy: "sí"
 spike_cubre: "sí"
 clase: S
 senal_al_stop: "sí: el patrón es grepeable"
+disparador: "D2 firma-repetida (el mismo error tres veces en el día)"

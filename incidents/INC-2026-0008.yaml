@@ -16,3 +16,4 @@ existe_hoy_detalle: solo la regla en memoria y en CLAUDE.md.
 spike_cubre: "no"
 clase: T
 senal_al_stop: "ninguna al Stop: la escritura ocurre al ejecutar el comando"
+disparador: "D1 datos (psql/migración) → cruce y segunda pasada; no impide la escritura"

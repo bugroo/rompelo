@@ -27,6 +27,45 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | `alerta-operacional` | 1 (0010) | sí |
 | `ledger-auditoria` | 1 (0015) | no |
 
+## Qué lo habría visto (observación + gate)
+
+Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **6 de 32** (0006, 0007, 0009, 0010, 0015, 0026): clases R, T y A, que viven fuera del cierre de una tarea.
+
+| Id | Clase | Disparador |
+|---|---|---|
+| 0001 | T | D1 secretos (el comando lleva `pass show`/`.env`); T: PreToolUse existente |
+| 0002 | M | D1 despliegue + gate cruce de junta (el guion desplegado no era el versionado) |
+| 0003 | C | D3 afirmaciones con estado y fuente |
+| 0004 | S | gate toca_junta: cruce real después del último cambio |
+| 0005 | S | gate check registrado de humo en navegador con min_lineas; ningún patrón D2 |
+| 0006 | M | ninguno (R: se ve en ejecución, semanas después) |
+| 0007 | T | ninguno (T: solo un PreToolUse lo para) |
+| 0008 | T | D1 datos (psql/migración) → cruce y segunda pasada; no impide la escritura |
+| 0009 | A | ninguno (A: adjudicación) |
+| 0010 | R | ninguno (R: alerta de ejecución, fuera del gate) |
+| 0011 | S | gate exige_prueba_en_diff |
+| 0012 | C | D1 despliegue → cruce real; D3 para la afirmación «sale sobre main» |
+| 0013 | C | D3 afirmación «no existe copia» con fuente y ámbito |
+| 0014 | R | D1 junta (n8n/credencial) → cruce real tras el cambio |
+| 0015 | A | ninguno (A: revisión humana) |
+| 0016 | I | control positivo del check (Parte 2 de PROMPT-CODEX) |
+| 0017 | I | triestado en el registro (2 = no pude mirar) |
+| 0018 | I | min_lineas + triestado (un 0 sin salida no es verde) |
+| 0019 | I | min_lineas («no tests» sin salida útil) |
+| 0020 | I | D2 check-en-rojo (el mismo check rojo dos veces) |
+| 0021 | S | D2 firma-repetida (el mismo error tres veces en el día) |
+| 0022 | I | control positivo de la mutación (la batería exige ver la mutación aplicada) |
+| 0023 | I | control positivo de la mutación (ver rojo, no solo ver cambio) |
+| 0024 | S | control positivo tras refactor de la prueba |
+| 0025 | I | control positivo con el caso malo real (&mdash;) |
+| 0026 | C | ninguno (C: la regla existía; solo el gate la hace ejecutable) |
+| 0027 | M | D1 junta (workflow n8n) → cruce real; D3 sobre el canon |
+| 0028 | S | gate check registrado (shellcheck instalado y no usado) |
+| 0029 | I | batería en rojo primero (huella sobre contenido) |
+| 0030 | I | batería en rojo primero (hash del contrato en el cierre) |
+| 0031 | I | cruce en vivo del observador (un ls fallido sin línea en el libro) |
+| 0032 | I | control negativo con sesiones reales (libro con códigos imposibles) |
+
 ## Los incidentes
 
 | Id | Fecha | Clase | Señal disponible al Stop | Gate | Existe hoy | Spike |

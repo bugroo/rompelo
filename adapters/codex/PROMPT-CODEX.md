@@ -12,8 +12,9 @@ Reglas que no se negocian:
   dependencias, sin reescribirlo en Bash ni en TypeScript, sin monorepo.
 - Nada se da por bueno sin haberlo visto fallar. Cada condición nueva del gate se ve primero en
   ROJO con un caso que la incumple y luego en VERDE con uno bueno, y las dos cosas quedan en
-  `~/rompelo/tests/rompelo-stop-test.sh`. Antes de tocar nada, la batería tiene que estar en verde:
-  `bash ~/rompelo/tests/rompelo-stop-test.sh` (hoy: PASS=77 FAIL=0).
+  `~/rompelo/tests/rompelo-stop-test.sh`. Antes de tocar nada, las dos baterías tienen que estar en
+  verde: `bash ~/rompelo/tests/rompelo-stop-test.sh` (hoy: PASS=77 FAIL=0) y
+  `bash ~/rompelo/tests/rompelo-observe-test.sh` (hoy: PASS=51 FAIL=0).
 - Cuando mutes un fichero para ver rojo, comprueba que la mutación ocurrió (grep del cambio) y
   que crea el fallo que buscas. Una mutación que no casa no prueba nada.
 - Commits en `~/rompelo` con mensajes en español y sin ninguna atribución a IA
@@ -23,10 +24,13 @@ Reglas que no se negocian:
 
 ## Parte 1 · Instalar el hook Stop de rompelo en Codex y cruzarlo en vivo
 
-1. Fusiona, sin sustituir, la entrada `Stop` de `~/rompelo/adapters/codex/hooks.json` en
-   `~/.codex/hooks.json`. Ya existen dos hooks Stop (`global_protocol.py` y el de ai-memory);
-   se quedan. El guion de fusión está en `~/rompelo/adapters/codex/LEEME.md`. Haz copia previa
-   de `~/.codex/hooks.json` con fecha en el nombre.
+1. Fusiona, sin sustituir, las entradas `Stop` y `PostToolUse` de
+   `~/rompelo/adapters/codex/hooks.json` en `~/.codex/hooks.json`. Ya existen dos hooks Stop
+   (`global_protocol.py` y el de ai-memory); se quedan. Si hay una entrada antigua que apunta a
+   `~/assure/bin/assure` (nombre viejo; hoy vive un shim que reenvía), sustitúyela por
+   `"$HOME/rompelo/bin/rompelo" hook codex`. El guion de fusión está en
+   `~/rompelo/adapters/codex/LEEME.md`. Haz copia previa de `~/.codex/hooks.json` con fecha en
+   el nombre.
 2. La confianza del hook la da José en la interfaz de Codex (`/hooks`, revisar y confiar).
    Dile exactamente qué entrada tiene que aceptar. No intentes escribir el hash de confianza
    en `config.toml` a mano.
@@ -56,10 +60,11 @@ Reglas que no se negocian:
 
 ## Parte 2 · Módulo «control positivo»: que un check no pueda dar verde sin haber mirado
 
-Motivo, medido en `~/rompelo/corpus/TABLA.md`: de 28 incidentes reales, la clase mayor (8) es
+Motivo, medido en `~/rompelo/corpus/TABLA.md`: de 32 incidentes reales, la clase mayor (12) es
 «la comprobación no podía fallar»: validador sobre el artefacto equivocado, instrumento que
 muere y sale con el código de hallazgo, `pnpm audit` con 0 tras un timeout, «no tests» leído
-como 0 fallos, mutación que no casó. Hoy `rompelo` ya exige `min_lineas`. Falta esto:
+como 0 fallos, mutación que no casó, un observador que nunca recibía los fallos (INC-0031).
+Hoy `rompelo` ya exige `min_lineas`. Falta esto:
 
 1. **Triestado en el registro.** En `~/rompelo/checks/registry.json` cada check puede declarar
    `"triestado": true`. Significa que el comando promete 0 = limpio, 1 = hay hallazgos,
@@ -90,10 +95,12 @@ como 0 fallos, mutación que no casó. Hoy `rompelo` ya exige `min_lineas`. Falt
    de clase I quedan cubiertos por esto, y regenera la tabla:
    `python3 ~/rompelo/bin/rompelo-corpus.py`. No inventes cobertura: solo los que un control
    positivo o el triestado habrían cazado de verdad.
-6. Cierra tu propia tarea con rompelo: en `~/rompelo` el contrato `ROMPELO-SPIKE-01` está cerrado;
-   abre uno nuevo con `rompelo init --force --id ROMPELO-CODEX-01 --check rompelo.tests
-   --check rompelo.cruce-settings-claude --check rompelo.sin-var-pegada --junta`, y no des la
-   tarea por terminada hasta que `rompelo verify` dé 0 y el hook te deje parar.
+6. Cierra tu propia tarea con rompelo: en `~/rompelo` el contrato `ROMPELO-CODEX-01` está
+   cerrado; abre uno nuevo con `rompelo init --force --id ROMPELO-CODEX-02 --check rompelo.tests
+   --check rompelo.cruce-settings-claude --check rompelo.sin-var-pegada --check rompelo.observe-tests
+   --check rompelo.control-negativo-sesiones --junta` (el último tarda dos o tres minutos:
+   reproduce cinco sesiones reales de esta máquina), y no des la tarea por terminada hasta que
+   `rompelo verify` dé 0 y el hook te deje parar.
 
 ## Entrega
 

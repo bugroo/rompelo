@@ -16,3 +16,4 @@ existe_hoy_detalle: scripts/comprobar-deriva.sh, probado en las dos direcciones.
 spike_cubre: "parcial"
 clase: M
 senal_al_stop: "solo si un check compara lo desplegado con origin/main (no existía); la prueba unitaria daba verde"
+disparador: "D1 despliegue + gate cruce de junta (el guion desplegado no era el versionado)"

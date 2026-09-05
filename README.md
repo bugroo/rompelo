@@ -143,7 +143,8 @@ checked (claims marked `no_verificado`, checks that only run on this machine), a
 to you (findings accepted without a fix).
 
 `rompelo verify` shows the current verdict at any time. `rompelo --help` lists everything.
-The gate's messages are in Spanish today; English messages are on the roadmap.
+The gate and observer messages come in Spanish by default; set `ROMPELO_LANG=en` (or
+`"idioma": "en"` in `config/observacion.json`) for English. The closing report is in Spanish.
 
 ## Verified, and not
 
@@ -169,13 +170,19 @@ The gate's messages are in Spanish today; English messages are on the roadmap.
   install and trust steps belong to the user. Nor the exact shape in which Codex delivers a
   failing command. Level 3 with external tools is not built.
 
+Level 3 exists: list expensive or external checks (mutation testing, a security scanner) under
+`checks_nivel3` in the contract. They are ignored until the observer has raised the repo to level
+3 through `rompelo permiso <pattern> si`; from then on `rompelo check` runs them and the gate
+requires them like any other.
+
 ## Roadmap, in order
 
 1. Positive control per registered check: the instrument must detect a known-bad input before its green counts.
-2. Level 3 for real: registered external checks (mutation testing, security scanners) that the observer can propose once you have given permission.
-3. Closing report that says "seen failing" for real, once every check has a positive control.
-4. English messages from the gate.
-5. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.
+2. Closing report that says "seen failing" for real, once every check has a positive control.
+3. Incidents that compile into registered checks, so a lesson becomes a detector instead of prose.
+4. Risk profiles per repo, if the two-touch rule still shouts too much in real use.
+
+Changes per version: [CHANGELOG.md](CHANGELOG.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Related work
 

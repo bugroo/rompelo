@@ -251,9 +251,23 @@ un simple «no más de dos». Y si una sesión reproduce fallos y el libro no ti
 distinto de 0, falla con «el observador no ve los fallos»: visto en rojo con una copia mutada
 de `bin/rompelo` que no lee códigos.
 
-Pendiente de este diseño: §4 D3 más allá del perfil `exterior`, §5 nivel 3 con herramientas
-externas registradas, §8 informe con patrones y permisos (hoy el informe no los lista), §9.3
-anotar en cada incidente el disparador que lo habría visto.
-NO VERIFICADO: la forma de `tool_response` de Codex para un comando que falla
-(`adapters/codex/PROMPT-CODEX.md`, Parte 1, punto 4).
+### 12.2 · Tarde del 05-09: informe, nivel 3, inglés, disparadores
+
+- §8: el informe de cierre lleva una sección «Qué observó el observador»: nivel, perfiles
+  tocados, patrones vistos, permisos pedidos (con fecha y si se recordaron) y si el nivel se bajó a
+  mano y por qué. Caso en rojo primero (el informe no los listaba).
+- §5 nivel 3: el contrato admite `checks_nivel3` (ids del registro). A nivel 0 y 2 no se exigen ni
+  se ejecutan; el aviso de nivel 2 los nombra como disponibles; con `rompelo permiso <patron> si`
+  el repo pasa a nivel 3, `rompelo check` los ejecuta y el gate los exige con el prefijo
+  «nivel 3:». Siete casos, vistos en rojo.
+- Idioma: `ROMPELO_LANG=en` o `"idioma": "en"` en `config/observacion.json` traduce los mensajes
+  del gate y del observador (tabla `EN` en `bin/rompelo`; el informe sigue en español). La
+  batería comprueba que un bloqueo inglés no lleva restos en español y que sin la variable sigue
+  en español.
+- §9.3: cada incidente lleva `disparador`; `corpus/TABLA.md` tiene la sección «Qué lo habría
+  visto». Seis de 32 no tienen disparador ni gate (clases R, T y A: viven fuera del cierre).
+
+Pendiente de este diseño: §4 D3 más allá del perfil `exterior`; perfiles por repo si los dos
+toques siguen gritando. NO VERIFICADO: la forma de `tool_response` de Codex para un comando que
+falla (`adapters/codex/PROMPT-CODEX.md`, Parte 1, punto 4).
 

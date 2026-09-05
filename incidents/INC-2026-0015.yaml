@@ -16,3 +16,4 @@ existe_hoy_detalle: la regla de la segunda pasada está en memoria; sin ledger.
 spike_cubre: "parcial"
 clase: A
 senal_al_stop: "mismo commit, dos conclusiones; sin ledger no hay señal comparable"
+disparador: "ninguno (A: revisión humana)"

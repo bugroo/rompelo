@@ -139,6 +139,8 @@ comprobar (afirmaciones `no_verificado`, checks que solo corren en esta máquina
 tu cargo (hallazgos aceptados sin corregir).
 
 `rompelo verify` enseña el veredicto en cualquier momento. `rompelo --help` lo lista todo.
+Los mensajes del gate y del observador salen en español; con `ROMPELO_LANG=en` (o `"idioma":
+"en"` en `config/observacion.json`) salen en inglés. El informe de cierre sigue en español.
 
 ## Verificado, y no
 
@@ -163,13 +165,19 @@ tu cargo (hallazgos aceptados sin corregir).
   instalarlo y confiarlo es del usuario. Tampoco la forma exacta con la que Codex entrega un
   comando que falla. El nivel 3 con herramientas externas no está construido.
 
+El nivel 3 existe: los checks caros o externos (mutation testing, un escáner de seguridad) van
+en `checks_nivel3` del contrato. No se exigen hasta que el observador haya subido el repo a nivel
+3 con `rompelo permiso <patron> si`; desde entonces `rompelo check` los ejecuta y la puerta los
+exige como a cualquier otro.
+
 ## Hoja de ruta, en orden
 
 1. Control positivo por check registrado: el instrumento tiene que detectar una entrada mala conocida antes de que su verde valga.
-2. Nivel 3 de verdad: checks externos registrados (mutation testing, escáneres de seguridad) que el observador pueda proponer cuando hayas dado permiso.
-3. Que el informe de cierre pueda decir «visto fallar» de verdad, cuando cada check tenga control positivo.
-4. Mensajes de la puerta en inglés.
-5. Incidentes que se compilan en checks registrados: una lección como detector, no como prosa.
+2. Que el informe de cierre pueda decir «visto fallar» de verdad, cuando cada check tenga control positivo.
+3. Incidentes que se compilan en checks registrados: una lección como detector, no como prosa.
+4. Perfiles de riesgo por repo, si la regla de los dos toques sigue gritando en uso real.
+
+Cambios por versión: [CHANGELOG.md](CHANGELOG.md). Contribuir: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Trabajo relacionado
 

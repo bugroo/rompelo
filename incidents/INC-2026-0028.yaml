@@ -11,3 +11,4 @@ existe_hoy: "sí"
 spike_cubre: "sí"
 clase: S
 senal_al_stop: "sí: ShellCheck instalado y no ejecutado"
+disparador: "gate check registrado (shellcheck instalado y no usado)"

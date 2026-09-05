@@ -16,3 +16,4 @@ existe_hoy_detalle: generar-inventario.sh --comprobar cubre infra; no hay nada q
 spike_cubre: "no"
 clase: C
 senal_al_stop: "ninguna: el error vive en documentos leídos como verdad"
+disparador: "D3 afirmaciones con estado y fuente"

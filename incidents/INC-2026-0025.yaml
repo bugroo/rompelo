@@ -11,3 +11,4 @@ existe_hoy: "no"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: la entidad estaba en el fichero"
+disparador: "control positivo con el caso malo real (&mdash;)"

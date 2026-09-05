@@ -11,3 +11,4 @@ existe_hoy: "sí"
 spike_cubre: "sí"
 clase: I
 senal_al_stop: "sí: 0 pruebas ejecutadas"
+disparador: "min_lineas («no tests» sin salida útil)"

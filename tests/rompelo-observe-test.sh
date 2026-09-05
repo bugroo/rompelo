@@ -196,6 +196,47 @@ echo "── permiso y nivel"
 grep -q '"recordar": true' "$ROMPELO_HOME/config/permisos.json" && ok "permisos.json guarda la respuesta" || bad "permisos.json"
 "$ROMPELO" nivel bajar --motivo "prueba" | grep -q 'nivel 0' && ok "nivel bajar deja 0 con motivo" || bad "nivel bajar"
 
+echo "── §8 informe de cierre con patrones, nivel y permisos"
+reset_estado; nueva_sesion
+bash_ev $SID 'pnpm test' 1 '' 'Error: z 1' >/dev/null; bash_ev $SID 'pnpm test' 1 '' 'Error: z 2' >/dev/null
+"$ROMPELO" permiso firma-repetida si >/dev/null
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='revisado';json.dump(c,open(f,'w'))
+PY
+"$ROMPELO" check >/dev/null; "$ROMPELO" close >/dev/null; INF=".rompelo/evidence/O1/INFORME.md"
+grep -q 'Qué observó' "$INF" && grep -q 'firma-repetida' "$INF" && ok "el informe lista el patrón visto" || bad "informe patrón" "$(grep -n observ "$INF")"
+grep -q 'nivel 3' "$INF" && grep -q 'permiso.*firma-repetida.*sí' "$INF" && ok "el informe dice el nivel y el permiso concedido" || bad "informe nivel/permiso" "$(cat "$INF")"
+
+echo "── §5 nivel 3: checks externos del contrato solo se exigen con permiso"
+reset_estado; nueva_sesion
+printf '{"ok": {"argv": ["true"]}, "externo": {"argv": ["true"], "nivel": 3}}' > "$ROMPELO_HOME/checks/registry.json"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['estado']='abierta';c['checks_nivel3']=['externo'];c['segunda_pasada']='revisado';json.dump(c,open(f,'w'))
+PY
+"$ROMPELO" check >/dev/null; out="$(hook $SID)"; [ -z "$out" ] && ok "a nivel 0 el check externo no se exige" || bad "nivel 0 externo" "$out"
+bash_ev $SID 'pnpm test' 1 '' 'Error: q 1' >/dev/null; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: q 2')"
+printf '%s' "$o" | grep -q 'externo' && ok "el aviso de nivel 2 nombra el check externo disponible" || bad "aviso nombra externo" "$o"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'externo' && bad "a nivel 2 aún no se exige" "$out" || ok "a nivel 2 aún no se exige"
+"$ROMPELO" permiso firma-repetida si >/dev/null
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'nivel 3.*`externo` sin ejecutar' && ok "a nivel 3 sin ejecutar: bloquea" || bad "nivel 3 externo" "$out"
+"$ROMPELO" check | grep -q 'externo' && ok "rompelo check ejecuta también los de nivel 3" || bad "check nivel 3"
+out="$(hook $SID)"; [ -z "$out" ] && ok "ejecutado: silencio" || bad "nivel 3 cumplido" "$out"
+"$ROMPELO" close | grep -q 'externo' && ok "y el informe lo lista" || bad "informe externo"
+printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
+
+echo "── mensajes del gate en inglés (ROMPELO_LANG=en)"
+reset_estado; nueva_sesion
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['estado']='abierta';c.pop('checks_nivel3',None);c['toca_junta']=True;json.dump(c,open(f,'w'))
+PY
+echo x >> src/a.txt; rm -f .rompelo/evidence/O1/check-ok.json .rompelo/evidence/O1/cruce.json
+out="$(ROMPELO_LANG=en hook $SID)"; printf '%s' "$out" | grep -q 'cannot be marked done' && printf '%s' "$out" | grep -q 'not run' && printf '%s' "$out" | grep -q 'no real crossing' && ok "bloqueo en inglés: cabecera, check sin ejecutar, junta" || bad "inglés" "$out"
+printf '%s' "$out" | grep -q 'sin ejecutar\|NO puede' && bad "queda español en el bloqueo inglés" "$out" || ok "sin restos en español"
+o="$(ROMPELO_LANG=en bash_ev $SID 'pnpm test' 1 '' 'Error: e 1'; ROMPELO_LANG=en bash_ev $SID 'pnpm test' 1 '' 'Error: e 2')"
+printf '%s' "$o" | grep -q 'same error 2 times' && ok "aviso del observador en inglés" || bad "aviso inglés" "$o"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'NO puede darse por terminada' && ok "sin la variable, sigue en español" || bad "español por defecto" "$out"
+git checkout -q src/a.txt
+
 echo "── repo fuera de la allowlist: se observa pero no se escala"
 reset_estado; nueva_sesion; R2="$T/ajeno"; mkdir -p "$R2"; git -C "$R2" init -q
 o="$(python3 - "$ROMPELO" $SID "$R2" <<'PY'

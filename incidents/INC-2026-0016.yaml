@@ -11,3 +11,4 @@ existe_hoy: "no"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: el validador rechazaba código correcto, bastaba un control positivo"
+disparador: "control positivo del check (Parte 2 de PROMPT-CODEX)"

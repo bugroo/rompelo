@@ -15,3 +15,4 @@ existe_hoy_detalle: werixo-medir-de-verdad.sh avisa; no bloquea ni obliga a nomb
 spike_cubre: "no"
 clase: C
 senal_al_stop: "ninguna: búsqueda en un ámbito y afirmación sobre otro"
+disparador: "D3 afirmación «no existe copia» con fuente y ámbito"

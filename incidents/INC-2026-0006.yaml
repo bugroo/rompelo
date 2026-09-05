@@ -16,3 +16,4 @@ existe_hoy_detalle: arreglado de raíz el 31-08 y probado con VENTANA=1.
 spike_cubre: "parcial"
 clase: M
 senal_al_stop: "un control positivo del vigilante (VENTANA=1) lo habría delatado al escribirlo"
+disparador: "ninguno (R: se ve en ejecución, semanas después)"

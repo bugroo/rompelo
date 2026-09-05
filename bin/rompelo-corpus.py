@@ -14,7 +14,7 @@ if not ficheros:
     sys.exit(2)
 
 CLAVES = ["id", "titulo", "fecha", "tipo", "evidencia_verde", "lo_que_faltaba",
-          "gate", "gate_descripcion", "existe_hoy", "spike_cubre", "fuente", "clase", "senal_al_stop"]
+          "gate", "gate_descripcion", "existe_hoy", "spike_cubre", "fuente", "clase", "senal_al_stop", "disparador"]
 inc = []
 for f in ficheros:
     d = yaml.safe_load(open(f))
@@ -53,6 +53,14 @@ for g, n in por_gate.most_common():
     ids = ", ".join(d["id"][-4:] for d in inc if d["gate"] == g)
     ex = ", ".join(sorted(set(d["existe_hoy"] for d in inc if d["gate"] == g)))
     out.append(f"| `{g}` | {n} ({ids}) | {ex} |")
+out.append("")
+ninguno = [d for d in inc if str(d["disparador"]).startswith("ninguno")]
+out.append("## Qué lo habría visto (observación + gate)\n")
+out.append(f"Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **{len(ninguno)} de {len(inc)}** "
+           "(" + ", ".join(d["id"][-4:] for d in ninguno) + "): clases R, T y A, que viven fuera del cierre de una tarea.\n")
+out.append("| Id | Clase | Disparador |\n|---|---|---|")
+for d in inc:
+    out.append(f"| {d['id'][-4:]} | {d['clase']} | {d['disparador']} |")
 out.append("")
 out.append("## Los incidentes\n")
 out.append("| Id | Fecha | Clase | Señal disponible al Stop | Gate | Existe hoy | Spike |\n|---|---|---|---|---|---|---|")

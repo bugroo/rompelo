@@ -11,3 +11,4 @@ existe_hoy: "no"
 spike_cubre: "parcial"
 clase: M
 senal_al_stop: "no del todo: la señal está en el sistema, no en el árbol"
+disparador: "D1 junta (workflow n8n) → cruce real; D3 sobre el canon"

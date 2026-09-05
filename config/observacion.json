@@ -1,5 +1,5 @@
 {
-  "_ayuda": "Umbrales de los patrones (docs/observacion.md §4) y toques por perfil de riesgo (D1). Se leen aquí, no del código; la batería los muta para comprobar que se leen.",
+  "_ayuda": "Umbrales de los patrones (docs/observacion.md §4) y toques por perfil de riesgo (D1). Se leen aquí, no del código; la batería los muta para comprobar que se leen. `idioma`: es|en para los mensajes del gate y del observador (ROMPELO_LANG manda si está).",
   "firma_repetida": 2,
   "check_en_rojo": 2,
   "ediciones_sin_verde": 4,
@@ -7,5 +7,6 @@
   "toques_perfil": {
     "_defecto": 2,
     "exterior": 1
-  }
+  },
+  "idioma": "es"
 }

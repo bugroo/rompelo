@@ -21,6 +21,69 @@ Tope de 3 bloqueos por sesión y tarea.
 import collections, datetime, fnmatch, hashlib, json, os, re, subprocess, sys, tempfile
 
 TOPE_BLOQUEOS = 3
+# Idioma de los mensajes del gate y del observador: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json.
+# Las claves son las plantillas en español; el informe de cierre sigue en español.
+EN = {
+    "[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n": "[rompelo] Task {tid} cannot be marked done ({n}/{tope}):\n",
+    "\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.":
+        "\nDo not declare the task done. Resolve each point (rompelo check / rompelo cruce / finding disposition) and try again. If something cannot be met, say so as NOT VERIFIED and write it in the contract.",
+    "[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ": "[rompelo] limit of {tope} blocks reached: task {tid} is left UNVERIFIED. ",
+    "rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.": "rompelo could not evaluate the contract ({exc}). An enrolled repo without a readable contract cannot close.",
+    "observación: nivel 2 ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
+        "observation: level 2 ({patrones}). An explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but the contract changed after closing. Run `rompelo check` and `rompelo close` again.",
+    "estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but there are changes after closing (different fingerprint). Run `rompelo check` and `rompelo close` again.",
+    "fuera de scope_paths: {lista}": "outside scope_paths: {lista}",
+    "check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta": "check `{cid}` is not in the registry ({reg}); it neither runs nor counts",
+    "check `{cid}` sin ejecutar (usa `rompelo check`)": "check `{cid}` not run (use `rompelo check`)",
+    "check `{cid}` cambió en el registro después de ejecutarse": "check `{cid}` changed in the registry after it ran",
+    "check `{cid}` FALLÓ con código {codigo}": "check `{cid}` FAILED with exit code {codigo}",
+    "check `{cid}` salió con 0 pero sin la salida mínima ({lineas} < {min} líneas): «limpio» no se distingue de «no miré»": "check `{cid}` exited 0 without its minimum output ({lineas} < {min} lines): \"clean\" cannot be told from \"did not look\"",
+    "check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)": "check `{cid}` ran on a different tree (there are later changes)",
+    "nivel 3: ": "level 3: ",
+    "toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.": "toca_junta: true. The real crossing cannot be reproduced in CI; do it outside and record it with `rompelo cruce`.",
+    "toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)": "toca_junta: true and no real crossing recorded (`rompelo cruce --nota '…' -- <real command>`)",
+    "el cruce real FALLÓ con código {codigo}: {argv}": "the real crossing FAILED with exit code {codigo}: {argv}",
+    "el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio": "the real crossing predates the last change; cross AFTER deploying the last change",
+    "observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false": "observation: the task touched boundary paths (`junta` profile), so a real crossing is required even though the contract says toca_junta: false",
+    "hallazgo sin disposición: {h}": "finding without disposition: {h}",
+    "toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)": "toca_exterior: true and no claim carries a state (verificado | derivado | no_verificado)",
+    "afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual": "claim \"{tx}\" marked verificado without a primary source or a verbatim quote",
+    "afirmación «{tx}» marcada derivado sin decir de qué se deduce": "claim \"{tx}\" marked derivado without saying what it derives from",
+    "afirmación «{tx}» marcada no_verificado sin decir qué falta": "claim \"{tx}\" marked no_verificado without saying what is missing",
+    "afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)": "claim \"{tx}\" without a valid state (verificado | derivado | no_verificado)",
+    "el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto.": "the diff changes code and no test (exige_prueba_en_diff). Green is not covered.",
+    "la tarea toca `{p}` ({n} veces)": "the task touches `{p}` ({n} times)",
+    "el mismo error {n} veces (firma {f})": "the same error {n} times (signature {f})",
+    "`{p}` en rojo {n} veces": "`{p}` red {n} times",
+    "`{f}` editado {n} veces sin un check en verde entre medias": "`{f}` edited {n} times without a green check in between",
+    "`{p}` salió con 0 pero sin salida o con stderr {n} veces: un limpio que no se distingue de «no miré»": "`{p}` exited 0 with no output or with stderr {n} times: a clean result that cannot be told from \"did not look\"",
+    "cruce real de la junta después del último cambio (`rompelo cruce`)": "a real crossing of the boundary after the last change (`rompelo cruce`)",
+    "cada afirmación sobre la dependencia o servicio con estado y fuente (`afirmaciones` en el contrato)": "every claim about the dependency or service with a state and a source (`afirmaciones` in the contract)",
+    "checks con control positivo cuando estén disponibles; hasta entonces, `min_lineas` en el registro": "checks with a positive control when available; until then, `min_lineas` in the registry",
+    "una segunda pasada explícita antes de cerrar (campo `segunda_pasada` del contrato)": "an explicit second pass before closing (`segunda_pasada` field of the contract)",
+    "[rompelo · observación] He reconocido {que}. Subo el rigor de este repo a nivel 2. Antes de seguir, dile al usuario en dos líneas qué patrón he visto y que a partir de ahora la tarea exige: {exige}.":
+        "[rompelo · observation] I recognised {que}. Raising this repo's rigor to level 2. Before going on, tell the user in two lines which pattern I saw and that from now on the task requires: {exige}.",
+    " Para nivel 3 hay checks registrados en el contrato ({lista}): se exigen solo con permiso.": " For level 3 the contract registers checks ({lista}): they are required only with permission.",
+    " Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.": " For internet searches or external tools (level 3) ask for permission and record it with `rompelo permiso <patron> si|no [--recordar]`.",
+}
+
+
+def idioma():
+    lang = os.environ.get("ROMPELO_LANG")
+    if not lang:
+        try:
+            lang = leer_json(OBS_CONF).get("idioma")
+        except Exception:
+            lang = None
+    return "en" if str(lang or "").lower().startswith("en") else "es"
+
+
+def _(plantilla, **kw):
+    """Traduce la plantilla si el idioma es inglés y rellena los campos. Una plantilla sin entrada en EN
+    sale en español: la batería comprueba que el bloqueo inglés no lleva restos."""
+    t = EN.get(plantilla, plantilla) if idioma() == "en" else plantilla
+    return t.format(**kw) if kw else t
 ROMPELO_HOME = os.environ.get("ROMPELO_HOME") or os.path.join(os.path.expanduser("~"), "rompelo")
 REGISTRO = os.path.join(ROMPELO_HOME, "checks", "registry.json")
 REGISTRO_LOCAL = os.path.join(ROMPELO_HOME, "checks", "registry.local.json")
@@ -163,9 +226,21 @@ def leer_contrato(root):
         raise ValueError("checks: lista de ids [a-z0-9._-] del registro; los comandos no van en el contrato")
     if not isinstance(c["toca_junta"], bool):
         raise ValueError("toca_junta tiene que ser true/false")
+    n3 = c.get("checks_nivel3", [])
+    if not isinstance(n3, list) or not all(isinstance(x, str) and ID_OK.match(x) for x in n3):
+        raise ValueError("checks_nivel3: lista de ids del registro; se exigen solo cuando el repo está a nivel 3 (permiso)")
     if not isinstance(c.get("hallazgos", []), list):
         raise ValueError("hallazgos tiene que ser una lista")
     return c
+
+
+def checks_exigidos(root, c):
+    """[(id, es_nivel3)]: los del contrato siempre; los de `checks_nivel3` solo si el observador ha
+    subido el repo a nivel 3 con permiso (docs/observacion.md §5)."""
+    out = [(cid, False) for cid in c["checks"]]
+    if int(estado_repo(root).get("nivel", 0) or 0) >= 3:
+        out += [(cid, True) for cid in (c.get("checks_nivel3") or []) if cid not in c["checks"]]
+    return out
 
 
 def hash_contrato(c):
@@ -232,7 +307,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
         if "exterior" in perfiles and not c.get("toca_exterior"):
             c = dict(c, toca_exterior=True)
         if not str(c.get("segunda_pasada") or "").strip():
-            m.append("observación: nivel 2 (" + ", ".join(sorted(obs.get("patrones") or [])) + "). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)")
+            m.append(_("observación: nivel 2 ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)", patrones=", ".join(sorted(obs.get("patrones") or []))))
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
@@ -240,80 +315,81 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             return []
         if not para_cerrar:
             if cerr and cerr.get("huella") == hu:
-                m.append("estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`.")
+                m.append(_("estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`."))
             else:
-                m.append("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.")
+                m.append(_("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`."))
 
     cambiados = ficheros_cambiados(root, c.get("base"))
     fuera = [p for p in cambiados if not any(casa(p, s) for s in c["scope_paths"])]
     if fuera:
-        m.append("fuera de scope_paths: " + ", ".join(fuera[:8]) + (" …" if len(fuera) > 8 else ""))
+        m.append(_("fuera de scope_paths: {lista}", lista=", ".join(fuera[:8]) + (" …" if len(fuera) > 8 else "")))
 
     reg = registro(root)
-    for cid in c["checks"]:
+    for cid, n3 in checks_exigidos(root, c):
+        pre = _("nivel 3: ") if n3 else ""
         if cid not in reg:
-            m.append(f"check `{cid}` no está en el registro ({REGISTRO}); no se ejecuta ni cuenta")
+            m.append(pre + _("check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta", cid=cid, reg=REGISTRO))
             continue
         e = ci["evidencias"].get(cid) if ci else leer_evidencia(ev, f"check-{cid}.json")
         if ci and e and e.get("saltado"):
             continue
         if e is None:
-            m.append(f"check `{cid}` sin ejecutar (usa `rompelo check`)")
+            m.append(pre + _("check `{cid}` sin ejecutar (usa `rompelo check`)", cid=cid))
         elif e.get("argv") != reg[cid].get("argv"):
-            m.append(f"check `{cid}` cambió en el registro después de ejecutarse")
+            m.append(pre + _("check `{cid}` cambió en el registro después de ejecutarse", cid=cid))
         elif e.get("codigo") != 0:
-            m.append(f"check `{cid}` FALLÓ con código {e.get('codigo')}")
+            m.append(pre + _("check `{cid}` FALLÓ con código {codigo}", cid=cid, codigo=e.get("codigo")))
         elif e.get("lineas_salida", 0) < int(reg[cid].get("min_lineas", 0) or 0):
-            m.append(f"check `{cid}` salió con 0 pero sin la salida mínima ({e.get('lineas_salida')} < {reg[cid].get('min_lineas')} líneas): «limpio» no se distingue de «no miré»")
+            m.append(pre + _("check `{cid}` salió con 0 pero sin la salida mínima ({lineas} < {min} líneas): «limpio» no se distingue de «no miré»", cid=cid, lineas=e.get("lineas_salida"), min=reg[cid].get("min_lineas")))
         elif e.get("huella") != hu:
-            m.append(f"check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)")
+            m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
 
     if c["toca_junta"] and ci:
-        txt = "toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`."
+        txt = _("toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.")
         (m if ci.get("estricto") else ci["advertencias"]).append(txt)
     elif c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json")
         mc = []
         if cr is None:
-            mc.append("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)")
+            mc.append(_("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)"))
         elif cr.get("codigo") != 0:
-            mc.append(f"el cruce real FALLÓ con código {cr.get('codigo')}: {cr.get('argv')}")
+            mc.append(_("el cruce real FALLÓ con código {codigo}: {argv}", codigo=cr.get("codigo"), argv=cr.get("argv")))
         elif cr.get("huella") != hu:
-            mc.append("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio")
+            mc.append(_("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio"))
         if mc and junta_por_perfil:
-            m.append("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false")
+            m.append(_("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false"))
         m += mc
 
     for h in c.get("hallazgos") or []:
         if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
-            m.append(f"hallazgo sin disposición: {h.get('id') if isinstance(h, dict) else h}")
+            m.append(_("hallazgo sin disposición: {h}", h=h.get("id") if isinstance(h, dict) else h))
 
     # Afirmaciones materiales sobre el mundo exterior (criterio de rootml-de, 04-09-2026):
     # cada una lleva estado. verificado = fuente de primera mano + cita textual que zanja;
     # derivado = de qué afirmación verificada; no_verificado = qué falta. Sin estado no existe.
     afs = c.get("afirmaciones") or []
     if c.get("toca_exterior") and not afs:
-        m.append("toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)")
+        m.append(_("toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)"))
     for i, a in enumerate(afs, 1):
         et = a.get("estado") if isinstance(a, dict) else None
         tx = (a.get("texto") if isinstance(a, dict) else str(a)) or f"#{i}"
         if et == "verificado":
             if not (str(a.get("fuente") or "").strip() and str(a.get("cita") or "").strip()):
-                m.append(f"afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual")
+                m.append(_("afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual", tx=tx))
         elif et == "derivado":
             if not str(a.get("de") or "").strip():
-                m.append(f"afirmación «{tx}» marcada derivado sin decir de qué se deduce")
+                m.append(_("afirmación «{tx}» marcada derivado sin decir de qué se deduce", tx=tx))
         elif et == "no_verificado":
             if not str(a.get("falta") or "").strip():
-                m.append(f"afirmación «{tx}» marcada no_verificado sin decir qué falta")
+                m.append(_("afirmación «{tx}» marcada no_verificado sin decir qué falta", tx=tx))
         else:
-            m.append(f"afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)")
+            m.append(_("afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)", tx=tx))
 
     if c.get("exige_prueba_en_diff"):
         globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
         prueba = [p for p in cambiados if any(casa(p, g) for g in globs)]
         if [p for p in cambiados if p not in prueba] and not prueba:
-            m.append("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto.")
+            m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto."))
     return m
 
 
@@ -449,9 +525,10 @@ def cmd_check(root, args):
         print("el contrato no tiene checks")
         return 0
     fallos = 0
-    for i, cid in enumerate(c["checks"], 1):
+    exigidos = checks_exigidos(root, c)
+    for i, (cid, n3) in enumerate(exigidos, 1):
         argv, cwd = resolver_check(cid, root)
-        print(f"[{i}/{len(c['checks'])}] {cid}: {' '.join(argv)}")
+        print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}: {' '.join(argv)}")
         e, salida = ejecutar(argv, cwd)
         e["id"] = cid
         e["huella"] = huella_arbol(root, c.get("base"))
@@ -550,12 +627,11 @@ def informe_llano(root, c, ev):
     qué queda a su cargo. Solo hechos que están en la evidencia."""
     reg = registro(root)
     comprobado, no_pudo, a_cargo = [], [], []
-    for cid in c["checks"]:
+    for cid, n3 in checks_exigidos(root, c):
         e = leer_evidencia(ev, f"check-{cid}.json") or {}
-        if reg.get(cid, {}).get("solo_local"):
-            nota = " (solo en esta máquina; CI no lo repite)"
-        else:
-            nota = ""
+        nota = " (solo en esta máquina; CI no lo repite)" if reg.get(cid, {}).get("solo_local") else ""
+        if n3:
+            nota += " (check de nivel 3, exigido por permiso)"
         comprobado.append(f"{cid}: código {e.get('codigo')} en {e.get('segundos')} s, {e.get('lineas_salida')} líneas de salida{nota}")
     if c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json") or {}
@@ -580,6 +656,21 @@ def informe_llano(root, c, ev):
     lineas += ["- " + x for x in no_pudo] or ["- nada declarado como no verificado"]
     lineas += ["", "## Qué queda a tu cargo", ""]
     lineas += ["- " + x for x in a_cargo] or ["- nada: no hay hallazgos aceptados sin corregir"]
+    # §8 de docs/observacion.md: lo que vio el observador durante la tarea, con sus permisos.
+    est = estado_repo(root)
+    obs = [f"nivel {est.get('nivel', 0)}"]
+    if est.get("perfiles"):
+        obs.append("perfiles de riesgo tocados: " + ", ".join(est["perfiles"]))
+    if est.get("patrones"):
+        obs.append("patrones vistos: " + ", ".join(est["patrones"]))
+    for patron, entradas in (leer_json_o(PERMISOS, {}) or {}).items():
+        for p in entradas:
+            if isinstance(p, dict) and p.get("repo") == root:
+                obs.append(f"permiso pedido por `{patron}`: {'sí' if p.get('respuesta') == 'si' else 'no'} ({p.get('fecha', '')[:10]}{', recordado' if p.get('recordar') else ''})")
+    if est.get("bajado"):
+        obs.append(f"nivel bajado a mano el {str(est['bajado'].get('fecha', ''))[:10]}: {est['bajado'].get('motivo', '')}")
+    lineas += ["", "## Qué observó el observador", ""]
+    lineas += ["- " + x for x in obs]
     lineas += ["", "Un verde aquí significa «no encontré los de mi clase», no «está bien». Los checks todavía no tienen control positivo: eso es lo siguiente.", ""]
     return "\n".join(lineas)
 
@@ -835,12 +926,12 @@ def patrones_de(libro, u):
     firmas = collections.Counter(e.get("firma") for e in libro if e.get("firma"))
     for f, n in firmas.items():
         if n >= u["firma_repetida"]:
-            out["firma-repetida"] = f"el mismo error {n} veces (firma {f})"
+            out["firma-repetida"] = _("el mismo error {n} veces (firma {f})", n=n, f=f)
             break
     rojos = collections.Counter(e.get("prog") for e in libro if e.get("cmd_es_check") and e.get("codigo") not in (None, 0))
     for p, n in rojos.items():
         if n >= u["check_en_rojo"]:
-            out["check-en-rojo"] = f"`{p}` en rojo {n} veces"
+            out["check-en-rojo"] = _("`{p}` en rojo {n} veces", p=p, n=n)
             break
     ediciones = collections.Counter()
     for e in libro:
@@ -853,14 +944,14 @@ def patrones_de(libro, u):
                 ediciones[f] += 1
     for f, n in ediciones.items():
         if n >= u["ediciones_sin_verde"]:
-            out["ediciones-sin-verde"] = f"`{f}` editado {n} veces sin un check en verde entre medias"
+            out["ediciones-sin-verde"] = _("`{f}` editado {n} veces sin un check en verde entre medias", f=f, n=n)
             break
     ambiguos = collections.Counter(e.get("prog") for e in libro
                                    if e.get("cmd_sha") and e.get("codigo") == 0 and (e.get("stdout_vacio") or e.get("stderr_lineas", 0) > 0)
                                    and (e.get("cmd_es_check") or e.get("prog") in BUSCADORES))
     for p, n in ambiguos.items():
         if n >= u["verde_ambiguo"]:
-            out["verde-ambiguo"] = f"`{p}` salió con 0 pero sin salida o con stderr {n} veces: un limpio que no se distingue de «no miré»"
+            out["verde-ambiguo"] = _("`{p}` salió con 0 pero sin salida o con stderr {n} veces: un limpio que no se distingue de «no miré»", p=p, n=n)
             break
     return out
 
@@ -904,7 +995,7 @@ def cmd_observe(agente, args):
         for p in sorted(perfiles):
             if p not in est["perfiles"] and toques[p] >= toques_perfil(p):
                 est["perfiles"].append(p)
-                nuevos.append(("perfil", p, f"la tarea toca `{p}` ({toques[p]} veces)"))
+                nuevos.append(("perfil", p, _("la tarea toca `{p}` ({n} veces)", p=p, n=toques[p])))
         for nombre, detalle in patrones_de(libro_repo, u).items():
             if nombre not in est["patrones"]:
                 est["patrones"].append(nombre)
@@ -923,15 +1014,21 @@ def cmd_observe(agente, args):
             return 0
         exige = []
         if "junta" in est["perfiles"]:
-            exige.append("cruce real de la junta después del último cambio (`rompelo cruce`)")
+            exige.append(_("cruce real de la junta después del último cambio (`rompelo cruce`)"))
         if "exterior" in est["perfiles"]:
-            exige.append("cada afirmación sobre la dependencia o servicio con estado y fuente (`afirmaciones` en el contrato)")
+            exige.append(_("cada afirmación sobre la dependencia o servicio con estado y fuente (`afirmaciones` en el contrato)"))
         if {"secretos", "datos", "auth", "despliegue"} & set(est["perfiles"]):
-            exige.append("checks con control positivo cuando estén disponibles; hasta entonces, `min_lineas` en el registro")
-        exige.append("una segunda pasada explícita antes de cerrar (campo `segunda_pasada` del contrato)")
-        texto = ("[rompelo · observación] He reconocido " + "; ".join(f"{d}" for _, _, d in pendientes) +
-                 f". Subo el rigor de este repo a nivel 2. Antes de seguir, dile al usuario en dos líneas qué patrón he visto y que a partir de ahora la tarea exige: " +
-                 "; ".join(exige) + ". Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.")
+            exige.append(_("checks con control positivo cuando estén disponibles; hasta entonces, `min_lineas` en el registro"))
+        exige.append(_("una segunda pasada explícita antes de cerrar (campo `segunda_pasada` del contrato)"))
+        texto = _("[rompelo · observación] He reconocido {que}. Subo el rigor de este repo a nivel 2. Antes de seguir, dile al usuario en dos líneas qué patrón he visto y que a partir de ahora la tarea exige: {exige}.",
+                  que="; ".join(d for _x, _y, d in pendientes), exige="; ".join(exige))
+        try:
+            n3 = leer_contrato(root).get("checks_nivel3") or []
+        except Exception:
+            n3 = []
+        if n3:
+            texto += _(" Para nivel 3 hay checks registrados en el contrato ({lista}): se exigen solo con permiso.", lista=", ".join(n3))
+        texto += _(" Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.")
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": texto}}, ensure_ascii=False))
         return 0
     except Exception as exc:
@@ -1000,7 +1097,7 @@ def cmd_hook(agente, args):
             pass
         m = motivos_bloqueo(root)
     except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
-        m = [f"rompelo no pudo evaluar el contrato ({exc.__class__.__name__}: {exc}). Un repo alistado sin contrato legible no puede cerrar."]
+        m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
     if not m:
         return 0
     marca = os.path.join(tempfile.gettempdir(), f"rompelo-stop-{sid}-{tid}")
@@ -1015,10 +1112,10 @@ def cmd_hook(agente, args):
     except Exception:
         pass
     if n > TOPE_BLOQUEOS:
-        print(json.dumps({"systemMessage": f"[rompelo] tope de {TOPE_BLOQUEOS} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. " + " | ".join(m)}, ensure_ascii=False))
+        print(json.dumps({"systemMessage": _("[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ", tope=TOPE_BLOQUEOS, tid=tid) + " | ".join(m)}, ensure_ascii=False))
         return 0
-    texto = f"[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{TOPE_BLOQUEOS}):\n" + "\n".join("- " + x for x in m)
-    print(json.dumps({"decision": "block", "reason": texto + "\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato."}, ensure_ascii=False))
+    texto = _("[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n", tid=tid, n=n, tope=TOPE_BLOQUEOS) + "\n".join("- " + x for x in m)
+    print(json.dumps({"decision": "block", "reason": texto + _("\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.")}, ensure_ascii=False))
     return 0
 
 
@@ -1029,8 +1126,10 @@ uso:
   rompelo status | verify [--json] [--ci [--estricto]] | check | close | repos
   rompelo cruce [--nota TXT] (--id ID | -- <argv>)
   rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
-  rompelo observe claude|codex   (lo llama el hook PostToolUse; JSON por stdin; nunca bloquea)
+  rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)
   rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
+contrato: `checks_nivel3` lista checks que solo se exigen a nivel 3 (tras `rompelo permiso … si`)
+idioma de los mensajes: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}
 """
 

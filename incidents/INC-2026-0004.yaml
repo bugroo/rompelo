@@ -16,3 +16,4 @@ existe_hoy_detalle: medir-de-verdad avisa al escribir un secreto de panel; compr
 spike_cubre: "sí"
 clase: S
 senal_al_stop: "una petición real al endpoint desplegado devolvía 403 desde el primer día"
+disparador: "gate toca_junta: cruce real después del último cambio"

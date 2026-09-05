@@ -11,3 +11,4 @@ existe_hoy: "no"
 spike_cubre: "parcial"
 clase: S
 senal_al_stop: "sí: el diff toca ficheros de prueba"
+disparador: "control positivo tras refactor de la prueba"

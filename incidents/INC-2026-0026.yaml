@@ -11,3 +11,4 @@ existe_hoy: "parcial"
 spike_cubre: "no"
 clase: C
 senal_al_stop: "no: la señal es la ausencia de un check"
+disparador: "ninguno (C: la regla existía; solo el gate la hace ejecutable)"

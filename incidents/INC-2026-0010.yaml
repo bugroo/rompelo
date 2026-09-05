@@ -16,3 +16,4 @@ existe_hoy_detalle: N41 activo y visto funcionar con un fallo real el mismo día
 spike_cubre: "no"
 clase: R
 senal_al_stop: "ninguna al Stop: los fallos ocurren días después en producción"
+disparador: "ninguno (R: alerta de ejecución, fuera del gate)"

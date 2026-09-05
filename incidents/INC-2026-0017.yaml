@@ -11,3 +11,4 @@ existe_hoy: "parcial"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: stderr no vacío junto a un código de hallazgo"
+disparador: "triestado en el registro (2 = no pude mirar)"

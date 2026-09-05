@@ -15,3 +15,4 @@ existe_hoy_detalle: regla 4 de la memoria; nada la comprueba.
 spike_cubre: "sí"
 clase: S
 senal_al_stop: "el diff añadía código y ningún fichero de prueba cambiaba"
+disparador: "gate exige_prueba_en_diff"

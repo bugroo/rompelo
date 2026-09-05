@@ -16,3 +16,4 @@ existe_hoy_detalle: regla escrita al final de N72.
 spike_cubre: "no"
 clase: R
 senal_al_stop: "el ciclo de verificación pasó; el token caducó 15 minutos después"
+disparador: "D1 junta (n8n/credencial) → cruce real tras el cambio"

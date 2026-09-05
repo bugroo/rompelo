@@ -16,3 +16,4 @@ existe_hoy_detalle: reference_claveon_deploy_verify cubre verificación posterio
 spike_cubre: "no"
 clase: C
 senal_al_stop: "ninguna medible en el árbol: la afirmación era sobre otro ámbito (el despliegue)"
+disparador: "D1 despliegue → cruce real; D3 para la afirmación «sale sobre main»"

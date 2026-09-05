@@ -11,3 +11,4 @@ existe_hoy: "no"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: el patrón que se busca no casaba con el mutante"
+disparador: "control positivo de la mutación (ver rojo, no solo ver cambio)"

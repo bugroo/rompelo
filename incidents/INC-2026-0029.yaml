@@ -11,3 +11,4 @@ existe_hoy: "sí"
 spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: el propio hook bloqueó con «cambios posteriores al cierre» sobre un árbol limpio"
+disparador: "batería en rojo primero (huella sobre contenido)"

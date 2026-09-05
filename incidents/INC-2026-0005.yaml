@@ -16,3 +16,4 @@ existe_hoy_detalle: humo-navegador.mjs enchufado a tools/deploy.sh desde el 04-0
 spike_cubre: "sí"
 clase: S
 senal_al_stop: "abrir la página en un navegador lanzaba el ReferenceError"
+disparador: "gate check registrado de humo en navegador con min_lineas; ningún patrón D2"
