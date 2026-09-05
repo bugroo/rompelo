@@ -52,6 +52,10 @@ texto pero iguales en causa producen la misma firma; dos causas distintas, firma
 
 ### D1 · riesgo de la tarea (no espera a ningún error)
 
+> Ajuste del 05-09-2026 tras el control negativo real: D1 sube el nivel al **segundo** toque de
+> escritura al mismo perfil (`toques_perfil` en `config/observacion.json`); `exterior` a uno.
+> Las lecturas (`grep`, `cat`, `git log`… sin redirección) no cuentan como toque.
+
 `~/rompelo/config/riesgo.json` mapea patrones de ruta y de comando a un perfil:
 
 | Perfil | Señal | Ejemplo |
@@ -226,13 +230,20 @@ entre medias es el patrón de José. Las cinco falsas y su arreglo, cada una con
 - D1 disparaba `auth` por `grep -rn token src` → los programas de solo lectura (sin redirección,
   `-i`, `tee` ni `xargs`) no cuentan para D1.
 
-Lo que el control negativo enseña y **no** se ha cambiado, para decidirlo José: D1 salta mucho
-en sesiones reales (en una sesión con seis repos, 16 avisos de perfil; `auth` y `secretos` salen
-en las seis sesiones, porque en esta casa `pass show`, `.env` y `session` están en todas partes).
-Cada aviso sube el repo a nivel 2 y el gate exige segunda pasada. Es lo diseñado en §4 D1, pero
-en uso real puede ser el «guardián que grita siempre» de §1. Opciones: D1 solo con escritura
-(hoy ya excluye lecturas), umbral de dos toques antes de subir, o perfiles por repo en
-`config/riesgo.json`.
+Lo que el control negativo enseña sobre D1: salta mucho en sesiones reales (en una sesión con
+seis repos, 14 avisos de perfil; `auth` y `secretos` salen en las cinco sesiones, porque en esta
+casa `pass show`, `.env` y `session` están en todas partes). Cada aviso sube el repo a nivel 2 y
+el gate exige segunda pasada. Es lo diseñado en §4 D1, pero en uso real puede ser el «guardián
+que grita siempre» de §1.
+
+**Decisión de José (05-09): un perfil sube el nivel al segundo toque de escritura, no al
+primero.** Aplicado: `toques_perfil` en `config/observacion.json` (`_defecto: 2`; `exterior: 1`,
+porque una dependencia se añade en un solo comando y es D3). La batería muta el umbral a 1 y a 3
+para demostrar que se lee. Medido en las mismas cinco sesiones: avisos de perfil **38 → 32**.
+Reduce poco, y conviene saberlo: el ruido no viene de toques sueltos sino de trabajo real que
+toca `auth` y `secretos` una y otra vez en varios repos. La siguiente palanca, si sigue
+molestando, son perfiles por repo en `config/riesgo.json` (un repo de documentación no tiene
+`auth`), o subir el umbral solo para `auth` y `secretos`.
 
 El check `rompelo.control-negativo-sesiones` (solo local; en CI no hay transcripts) exige
 **exactamente** las dos alarmas legítimas: un observador que dejara de mirar daría cero y pasaría
@@ -242,7 +253,7 @@ de `bin/rompelo` que no lee códigos.
 
 Pendiente de este diseño: §4 D3 más allá del perfil `exterior`, §5 nivel 3 con herramientas
 externas registradas, §8 informe con patrones y permisos (hoy el informe no los lista), §9.3
-anotar en cada incidente el disparador que lo habría visto, y la decisión de arriba sobre D1.
+anotar en cada incidente el disparador que lo habría visto.
 NO VERIFICADO: la forma de `tool_response` de Codex para un comando que falla
 (`adapters/codex/PROMPT-CODEX.md`, Parte 1, punto 4).
 

@@ -52,7 +52,7 @@ rigor only when one of three triggers fires, and warns before doing so:
 
 | Trigger | Fires on | What the gate then demands |
 |---|---|---|
-| **task risk** | edits or commands touching `auth`, secrets, migrations, deploys, an integration boundary (`functions/api/`, webhooks, `process.env`), or a new dependency (`pnpm add`, `package.json`) | a real crossing even if the contract said `toca_junta: false`; claims with a source for a new dependency |
+| **task risk** | two write touches (reads do not count) on `auth`, secrets, migrations, deploys or an integration boundary (`functions/api/`, webhooks, `process.env`); a new dependency needs one (`pnpm add`, `package.json`) | a real crossing even if the contract said `toca_junta: false`; claims with a source for a new dependency |
 | **repeated pattern** | the same error signature twice, the same check red twice, one file edited four times without a green check in between, a command that exits 0 with empty output twice | an explicit second pass before closing (`segunda_pasada` in the contract) |
 | **claims about the world** | `toca_exterior` in the contract, or the dependency trigger above | every claim with `verificado` (source + quote), `derivado` or `no_verificado` |
 

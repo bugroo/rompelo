@@ -49,7 +49,7 @@ solo cuando salta uno de tres disparadores, y avisa antes de subirlo:
 
 | Disparador | Salta con | Qué exige entonces la puerta |
 |---|---|---|
-| **riesgo de la tarea** | ediciones o comandos que tocan `auth`, secretos, migraciones, despliegues, una junta con otro sistema (`functions/api/`, webhooks, `process.env`) o una dependencia nueva (`pnpm add`, `package.json`) | cruce real aunque el contrato diga `toca_junta: false`; afirmaciones con fuente para una dependencia nueva |
+| **riesgo de la tarea** | dos toques de escritura (no lecturas) a `auth`, secretos, migraciones, despliegues o una junta con otro sistema (`functions/api/`, webhooks, `process.env`); una dependencia nueva basta con un toque (`pnpm add`, `package.json`) | cruce real aunque el contrato diga `toca_junta: false`; afirmaciones con fuente para una dependencia nueva |
 | **patrón repetido** | la misma firma de error dos veces, el mismo check en rojo dos veces, un fichero editado cuatro veces sin un check verde entre medias, un comando que sale con 0 sin salida dos veces | una segunda pasada explícita antes de cerrar (`segunda_pasada` en el contrato) |
 | **afirmaciones sobre el mundo** | `toca_exterior` en el contrato, o el disparador de dependencia de arriba | cada afirmación con `verificado` (fuente y cita), `derivado` o `no_verificado` |
 

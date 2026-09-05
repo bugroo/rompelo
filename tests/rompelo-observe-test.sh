@@ -82,7 +82,8 @@ PY
 
 echo "── D1 perfil junta manda sobre el contrato"
 reset_estado; nueva_sesion
-o="$(edit_ev $SID functions/api/newsletter.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "editar functions/api/ dispara el perfil junta" || bad "perfil junta" "$o"
+o="$(edit_ev $SID functions/api/newsletter.ts)"; [ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "primer toque a functions/api/: todavía silencio (decisión de José, 05-09: dos toques)" || bad "primer toque junta" "$o"
+o="$(edit_ev $SID functions/api/newsletter.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "segundo toque a functions/api/: dispara el perfil junta" || bad "perfil junta" "$o"
 out="$(hook $SID)"; printf '%s' "$out" | grep -q 'perfil `junta`' && ok "contrato con toca_junta:false, pero el gate exige cruce" || bad "junta manda" "$out"
 "$ROMPELO" cruce -- true >/dev/null; "$ROMPELO" check >/dev/null; out="$(hook $SID)"; [ -z "$out" ] && ok "con cruce real: silencio" || bad "junta cumplida" "$out"
 
@@ -90,7 +91,8 @@ echo "── D1 no lee prosa: un heredoc que ESCRIBE sobre functions/api no es t
 reset_estado; nueva_sesion
 o="$(bash_ev $SID $'cat > docs/x.md <<\'EOF\'\nla junta vive en functions/api/ y usa process.env\nEOF' 0 '' '')"
 [ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "heredoc con palabras de riesgo: silencio" || bad "heredoc" "$o"
-o="$(bash_ev $SID 'wrangler pages deploy dist' 0 'ok' '')"; printf '%s' "$o" | grep -q 'toca `despliegue`' && ok "el mismo texto como comando sí dispara" || bad "comando real" "$o"
+bash_ev $SID 'wrangler pages deploy dist' 0 'ok' '' >/dev/null
+o="$(bash_ev $SID 'wrangler pages deploy dist' 0 'ok' '')"; printf '%s' "$o" | grep -q 'toca `despliegue`' && ok "el mismo texto como comando, dos veces, sí dispara" || bad "comando real" "$o"
 
 echo "── D1 perfil exterior exige afirmaciones"
 reset_estado; nueva_sesion
@@ -169,7 +171,18 @@ o="$(claude_ok_ev $SID 'grep -rn token src' 'src/a.ts:1: token' '')"
 o="$(claude_ok_ev $SID 'grep -i token src/a.ts' 'src/a.ts:1: token' '')"
 [ -z "$o" ] && ok "«grep -i» sigue siendo lectura (la -i de sed es otra)" || bad "grep -i" "$o"
 o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
-printf '%s' "$o" | grep -q 'toca `auth`' && ok "escribir en src/auth sí dispara" || bad "sed auth" "$o"
+[ -z "$o" ] && o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
+printf '%s' "$o" | grep -q 'toca `auth`' && ok "escribir en src/auth dos veces sí dispara" || bad "sed auth" "$o"
+
+echo "── toques por perfil: se leen de config/observacion.json (mutación a 1 y a 3)"
+reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 1: salta al primer toque" || bad "toques 1" "$o"
+reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
+edit_ev $SID functions/api/x.ts >/dev/null; o="$(edit_ev $SID functions/api/x.ts)"; [ -z "$o" ] && ok "umbral 3: el segundo toque calla" || bad "toques 3" "$o"
+o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 3: el tercero salta" || bad "toques 3 tercero" "$o"
+reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+o="$(bash_ev $SID 'pnpm add left-pad' 0 'added 1 package' '')"; printf '%s' "$o" | grep -q 'toca `exterior`' && ok "excepción por perfil: exterior a un toque" || bad "excepción exterior" "$o"
+rm "$ROMPELO_HOME/config/observacion.json"
 
 echo "── paridad Claude/Codex sobre el mismo flujo"
 reset_estado; nueva_sesion

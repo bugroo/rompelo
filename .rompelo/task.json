@@ -18,5 +18,5 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "05-09 mañana: releído el diff entero de bin/rompelo (evento_desde_hook, programa, es_check, solo_lee, patrones_de) y la batería nueva (46 casos, 12 vistos en rojo antes del arreglo). Afinado en la relectura: «grep -i» no es escritura. Control negativo real: 5 sesiones, 7 alarmas → 2 verdaderas."
+  "segunda_pasada": "05-09 mañana: releído el diff entero de bin/rompelo (evento_desde_hook, programa, es_check, solo_lee, patrones_de) y la batería nueva (46 casos, 12 vistos en rojo antes del arreglo). Afinado en la relectura: «grep -i» no es escritura. Control negativo real: 5 sesiones, 7 alarmas → 2 verdaderas. Tarde: toques por perfil (decisión de José), 51 casos, 4 vistos en rojo; medido 38 → 32 avisos de perfil."
 }

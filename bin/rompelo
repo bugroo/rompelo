@@ -649,6 +649,20 @@ def umbrales():
     return u
 
 
+# D1 sube el nivel al SEGUNDO toque de escritura al mismo perfil, no al primero (decisión de José, 05-09-2026,
+# tras el control negativo real: `auth` y `secretos` saltaban en todas las sesiones). `exterior` a un toque:
+# una dependencia se añade en un solo comando y es D3, no D1.
+TOQUES_PERFIL = {"_defecto": 2, "exterior": 1}
+
+
+def toques_perfil(perfil):
+    t = dict(TOQUES_PERFIL)
+    conf = leer_json_o(OBS_CONF, {}).get("toques_perfil")
+    if isinstance(conf, dict):
+        t.update({k: int(v) for k, v in conf.items() if isinstance(v, int)})
+    return int(t.get(perfil, t.get("_defecto", 2)))
+
+
 def perfiles_riesgo():
     r = {k: list(v) for k, v in RIESGO.items()}
     for k, v in leer_json_o(RIESGO_CONF, {}).items():
@@ -885,11 +899,13 @@ def cmd_observe(agente, args):
         est.setdefault("patrones", [])
         est.setdefault("avisos", {})
         nuevos = []
+        libro_repo = [e for e in libro if e.get("repo") == root]
+        toques = collections.Counter(p for e in libro_repo for p in (e.get("perfiles") or []))
         for p in sorted(perfiles):
-            if p not in est["perfiles"]:
+            if p not in est["perfiles"] and toques[p] >= toques_perfil(p):
                 est["perfiles"].append(p)
-                nuevos.append(("perfil", p, f"la tarea toca `{p}`"))
-        for nombre, detalle in patrones_de([e for e in libro if e.get("repo") == root], u).items():
+                nuevos.append(("perfil", p, f"la tarea toca `{p}` ({toques[p]} veces)"))
+        for nombre, detalle in patrones_de(libro_repo, u).items():
             if nombre not in est["patrones"]:
                 est["patrones"].append(nombre)
                 nuevos.append(("patron", nombre, detalle))
