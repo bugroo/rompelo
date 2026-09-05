@@ -42,6 +42,35 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 05-09-2026 · Stop y PostToolUse fusionados; revisión humana pendiente
+
+Estado comprobado en disco el 05-09 a las 07:30 UTC. La ruta directa de `Stop`
+ya estaba instalada; se conserva sin cambios, junto con `global_protocol.py`
+y ai-memory. Se añadió únicamente la entrada de `PostToolUse` del adaptador:
+`"$HOME/rompelo/bin/rompelo" observe codex`, timeout de 10 segundos. La entrada
+de `Stop` es `"$HOME/rompelo/bin/rompelo" hook codex`, timeout de 30 segundos.
+
+Copia previa, comprobada byte a byte antes de editar:
+`~/.codex/hooks.json.20260905T073000221984Z.bak`.
+La comparación estructural posterior confirma JSON válido, una sola instancia
+de cada entrada del adaptador y conservación exacta del resto de la configuración.
+No se escribió en `config.toml` ni en `~/.claude/`.
+
+Antes de cualquier edición, ambas baterías terminaron con código 0:
+`bash tests/rompelo-stop-test.sh`: `PASS=77 FAIL=0`;
+`bash tests/rompelo-observe-test.sh`: `PASS=64 FAIL=0`.
+El evaluador y las baterías no se han modificado en esta fase.
+
+**NO VERIFICADO:** confianza efectiva de las dos entradas, bloqueo y silencio
+automáticos de `Stop`, y código de un comando fallido recibido por `PostToolUse`.
+Falta que José revise y confíe el nuevo `PostToolUse` en `/hooks`, y la entrada
+`Stop` solo si figura pendiente. La revisión humana corresponde al encargo y al
+[contrato oficial de hooks](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks).
+Todavía no existe una salida literal de bloqueo en vivo de esta intervención.
+
+La Parte 2 no se ha iniciado: el encargo exige completar primero el cruce real.
+`ROMPELO-CODEX-01` estaba cerrado al comenzar; `ROMPELO-CODEX-02` queda pendiente.
+
 ### 05-09-2026 · cambio a rompelo preparado; escritura global bloqueada
 
 Esta comprobación sustituye el estado de instalación anterior tras el cambio de
