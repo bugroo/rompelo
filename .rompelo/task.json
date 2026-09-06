@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "id": "ROMPELO-CODEX-02",
+  "id": "ROMPELO-CODEX-03",
   "estado": "cerrada",
-  "base": "c65243268875fbd7cf2cdfeb0ab471b403146357",
-  "descripcion": "Parte 2: triestado y control positivo por check, controles reales de scope y variable pegada, evidencia vinculada a la definición; sincronizar tres borradores de werixo-brain.",
+  "base": "86001d25aa08703e85f1d7636b1a1336babe988e",
+  "descripcion": "Parte 3: ponerse al día con check --id y timeout, verificar el Stop automático tras el pull y anotar resultados en LEEME",
   "scope_paths": [
-    "**"
+    "adapters/codex/LEEME.md"
   ],
   "checks": [
     "rompelo.tests",
@@ -18,5 +18,5 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisados orden control/real, códigos originales, fallo sin ejecución real, evidencia sin salidas, validación de argv/cwd, invalidación tras cambios de registro y cierre anterior, paridad CI e inglés. Controles de ClaveON no implementados: cobertura explícita en YAML y documentación. Sin escrituras de configuración de hooks ni hashes de confianza."
+  "segunda_pasada": "Leídos Parte 3, CHANGELOG, ayuda, README, LEEME y observación §9: --id repetible acotado al contrato; argumentos sueltos inválidos; llamadas separadas del observador; allowlist por raíz y worktree aparte. Baterías previas 113/113 y 75/75. Sin construcción del detector opcional INC-0038 ni cambios en hooks o confianza."
 }
