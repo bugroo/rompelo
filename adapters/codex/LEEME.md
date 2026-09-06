@@ -42,6 +42,12 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 06-09-2026 · `check --id`, aviso de timeout, INC-0037/0038 (Claude Code, `fa672f9`)
+
+`rompelo check` rechaza argumentos sueltos y admite `--id`. Parte 3 de `PROMPT-CODEX.md` pide a
+Codex ponerse al día (pull, baterías, anotar aquí). Hook de Codex sin cambios. NO VERIFICADO:
+que Codex reciba el bloqueo tras este commit (el binario cambió; `hooks.json` no).
+
 ### 05-09-2026 · Parte 2 implementada sobre c652432
 
 Triestado y control positivo por check disponibles en `check` y `verify --ci`.

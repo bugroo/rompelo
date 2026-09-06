@@ -112,6 +112,37 @@ Hoy `rompelo` ya exige `min_lineas`. Falta esto:
    reproduce cinco sesiones reales de esta máquina), y no des la tarea por terminada hasta que
    `rompelo verify` dé 0 y el hook te deje parar.
 
+## Parte 3 · Ponerte al día con la herramienta (06-09-2026, commit `fa672f9`)
+
+Contexto: una auditoría desde otra sesión de Claude Code encontró que `rompelo check no.existe`
+ejecutaba todos los checks, decía «todos en verde» y salía 0 (INC-0037, verde ambiguo), y que la
+suite entera (~250 s) supera el timeout de 120 s de la herramienta Bash de Claude Code. Está
+arreglado y subido a `origin/main`. Tu trabajo aquí es actualizarte, no construir.
+
+1. `git -C ~/rompelo pull --ff-only` y lee `CHANGELOG.md` («Sin publicar») y
+   `~/rompelo/bin/rompelo --help`. Lo que cambia para ti:
+   - `rompelo check` solo admite `--id ID` (repetible, acotado a los checks del contrato).
+     Cualquier otro argumento es error sin ejecutar nada. Para iterar durante el desarrollo:
+     `rompelo check --id rompelo.tests`. Para cerrar hace falta el `check` completo, porque la
+     huella vincula cada evidencia al árbol actual.
+   - Corpus 38 (I=18): INC-0037 y INC-0038 (código de salida del envoltorio que no es el del
+     trabajo: un `for … done` que acaba en `[ … ] && …` sale 1 con todo en verde). No envuelvas
+     `rompelo check` en bucles propios; su código ya es el recuento de rojos.
+   - `docs/observacion.md` §9: el control positivo del observador abarca dos llamadas de
+     herramienta separadas; la allowlist va por raíz de árbol y un worktree es raíz aparte.
+2. Baterías en verde antes de tocar nada: `bash tests/rompelo-stop-test.sh` (hoy PASS=113
+   FAIL=0) y `bash tests/rompelo-observe-test.sh` (anota el recuento que veas).
+3. Tu hook no cambia: `~/.codex/hooks.json` sigue apuntando a `"$HOME/rompelo/bin/rompelo"
+   hook codex` y `observe codex`; la confianza va sobre `hooks.json`, no sobre el binario, así
+   que no debería pedirte reconfiar. NO VERIFICADO desde aquí: compruébalo con un turno en
+   `~/rompelo` con el contrato abierto (tiene que llegarte el bloqueo).
+4. Anota en `adapters/codex/LEEME.md`, sección «Estado», con fecha: recuentos de las dos
+   baterías y si el bloqueo llegó.
+
+Encargo opcional, solo si José lo pide: firma del observador para INC-0038 («verde ambiguo al
+revés»: código distinto de 0 con la última línea de stdout igual al resumen de verde del propio
+check). Caso en rojo primero, en `tests/rompelo-observe-test.sh`.
+
 ## Entrega
 
 Tres bloques, en este orden: qué queda hecho, qué falta, qué problemas tiene el trabajo.
