@@ -1,0 +1,14 @@
+id: INC-2026-0037
+titulo: "`rompelo check no.existe.jamas` ejecutaba los cinco checks del contrato, imprimía «todos en verde» y salía 0: el argumento se descartaba en silencio y la salida decía «hice lo que pediste» habiendo hecho otra cosa"
+fecha: 2026-09-06
+fuente: "auditoría de rompelo desde otra sesión de Claude Code el 06-09-2026 (mensaje entre sesiones); reproducido aquí en un ROMPELO_HOME desechable: `check no.existe.jamas` tocó el canario de otro check y salió 0"
+tipo: instrumento
+evidencia_verde: "«todos en verde» y código 0 tras pedir un check que no existe; el operador cree que ese id se ejecutó. Tapa el caso peligroso: un id mal escrito no se distingue por esta vía"
+lo_que_faltaba: "que la herramienta se niegue ante un argumento que no entiende: `check` acepta solo `--id ID` (acotado a los checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada"
+gate: instrumento-control-positivo
+gate_descripcion: "cuatro casos en la batería vistos en rojo antes del arreglo: argumento suelto, --id sin valor, --id de un check fuera del contrato (canario intacto), --id acota a 1/1"
+existe_hoy: "sí"
+spike_cubre: "sí"
+clase: I
+senal_al_stop: "no: el gate lee la evidencia por check y la evidencia era real; el engaño estaba en lo que el operador creía haber pedido"
+disparador: "ninguno del observador; lo caza el diseño del CLI (argumento desconocido = error) y el caso en rojo"

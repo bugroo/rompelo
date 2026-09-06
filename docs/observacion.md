@@ -156,6 +156,13 @@ permisos diste** (con hora). Es lo que convierte la herramienta en algo que ense
    subido de nivel y a qué altura de la tarea. Se anota en el YAML (`disparador`) y la tabla
    lo cuenta. Sin inventar: un incidente que ningún disparador ve se marca así.
 4. Junta cruzada: sesión real con un error provocado dos veces y ver llegar el aviso.
+5. Control positivo del observador en vivo: **abarca dos llamadas de herramienta separadas**,
+   nunca una sola. El hook `PostToolUse` corre después de que la llamada termina, así que un
+   comando que cuenta las líneas del libro no puede ver la suya. Medido el 06-09-2026 desde otra
+   sesión: el libro pasó de 80 a 81 líneas entre una llamada Bash y la siguiente; dentro de la
+   misma llamada el recuento no cambia y da un falso «observador muerto».
+6. Cobertura: solo repos git. `rompelo init` no puede alistar un directorio sin `.git`
+   (`~/WERIXO` y `~/ClaveON_B2C-rediseno` no lo son, medido el 06-09-2026); ahí ni gate ni observador.
 
 ## 10. Fuera de este diseño
 

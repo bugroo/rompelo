@@ -66,6 +66,15 @@ echo "── evidencia"
 espera_bloqueo "sin evidencia: bloquea por check" s2 "check \`hay-a\` sin ejecutar"
 espera_bloqueo "sin evidencia: bloquea por junta" s2b "no hay cruce real"
 "$ASSURE" check >/dev/null && ok "rompelo check en verde" || bad "rompelo check"
+echo "── check: argumentos (antes se descartaban en silencio y ejecutaba todo)"
+out="$("$ASSURE" check no.existe.jamas 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ! printf '%s' "$out" | grep -q '\[1/' && ok "check con argumento suelto: error y NO ejecuta nada" || bad "check aceptó un argumento suelto (rc=$rc)" "$out"
+out="$("$ASSURE" check --id 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "check --id sin valor: error" || bad "check --id sin valor pasó" "$out"
+out="$("$ASSURE" check --id canario 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && [ ! -e "$CANARY" ] && ok "check --id de un check fuera del contrato: error y no lo ejecuta" || bad "check --id ejecutó un check ajeno al contrato" "$out"
+out="$("$ASSURE" check --id hay-a 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q '^\[1/1\] hay-a' && ! printf '%s' "$out" | grep -q '\] ok' && ok "check --id ejecuta solo el pedido (1/1)" || bad "check --id no acotó" "$out"
 espera_bloqueo "checks hechos, falta el cruce" s2c "no hay cruce real"
 "$ASSURE" cruce --nota "p" -- true >/dev/null && ok "rompelo cruce por argv OK" || bad "cruce"
 

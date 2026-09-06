@@ -140,6 +140,13 @@ duración, líneas de salida, el cruce real, las afirmaciones verificadas), qué
 comprobar (afirmaciones `no_verificado`, checks que solo corren en esta máquina) y qué queda a
 tu cargo (hallazgos aceptados sin corregir).
 
+`rompelo check` ejecuta todos los checks que exige el contrato. Para iterar, `rompelo check --id mi-app.test`
+ejecuta solo ese; cualquier otro argumento es un error (antes se descartaba en silencio: ejecutaba
+todo y decía «todos en verde» sobre un check que nadie había pedido). Una suite entera puede tardar
+varios minutos, y la herramienta Bash de Claude Code corta a los 120 s por defecto: lánzala con
+timeout de 300000 ms o más, o en segundo plano. Si no, el agente ve un timeout y cree que los
+checks fallaron.
+
 `rompelo verify` enseña el veredicto en cualquier momento. `rompelo --help` lo lista todo.
 Los mensajes del gate y del observador salen en español; con `ROMPELO_LANG=en` (o `"idioma":
 "en"` en `config/observacion.json`) salen en inglés. El informe de cierre sigue en español.

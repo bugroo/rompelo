@@ -5,6 +5,17 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
+  decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
+  checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.
+  Cuatro casos en rojo en la batería.
+- `--help` y README avisan: una suite entera supera los 120 s del timeout por defecto de la
+  herramienta Bash de Claude Code; lanzar con timeout ≥ 300000 o en segundo plano, e iterar con
+  `--id`.
+- Corpus 38 (I=18): INC-0037 y INC-0038 (código de salida del envoltorio que no es el del
+  trabajo: cinco checks en verde reportados como exit 1).
+- `docs/observacion.md` §9: el control positivo del observador abarca dos llamadas de
+  herramienta separadas; solo repos git quedan cubiertos.
 - Control positivo opcional por check: debe detectar un caso malo con código 1 antes de
   ejecutar el check real. Incluidos los controles de la batería (mutante de scope) y de
   `sin-var-pegada`; no se guarda salida de ninguno de los dos procesos.

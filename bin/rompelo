@@ -611,6 +611,14 @@ def cmd_init(root, args):
 
 
 def cmd_check(root, args):
+    # Solo se admite `--id ID` (repetible). Cualquier otro argumento es un error: antes se
+    # descartaba en silencio y `rompelo check no.existe` ejecutaba todo y decía «todos en verde»
+    # (verde ambiguo: la salida decía «hice lo que pediste» habiendo hecho otra cosa).
+    pedidos = valores(args, "--id")
+    sobrantes = [a for i, a in enumerate(args) if a != "--id" and not (i > 0 and args[i - 1] == "--id")]
+    if sobrantes or ("--id" in args and not pedidos):
+        sys.exit(f"rompelo check: argumento(s) no reconocido(s): {' '.join(sobrantes) or '--id sin valor'}\n"
+                 "uso: rompelo check [--id ID]...   (sin --id ejecuta todos los checks exigidos por el contrato)")
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
     if not c["checks"]:
@@ -618,6 +626,13 @@ def cmd_check(root, args):
         return 0
     fallos = 0
     exigidos = checks_exigidos(root, c)
+    if pedidos:
+        conocidos = {cid for cid, _n3 in exigidos}
+        desconocidos = [p for p in pedidos if p not in conocidos]
+        if desconocidos:  # no se llama «fuera»: el control positivo muta la única línea `if fuera:` del scope
+            sys.exit(f"rompelo check: {', '.join(desconocidos)} no está entre los checks exigidos por el contrato "
+                     f"({', '.join(sorted(conocidos)) or 'ninguno'})")
+        exigidos = [(cid, n3) for cid, n3 in exigidos if cid in pedidos]
     for i, (cid, n3) in enumerate(exigidos, 1):
         argv, cwd = resolver_check(cid, root)
         print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}: {' '.join(argv)}")
@@ -1287,7 +1302,11 @@ AYUDA = __doc__ + f"""
 uso:
   rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar]
       sin --check, detecta los checks del repo (package.json, pyproject, Cargo.toml, go.mod, Makefile) y los registra en registry.local.json
-  rompelo status | verify [--json] [--ci [--estricto]] | check | close | repos
+  rompelo status | verify [--json] [--ci [--estricto]] | close | repos
+  rompelo check [--id ID]...     sin --id ejecuta todos los checks del contrato; con --id solo esos (para iterar);
+                                 cualquier otro argumento es error. Una suite entera puede pasar de 120 s, el
+                                 timeout por defecto de la herramienta Bash de Claude Code: lánzala con timeout
+                                 ≥ 300000 o en segundo plano, o el agente creerá que falló
   rompelo cruce [--nota TXT] (--id ID | -- <argv>)
   rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
   rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)

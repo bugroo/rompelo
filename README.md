@@ -144,6 +144,13 @@ cd your-repo
 checked (claims marked `no_verificado`, checks that only run on this machine), and what is left
 to you (findings accepted without a fix).
 
+`rompelo check` runs every check the contract demands. While iterating, `rompelo check --id my-app.test`
+runs only that one; any other argument is an error (it used to be dropped silently, running
+everything and printing "all green" for a check you never asked for). A full suite can take
+several minutes, and the Bash tool in Claude Code times out at 120 s by default: run it with a
+timeout of 300000 ms or more, or in the background. Otherwise the agent sees a timeout and
+believes the checks failed.
+
 `rompelo verify` shows the current verdict at any time. `rompelo --help` lists everything.
 The gate and observer messages come in Spanish by default; set `ROMPELO_LANG=en` (or
 `"idioma": "en"` in `config/observacion.json`) for English. The closing report is in Spanish.

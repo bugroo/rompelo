@@ -1,0 +1,14 @@
+id: INC-2026-0038
+titulo: "Suite de cinco checks en verde reportada como «failed with exit code 1»: el envoltorio `for … do …; [ $RC -ne 0 ] && echo …; done` terminaba con un test falso como última sentencia y el código del guion no era el del trabajo"
+fecha: 2026-09-06
+fuente: "relato de la sesión que auditó rompelo el 06-09-2026 (mensaje entre sesiones): Claude Code notificó exit 1 con los cinco checks en verde; el `[ … ] &&` como última sentencia del bucle devolvía 1"
+tipo: instrumento
+evidencia_verde: "al revés que de costumbre: rojo sin fallo. Un agente que lee el código del envoltorio como el del trabajo repite, reintenta o «arregla» algo que estaba bien"
+lo_que_faltaba: "que el código de salida que se reporta sea el del trabajo, no el de la última expresión del envoltorio: `exit $FALLOS` explícito, o el propio `rompelo check`, que ya devuelve el recuento de rojos"
+gate: instrumento-control-positivo
+gate_descripcion: "sin check en rompelo: es un modo de fallo del que llama. Vale como patrón del observador: un comando con salida «en verde» y código 1 es verde ambiguo al revés y merece firma propia (pendiente)"
+existe_hoy: "no"
+spike_cubre: "parcial"
+clase: I
+senal_al_stop: "no: el gate no lee envoltorios; lee la evidencia de cada check"
+disparador: "candidato: código distinto de 0 con la última línea de stdout coincidiendo con el resumen de verde del propio check (`todos en verde`)"
