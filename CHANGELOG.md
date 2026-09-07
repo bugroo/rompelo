@@ -52,6 +52,12 @@ no verificado de cada versión está en el relevo enlazado.
   DECLARADA (etiqueta) de DEMOSTRADA (campo `regresion` con la prueba que lo caza; 9 de 48 hoy) y CI comprueba
   que `corpus/TABLA.md` coincide con lo generado. INC-2026-0048: dos sesiones en el mismo repo comparten
   contrato (relato de la sesión rootml-0e; reproducido aquí mismo).
+- **Portabilidad y publicación preparada (RMP-016/018).** `rompelo doctor` (diagnóstico de solo lectura).
+  El fragmento de settings de Claude lleva la ruta entre comillas, como el de Codex: con un HOME con espacios
+  la línea sin comillas daba «command not found» (batería `tests/portabilidad-test.sh`: HOME con espacio,
+  dos carpetas con el mismo nombre, ROMPELO_HOME alternativo). `actions/checkout` fijado por SHA y PyYAML
+  por versión en los dos workflows, `permissions: contents: read`. La protección de `main` queda preparada
+  en `docs/PROTECCION-MAIN.md` y NO activada: la decide José.
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.

@@ -3,11 +3,13 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4, fijado por SHA el 07-09-2026
         with: { fetch-depth: 0 }   # la base del contrato tiene que existir: una base ausente es ERROR, no HEAD
       - name: Battery (every gate seen red and green)
         run: |
@@ -20,6 +22,8 @@ jobs:
         run: bash "$HOME/rompelo/tests/rompelo-observe-test.sh"
       - name: Test instrument control (assertions reject a dead, missing, garbled or hung hook)
         run: bash "$HOME/rompelo/tests/instrumento-test.sh"
+      - name: Portability (HOME with spaces, same folder name twice, alternate ROMPELO_HOME, doctor)
+        run: bash "$HOME/rompelo/tests/portabilidad-test.sh"
       - name: Tri-state check sees its own positive control
         # Con `bash -e` un comando que sale con 1 aborta el paso antes del test: se captura el código.
         run: |
@@ -30,7 +34,7 @@ jobs:
           espera "$D/nada" 2
       - name: Corpus table regenerates from the incidents and matches the committed one
         run: |
-          python3 -m pip install --quiet pyyaml
+          python3 -m pip install --quiet 'pyyaml==6.0.3'   # fijado el 07-09-2026 (última en PyPI ese día)
           python3 bin/rompelo-corpus.py
           git diff --exit-code -- corpus/TABLA.md || { echo "corpus/TABLA.md está desactualizada: regenera y commitea"; exit 1; }
       - name: The gate judges this repo too (verify --ci)

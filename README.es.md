@@ -116,6 +116,13 @@ checks de nivel 3, si se exigió la junta) en el contrato. Un runner de CI sin e
 que había al cerrar, y rebajarlas a mano cambia el hash del contrato e invalida el cierre. `check`,
 `verify`, `close`, los hooks y el informe leen un único contrato efectivo.
 
+## Diagnóstico
+
+`rompelo doctor` imprime, sin escribir nada, el binario y su revisión, versiones de Python y git,
+`ROMPELO_HOME`, qué registro se ha elegido y cuántos checks tiene, la allowlist y si el repo actual está en
+ella, el directorio de estado, el contrato efectivo y qué hooks de `~/.claude/settings.json` y
+`~/.codex/hooks.json` apuntan a rompelo. Nunca ejecuta un check.
+
 ## Instalar
 
 ```bash

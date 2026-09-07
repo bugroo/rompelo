@@ -81,5 +81,14 @@
     "cwd": "rompelo",
     "min_lineas": 10,
     "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos"
+  },
+  "rompelo.portabilidad-tests": {
+    "argv": [
+      "bash",
+      "tests/portabilidad-test.sh"
+    ],
+    "cwd": "rompelo",
+    "min_lineas": 10,
+    "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor"
   }
 }

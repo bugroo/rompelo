@@ -1681,6 +1681,57 @@ def cmd_state(args):
     return 0
 
 
+def cmd_doctor(root, args):
+    """Diagnóstico de solo lectura: versiones, rutas, registro elegido, allowlist, estado y hooks conectados.
+    No escribe nada ni ejecuta checks (RMP-018)."""
+    print(f"rompelo: {os.path.realpath(__file__)}")
+    r = git(ROMPELO_HOME, "rev-parse", "--short", "HEAD")
+    print(f"revisión de rompelo: {r.stdout.strip() if r.returncode == 0 else 'sin git en ROMPELO_HOME'}")
+    print(f"python: {sys.version.split()[0]} ({sys.executable})")
+    g = git(".", "--version")
+    print(f"git: {g.stdout.strip() if g.returncode == 0 else 'NO ENCONTRADO'}")
+    print(f"ROMPELO_HOME: {ROMPELO_HOME} ({'existe' if os.path.isdir(ROMPELO_HOME) else 'NO EXISTE'})")
+    print(f"ROMPELO_REGISTRO: {os.environ.get('ROMPELO_REGISTRO', 'home')}")
+    try:
+        fuentes = fuentes_registro(root)
+        reg = registro(root)
+        print(f"registro: {' + '.join(fuentes)} → {len(reg)} check(s): {', '.join(sorted(reg)[:12])}{' …' if len(reg) > 12 else ''}")
+    except ValueError as exc:
+        print(f"registro: ERROR {exc}")
+    try:
+        permitidos = repos_permitidos()
+        print(f"allowlist: {ALLOWLIST} → {len(permitidos)} repo(s)" + (f"; este repo {'SÍ' if root in permitidos else 'NO'} está alistado" if root else ""))
+    except ValueError as exc:
+        print(f"allowlist: ERROR {exc}")
+    print(f"estado: {ESTADO} ({'existe' if os.path.isdir(ESTADO) else 'aún no creado'})")
+    if root:
+        print(f"repo: {root}")
+        try:
+            c, info = contrato_efectivo(root)
+            print(f"contrato: {c['id']} · estado {c['estado']} · nivel efectivo {info['nivel']} · checks exigidos {[cid for cid, _n in info['checks']]}"
+                  + (f" · pendientes por permiso revocado {info['pendientes']}" if info.get('pendientes') else ""))
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"contrato: {exc}")
+    for nombre, f in (("Claude Code", os.path.join(os.path.expanduser("~"), ".claude", "settings.json")),
+                      ("Codex", os.path.join(os.path.expanduser("~"), ".codex", "hooks.json"))):
+        try:
+            txt = open(f).read()
+            eventos = []
+            for ev in ("Stop", "PostToolUse", "PostToolUseFailure"):
+                for m in (json.loads(txt).get("hooks") or {}).get(ev) or []:
+                    if any("rompelo" in str(h.get("command", "")) for h in m.get("hooks") or []):
+                        eventos.append(ev)
+            print(f"hooks {nombre}: {f} → " + (", ".join(eventos) if eventos else "sin hooks de rompelo"))
+        except FileNotFoundError:
+            print(f"hooks {nombre}: {f} no existe")
+        except (OSError, ValueError) as exc:
+            print(f"hooks {nombre}: {f} ilegible ({exc.__class__.__name__})")
+    for b in ("claude", "codex"):
+        ruta = next((os.path.join(d, b) for d in os.environ.get("PATH", "").split(os.pathsep) if os.path.isfile(os.path.join(d, b))), None)
+        print(f"cliente {b}: {ruta or 'no está en PATH'}")
+    return 0
+
+
 def cmd_repos(args):
     for p in repos_permitidos():
         print(p)
@@ -1764,6 +1815,7 @@ uso:
   rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)
   rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
   rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (nunca estado ni evidencia)
+  rompelo doctor                 diagnóstico de solo lectura: versiones, rutas, registro elegido, allowlist, hooks conectados
 contrato: `checks_nivel3` lista checks que solo se exigen a nivel 3 (tras `rompelo permiso … si`)
 idioma de los mensajes: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}
@@ -1783,6 +1835,8 @@ def main(argv):
         return cmd_repos(args)
     if sub == "state":
         return cmd_state(args)
+    if sub == "doctor":
+        return cmd_doctor(raiz_repo(os.getcwd()), args)
     root = raiz_repo(os.getcwd())
     if not root:
         sys.exit("rompelo: no estás dentro de un repositorio git")

@@ -120,6 +120,13 @@ level-3 checks, whether the boundary was required) into the contract. A CI runne
 requires the same thing the close did, and lowering them by hand changes the contract hash and voids
 the close. `check`, `verify`, `close`, the hooks and the report all read one effective contract.
 
+## Diagnosis
+
+`rompelo doctor` prints, read-only, the binary and its revision, Python and git versions, `ROMPELO_HOME`,
+which registry is selected and how many checks it holds, the allowlist and whether the current repo is in
+it, the state directory, the effective contract, and which hooks in `~/.claude/settings.json` and
+`~/.codex/hooks.json` point at rompelo. It never writes or runs a check.
+
 ## Install
 
 ```bash
