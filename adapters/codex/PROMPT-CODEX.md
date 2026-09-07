@@ -143,6 +143,53 @@ Encargo opcional, solo si José lo pide: firma del observador para INC-0038 («v
 revés»: código distinto de 0 con la última línea de stdout igual al resumen de verde del propio
 check). Caso en rojo primero, en `tests/rompelo-observe-test.sh`.
 
+## Parte 4 · Cruzar en vivo el binario nuevo de la auditoría (07-09-2026, PR #1)
+
+Contexto: una auditoría externa encontró 19 puntos (RMP-001…019) y se arreglaron en la rama
+`mejoras-auditoria-2026-09-07` (PR #1, CI en verde en Ubuntu). Lo que te toca a ti es lo que solo
+un cliente Codex real puede comprobar. **Precondición:** José ha fusionado el PR. Si `git -C ~/rompelo
+log --oneline -1 origin/main` no muestra «contrato MEJORAS-AUDITORIA-2026-09-07 cerrado» o posterior,
+para y dilo: no cambies de rama en `~/rompelo` (es el binario que ejecutan los hooks de todas las
+sesiones).
+
+1. `git -C ~/rompelo pull --ff-only`. Lee `CHANGELOG.md` («Sin publicar») y
+   `docs/auditoria-2026-09-07/SEGUIMIENTO.md`. Lo que cambia para ti:
+   - `apply_patch` ya se observa: tus ediciones quedan en el libro con sus rutas (antes, 64 eventos
+     reales sin fichero). `hookEventName` de la respuesta es el del evento recibido.
+   - `rompelo permiso <x> no` revoca de verdad y el check queda pendiente; un permiso para un id de
+     `checks_nivel3` autoriza solo ese; sin `--recordar` no pasa a otra tarea.
+   - Evidencia sin `argv`; huella `v2:` (la evidencia vieja pide `rompelo check` de nuevo); una `base`
+     ausente es error; `verify --ci` dice «OK PARCIAL» cuando algo queda sin comprobar.
+   - `rompelo doctor` y `rompelo state prune --dias N [--dry-run]` existen.
+2. `rompelo doctor` en `~/rompelo`: tiene que decir «hooks Codex: … → Stop, PostToolUse» y un
+   registro con 7 checks. Copia esa salida (sin rutas de secretos, no las hay) a tu nota.
+3. Abre tu contrato, no uses el que hay (INC-0048: dos sesiones comparten `.rompelo/task.json`):
+   `rompelo init --force --id ROMPELO-CODEX-04 --scope adapters/codex/LEEME.md --check rompelo.tests
+   --check rompelo.observe-tests --check rompelo.instrumento-tests --check rompelo.portabilidad-tests
+   --check rompelo.sin-var-pegada --check rompelo.cruce-settings-claude
+   --check rompelo.control-negativo-sesiones --junta`.
+4. Cruces que solo tú puedes hacer, en este orden, anotando cada resultado:
+   a. **Stop.** Edita `adapters/codex/LEEME.md` (una línea) y termina el turno sin `rompelo check`.
+      Tiene que llegarte el bloqueo con «sin ejecutar» y «huella». Si no llega, es el hallazgo
+      principal: anótalo y sigue.
+   b. **apply_patch.** Haz esa edición con `apply_patch`, no con shell. Luego:
+      `tail -1 ~/rompelo/state/sesiones/codex-<tu session_id>.jsonl` tiene que llevar
+      `"tool": "apply_patch"` y `"ficheros": ["/Users/rootml/rompelo/adapters/codex/LEEME.md"]`.
+      Si `ficheros` va vacío, anota la forma del payload con `ROMPELO_DEBUG_FORMA=1` (solo claves).
+   c. **Permiso.** `rompelo permiso rompelo.tests si` → `rompelo nivel` dice 3; `rompelo permiso
+      rompelo.tests no` → dice 0 y el siguiente Stop menciona «permiso revocado» si el check está
+      en `checks_nivel3` (ponlo ahí un momento para verlo; luego quítalo).
+   d. **Cierre.** `rompelo check` (la suite entera tarda ~5 min; en Codex no hay timeout de 120 s),
+      `rompelo cruce --id rompelo.cruce-settings-claude`, `rompelo close`. El Stop siguiente tiene
+      que callar.
+5. Anota en `adapters/codex/LEEME.md`, sección «Estado», con fecha y `codex --version`: recuentos de
+   las baterías, si llegó el bloqueo, si `apply_patch` dejó las rutas, si revocar dejó el check
+   pendiente. Lo que no llegaste a ver, como NO VERIFICADO.
+
+No toques `bin/rompelo` ni `tests/`: si algo falla, es un hallazgo para José, no un arreglo tuyo.
+No toques `~/.claude/`. Tu `~/.codex/hooks.json` no debería necesitar cambios (la confianza va sobre
+`hooks.json`, no sobre el binario).
+
 ## Entrega
 
 Tres bloques, en este orden: qué queda hecho, qué falta, qué problemas tiene el trabajo.
