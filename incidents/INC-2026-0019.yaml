@@ -12,3 +12,4 @@ spike_cubre: "sí"
 clase: I
 senal_al_stop: "sí: 0 pruebas ejecutadas"
 disparador: "min_lineas («no tests» sin salida útil)"
+regresion: "tests/rompelo-stop-test.sh · «check que informa de lo visto: verde» y «check mudo con min_lineas bloquea»"

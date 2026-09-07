@@ -12,3 +12,4 @@ spike_cubre: "sí"
 clase: I
 senal_al_stop: "no: el gate lee la evidencia por check y la evidencia era real; el engaño estaba en lo que el operador creía haber pedido"
 disparador: "ninguno del observador; lo caza el diseño del CLI (argumento desconocido = error) y el caso en rojo"
+regresion: "tests/rompelo-stop-test.sh · «check con argumento suelto: error y NO ejecuta nada»"

@@ -12,3 +12,4 @@ spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: la firma repetida sobre comandos con código 0 era contradictoria, pero nadie comparaba firma con código"
 disparador: "control negativo con sesiones reales (libro con códigos imposibles)"
+regresion: "tests/rompelo-observe-test.sh · «el código de salida no se lee del texto de la salida»"

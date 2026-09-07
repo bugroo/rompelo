@@ -369,3 +369,13 @@ general, todos. `permiso <x> no` marca `revocado` y el check queda **pendiente**
 el gate) hasta `permiso <x> si` o una `excepciones` en el contrato. El nivel 3 ya no se guarda: se
 calcula (`nivel_efectivo`), y un `nivel: 3` de formato anterior no vale por sí solo. `nivel bajar`
 también vacía los permisos. `obligaciones_efectivas` (que escribe `close`) incluye `permisos`.
+
+### 12.6 · Ventana entre sesiones y retención (07-09-2026, RMP-013)
+
+§2 hablaba de «las últimas 24 h del repo» y el código miraba solo el libro de la sesión actual. Ahora
+`otras_sesiones()` suma los eventos de los demás libros de `state/sesiones/` con el mismo `repo` y `t` dentro
+de `ventana_horas` (config/observacion.json, 24 por defecto, 0 apaga). Un worktree es otra raíz y no se mezcla;
+otro repo tampoco. `rompelo state prune --dias N [--dry-run]` existe y borra libros y marcas por mtime; nunca
+`state/repos/` (nivel, perfiles, permisos), `forma.jsonl`, `observe.err` ni la evidencia. Batería: firma
+repartida entre Claude y Codex salta; un fallo de hace 30 h no; otro proyecto no contamina; `ventana_horas: 0`
+apaga; prune previsualiza, borra lo viejo, conserva lo reciente y rechaza `--dias 0`.

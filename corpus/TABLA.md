@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (47 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
+Generado desde `incidents/` (48 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`. «Declarada» es una etiqueta del YAML; «demostrada» exige un campo `regresion` con la prueba que lo caza.
 
 ## Lo que decide
 
@@ -8,10 +8,11 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 27 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 47) |
-| recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 11 · parcial: 8 · no: 28 |
-| ¿Cuántos tienen ya un control hoy? | sí: 17 · parcial: 11 · **no: 19** |
+| Reparto por clase | **A**: 2 · **C**: 5 · **I**: 27 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 48) |
+| Cobertura DECLARADA del Stop gate sobre la clase S (`spike_cubre: sí`, anotado a mano) | **5 de 6** |
+| Cobertura declarada sobre TODOS (no es la métrica, se deja por honestidad) | sí: 11 · parcial: 8 · no: 29 |
+| Cobertura DEMOSTRADA (incidentes con `regresion` que nombra una prueba reproducible) | **9 de 48** |
+| ¿Cuántos tienen ya un control hoy? | sí: 17 · parcial: 11 · **no: 20** |
 
 ## Por tipo de gate que lo habría cazado
 
@@ -34,10 +35,11 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | `leer-el-contenido-antes-de-medirlo` | 1 (0044) | no |
 | `correr-el-detector-sobre-codigo-real` | 1 (0045) | sí |
 | `contraste-sobre-imagen` | 1 (0047) | no |
+| `contrato-por-sesion` | 1 (0048) | no |
 
 ## Qué lo habría visto (observación + gate)
 
-Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **7 de 47** (0006, 0007, 0009, 0010, 0015, 0026, 0037): clases R, T y A, que viven fuera del cierre de una tarea.
+Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **7 de 48** (0006, 0007, 0009, 0010, 0015, 0026, 0037): clases R, T y A, que viven fuera del cierre de una tarea.
 
 | Id | Clase | Disparador |
 |---|---|---|
@@ -88,6 +90,7 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0045 | I | añadir una regla de detección estática |
 | 0046 | I | medir color computado cuando la hoja usa oklch, lab, color-mix o hsl |
 | 0047 | I | texto posicionado sobre una imagen o un canvas |
+| 0048 | C | candidato: dos `session_id` distintos con Stop sobre la misma raíz y el mismo id de tarea en menos de una hora |
 
 ## Los incidentes
 
@@ -140,6 +143,7 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0045 | 2026-09-07 | I | el hallazgo era correcto en forma y falso en contenido | `correr-el-detector-sobre-codigo-real` | sí | no |
 | 0046 | 2026-09-07 | I | ninguna: trece fallos coherentes parecen un diseño malo, no un medidor roto | `instrumento-control-positivo` | sí | no |
 | 0047 | 2026-09-07 | I | ninguna: el verificador ya tenía control positivo y lo pasaba | `contraste-sobre-imagen` | no | no |
+| 0048 | 2026-09-07 | C | sí, pero de la tarea equivocada: el bloqueo es legítimo para el contrato que hay, no para el trabajo de quien lo recibe | `contrato-por-sesion` | no | no |
 
 ## Títulos
 
@@ -190,3 +194,4 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 - **0045** · Regla de detección sin excepción documentada: #fff bajo mix-blend-mode (`~/tails/checks/slop.mjs · regla pure-black-white`)
 - **0046** · Verificador de contraste que parsea oklch() como si fuera rgb(): trece fallos imposibles (`~/tails/skills/tails/references/11-verify.md § 8`)
 - **0047** · Contraste de texto sobre fotografía medido contra el fondo CSS: verde falso en el elemento más visible (`~/tails/skills/tails/references/11-verify.md § 9`)
+- **0048** · Dos sesiones en el mismo repo comparten el contrato: una queda bloqueada por la tarea de la otra (`relato de la sesión rootml-0e (Opus 5) el 07-09-2026, mensaje entre sesiones; reproducido aquí mismo: la sesión que insertó el corpus recibió el bloqueo del contrato ROMPELO-CODEX-03, cerrado por Codex`)

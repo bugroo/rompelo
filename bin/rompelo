@@ -64,6 +64,11 @@ EN = {
     "el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio": "the real crossing predates the last change; cross AFTER deploying the last change",
     "observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false": "observation: the task touched boundary paths (`junta` profile), so a real crossing is required even though the contract says toca_junta: false",
     "hallazgo sin disposición: {h}": "finding without disposition: {h}",
+    "hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)": "finding {h}: disposition \"{d}\" is not valid (confirmado | rechazado | aceptado)",
+    "hallazgo {h} rechazado sin motivo": "finding {h} rejected without a reason",
+    "hallazgo {h} aceptado sin nota (qué riesgo se asume y hasta cuándo)": "finding {h} accepted without a note (which risk is taken and until when)",
+    "hallazgo {h} confirmado sin regresión (un check del registro o una prueba de este diff)": "finding {h} confirmed without a regression (a registry check or a test in this diff)",
+    "hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff": "finding {h}: regression \"{r}\" is neither a registry check nor a test changed in this diff",
     "toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)": "toca_exterior: true and no claim carries a state (verificado | derivado | no_verificado)",
     "afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual": "claim \"{tx}\" marked verificado without a primary source or a verbatim quote",
     "afirmación «{tx}» marcada derivado sin decir de qué se deduce": "claim \"{tx}\" marked derivado without saying what it derives from",
@@ -623,9 +628,28 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             m.append(_("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false"))
         m += mc
 
+    # Un hallazgo se adjudica con un estado y su respaldo, no con una cadena no vacía (RMP-012): «pendiente»
+    # no desbloquea; rechazado lleva motivo; aceptado lleva nota (qué riesgo y hasta cuándo); confirmado lleva
+    # una regresión que exista: un check del registro o una prueba cambiada en este diff.
+    globs_prueba = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
     for h in c.get("hallazgos") or []:
+        hid = h.get("id") if isinstance(h, dict) else h
         if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
-            m.append(_("hallazgo sin disposición: {h}", h=h.get("id") if isinstance(h, dict) else h))
+            m.append(_("hallazgo sin disposición: {h}", h=hid))
+            continue
+        d = str(h["disposicion"]).strip()
+        if d not in ("confirmado", "rechazado", "aceptado"):
+            m.append(_("hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)", h=hid, d=d))
+        elif d == "rechazado" and not str(h.get("motivo") or "").strip():
+            m.append(_("hallazgo {h} rechazado sin motivo", h=hid))
+        elif d == "aceptado" and not str(h.get("nota") or "").strip():
+            m.append(_("hallazgo {h} aceptado sin nota (qué riesgo se asume y hasta cuándo)", h=hid))
+        elif d == "confirmado":
+            r = str(h.get("regresion") or "").strip()
+            if not r:
+                m.append(_("hallazgo {h} confirmado sin regresión (un check del registro o una prueba de este diff)", h=hid))
+            elif not (r in reg or (r in cambiados and any(casa(r, g) for g in globs_prueba) and sujeto(root, r) != "D")):
+                m.append(_("hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff", h=hid, r=r))
 
     # Afirmaciones materiales sobre el mundo exterior (criterio de rootml-de, 04-09-2026):
     # cada una lleva estado. verificado = fuente de primera mano + cita textual que zanja;
@@ -1159,6 +1183,43 @@ def leer_json_o(f, defecto):
         return defecto
 
 
+def ventana_horas():
+    """Cuántas horas atrás mira el observador en los libros de OTRAS sesiones del mismo repo (docs/observacion.md §2:
+    «últimas 24 h del repo»). 0 apaga la mirada entre sesiones."""
+    v = leer_json_o(OBS_CONF, {}).get("ventana_horas", 24)
+    return float(v) if isinstance(v, (int, float)) and v >= 0 else 24.0
+
+
+def otras_sesiones(root, excluir, horas):
+    """Eventos de otras sesiones (Claude o Codex) sobre el mismo repo dentro de la ventana. Un error visto una
+    vez en Claude y otra en Codex es el mismo error dos veces (RMP-013). Otro repo no contamina."""
+    desde = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=horas)
+    out = []
+    d = os.path.join(ESTADO, "sesiones")
+    try:
+        nombres = sorted(os.listdir(d))
+    except FileNotFoundError:
+        return out
+    for n in nombres:
+        f = os.path.join(d, n)
+        if f == excluir or not n.endswith(".jsonl"):
+            continue
+        try:
+            if datetime.datetime.fromtimestamp(os.path.getmtime(f), datetime.timezone.utc) < desde:
+                continue  # libro sin actividad desde antes de la ventana: no hace falta abrirlo
+            with open(f) as fh:
+                for l in fh:
+                    try:
+                        e = json.loads(l)
+                        if e.get("repo") == root and datetime.datetime.fromisoformat(e["t"]) >= desde:
+                            out.append(e)
+                    except (ValueError, KeyError, TypeError):
+                        continue
+        except OSError:
+            continue
+    return sorted(out, key=lambda e: e.get("t", ""))
+
+
 def umbrales():
     u = dict(UMBRALES)
     u.update({k: int(v) for k, v in leer_json_o(OBS_CONF, {}).items() if k in UMBRALES})
@@ -1490,6 +1551,9 @@ def cmd_observe(agente, args):
             est.setdefault("avisos", {})
             nuevos = []
             libro_repo = [e for e in libro if e.get("repo") == root]
+            ventana = ventana_horas()
+            if ventana > 0:
+                libro_repo = otras_sesiones(root, libro_f, ventana) + libro_repo
             toques = collections.Counter(p for e in libro_repo for p in (e.get("perfiles") or []))
             for p in sorted(perfiles):
                 if p not in est["perfiles"] and toques[p] >= toques_perfil(p):
@@ -1586,6 +1650,37 @@ def cmd_nivel(root, args):
     return 0
 
 
+def cmd_state(args):
+    """rompelo state prune --dias N [--dry-run]: borra libros de sesión y marcas del tope más viejos que N días.
+    Nunca toca state/repos (nivel, perfiles, permisos), forma.jsonl, observe.err ni la evidencia de los repos."""
+    if not args or args[0] != "prune":
+        sys.exit("uso: rompelo state prune --dias N [--dry-run]")
+    dias = valor(args, "--dias")
+    if dias is None or not dias.isdigit() or int(dias) < 1:
+        sys.exit("rompelo state prune: --dias N tiene que ser un entero ≥ 1 (0 borraría lo de hoy)")
+    limite = time.time() - int(dias) * 86400
+    seco = "--dry-run" in args
+    candidatos = []
+    for sub_, patron in (("sesiones", ".jsonl"), ("marcas", "")):
+        d = os.path.join(ESTADO, sub_)
+        try:
+            for n in sorted(os.listdir(d)):
+                f = os.path.join(d, n)
+                if n.endswith(patron) and os.path.isfile(f) and os.path.getmtime(f) < limite:
+                    candidatos.append(f)
+        except FileNotFoundError:
+            continue
+    for f in candidatos:
+        print(("borraría " if seco else "borrado ") + f)
+        if not seco:
+            try:
+                os.remove(f)
+            except OSError as exc:
+                print(f"no pude borrar {f}: {exc}")
+    print(f"{len(candidatos)} fichero(s) con más de {dias} día(s)" + (" (previsualización, nada borrado)" if seco else ""))
+    return 0
+
+
 def cmd_repos(args):
     for p in repos_permitidos():
         print(p)
@@ -1668,6 +1763,7 @@ uso:
   rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
   rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)
   rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
+  rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (nunca estado ni evidencia)
 contrato: `checks_nivel3` lista checks que solo se exigen a nivel 3 (tras `rompelo permiso … si`)
 idioma de los mensajes: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}
@@ -1685,6 +1781,8 @@ def main(argv):
         return cmd_observe(args[0] if args else "claude", args[1:])
     if sub == "repos":
         return cmd_repos(args)
+    if sub == "state":
+        return cmd_state(args)
     root = raiz_repo(os.getcwd())
     if not root:
         sys.exit("rompelo: no estás dentro de un repositorio git")

@@ -42,6 +42,16 @@ no verificado de cada versión está en el relevo enlazado.
   nivel 3 se calcula, no se guarda. El observador responde con el `hookEventName` del evento recibido.
   Las ediciones de Codex por `apply_patch` (64 eventos reales sin fichero hasta hoy) quedan anotadas con
   sus rutas: forma medida con codex-cli 0.153.4 en una sesión desechable (docs/observacion.md §12.5).
+- **Hallazgos, ventana entre sesiones, retención y corpus honesto (RMP-012/013/015/017).** Un hallazgo se
+  adjudica con `confirmado` (+ `regresion`: check del registro o prueba de este diff), `rechazado` (+ `motivo`)
+  o `aceptado` (+ `nota`); «pendiente» o cualquier otra cadena ya no desbloquea. El observador mira también
+  los libros de otras sesiones del mismo repo en las últimas `ventana_horas` (24; 0 apaga): el mismo error
+  una vez en Claude y otra en Codex es «el mismo error 2 veces»; otro repo no contamina. `rompelo state prune
+  --dias N [--dry-run]` borra libros y marcas viejos y nunca el estado del repo ni la evidencia. Borrar el
+  único test ya no cubre `exige_prueba_en_diff`. El corpus valida ids, clases y valores, distingue cobertura
+  DECLARADA (etiqueta) de DEMOSTRADA (campo `regresion` con la prueba que lo caza; 9 de 48 hoy) y CI comprueba
+  que `corpus/TABLA.md` coincide con lo generado. INC-2026-0048: dos sesiones en el mismo repo comparten
+  contrato (relato de la sesión rootml-0e; reproducido aquí mismo).
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.

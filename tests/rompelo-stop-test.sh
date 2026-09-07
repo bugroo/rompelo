@@ -39,7 +39,7 @@ echo "── init: rechaza ids fuera del registro y no ejecuta cadenas"
 "$ASSURE" init --id T1 --scope 'src/**' --scope 'tests/**' --check hay-a --check ok --junta --prueba >/dev/null || exit 2
 grep -q "$R" "$ROMPELO_HOME/config/repos.json" && ok "init apunta el repo en la allowlist" || bad "allowlist"
 [ "$(cat .rompelo/evidence/.gitignore)" = "*" ] && [ "$(git status --porcelain)" = "?? .rompelo/" ] && ok "la evidencia se autoignora; solo el contrato queda por commitear" || bad "gitignore" "$(git status --porcelain)"
-contrato 'hallazgos=[{"id":"H1","texto":"x","disposicion":"rechazado"}]'
+contrato 'hallazgos=[{"id":"H1","texto":"x","disposicion":"rechazado","motivo":"falso positivo"}]'
 
 echo "── contrato inválido (fail-closed)"
 cp .rompelo/task.json "$T/task.bak"
@@ -94,10 +94,29 @@ contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce --
 espera_paso "deshecha B: verde" s5b
 
 echo "── mutación C: hallazgo sin disposición"
-contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado"},{"id":"H2","texto":"y"}]'
+contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado","motivo":"x"},{"id":"H2","texto":"y"}]'
 espera_bloqueo "hallazgo sin disposición" s6 "hallazgo sin disposición: H2"
-contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado"},{"id":"H2","disposicion":"aceptado"}]'
+contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado","motivo":"x"},{"id":"H2","disposicion":"aceptado","nota":"y"}]'
 espera_paso "deshecha C: verde" s6b
+
+echo "── hallazgos (RMP-012): la disposición es un estado con su respaldo, no una cadena"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"pendiente"}]'
+espera_bloqueo "«pendiente» no desbloquea" s6c "H3"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"arreglado"}]'
+espera_bloqueo "un estado inventado tampoco" s6d "confirmado | rechazado | aceptado"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"rechazado"}]'
+espera_bloqueo "rechazado sin motivo bloquea" s6e "rechazado sin motivo"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"aceptado"}]'
+espera_bloqueo "aceptado sin nota bloquea" s6f "aceptado sin nota"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado"}]'
+espera_bloqueo "confirmado sin regresión bloquea" s6g "confirmado sin regresión"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresion":"no.existe"}]'
+espera_bloqueo "la regresión tiene que ser un check del registro o una prueba del diff" s6h "regresión"
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresion":"tests/a.test.txt"},{"id":"H4","disposicion":"rechazado","motivo":"falso positivo: la ruta no existe"},{"id":"H5","disposicion":"aceptado","nota":"riesgo asumido hasta v2"}]'
+espera_paso "confirmado con prueba del diff, rechazado con motivo, aceptado con nota: verde" s6i
+contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresion":"ok"}]'
+espera_paso "confirmado con un check del registro como regresión: verde" s6j
+contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado","motivo":"x"},{"id":"H2","disposicion":"aceptado","nota":"y"}]'
 
 echo "── mutación D: fichero fuera de scope"
 mkdir -p docs && echo x > docs/x.md

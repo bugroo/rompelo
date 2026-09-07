@@ -12,3 +12,4 @@ spike_cubre: "sí"
 clase: S
 senal_al_stop: "sí: el patrón es grepeable"
 disparador: "D2 firma-repetida (el mismo error tres veces en el día)"
+regresion: "tests/control-positivo.py sin-var-pegada (control positivo del check triestado) y paso de CI «Tri-state check sees its own positive control»"

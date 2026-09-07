@@ -12,3 +12,4 @@ spike_cubre: "parcial"
 clase: I
 senal_al_stop: "sí: 226 comandos sin un solo fallo es una distribución imposible, pero nadie la miraba"
 disparador: "control negativo real por agente: contar los códigos del libro; un agente sin fallos en 200 comandos es un instrumento ciego"
+regresion: "tests/rompelo-observe-test.sh · «Codex de verdad: tool_response es SOLO el texto…» (código null, firma heurística)"

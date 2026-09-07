@@ -28,10 +28,11 @@ jobs:
           D=$(mktemp -d); printf 'echo «$X»\n' > "$D/malo.sh"
           espera "$D" 1
           espera "$D/nada" 2
-      - name: Corpus table regenerates from the incidents
+      - name: Corpus table regenerates from the incidents and matches the committed one
         run: |
           python3 -m pip install --quiet pyyaml
-          python3 "$HOME/rompelo/bin/rompelo-corpus.py"
+          python3 bin/rompelo-corpus.py
+          git diff --exit-code -- corpus/TABLA.md || { echo "corpus/TABLA.md está desactualizada: regenera y commitea"; exit 1; }
       - name: The gate judges this repo too (verify --ci)
         run: |
           cd "$HOME/rompelo"

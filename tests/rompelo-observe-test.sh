@@ -312,6 +312,40 @@ reset_estado; nueva_sesion
 P3=$'*** Begin Patch\n*** Add File: docs/nota.md\n+la junta vive en functions/api/ y usa process.env con wrangler deploy\n*** End Patch'
 o="$(patch_ev "$P3"; patch_ev "$P3")"; [ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "el cuerpo del parche no dispara perfiles (solo las rutas)" || bad "cuerpo del parche" "$o"
 
+echo "── ventana entre sesiones (RMP-013): el mismo error una vez en Claude y otra en Codex"
+reset_estado; nueva_sesion; SA=$SID; nueva_sesion; SB=$SID
+o1="$(bash_ev $SA 'pnpm test' 1 '' 'Error: cruzado 1')"; [ -z "$o1" ] && ok "sesión A: primer fallo, silencio" || bad "ventana A" "$o1"
+o2="$(AGENTE=codex bash_ev $SB 'pnpm test' 1 '' 'Error: cruzado 2')"
+printf '%s' "$o2" | grep -q 'mismo error 2 veces' && ok "sesión B (Codex): la firma repetida cuenta la de la sesión A (ventana de 24 h del repo)" || bad "ventana entre sesiones" "$o2"
+reset_estado; nueva_sesion; SA=$SID
+bash_ev $SA 'pnpm test' 1 '' 'Error: viejo 1' >/dev/null
+python3 - "$ROMPELO_HOME/state/sesiones/claude-$SA.jsonl" <<'PY'
+import json,sys,datetime
+f=sys.argv[1]; ls=[json.loads(l) for l in open(f)]
+ls[-1]['t']=(datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(hours=30)).isoformat(timespec='seconds')
+open(f,'w').write(''.join(json.dumps(x,ensure_ascii=False)+'\n' for x in ls))
+PY
+nueva_sesion; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: viejo 2')"; [ -z "$o" ] && ok "un fallo de hace 30 h queda fuera de la ventana" || bad "ventana caducada" "$o"
+reset_estado; nueva_sesion; SA=$SID
+R3="$T/otro-proyecto"; mkdir -p "$R3/src"; (cd "$R3" && git init -q && git config user.email t@t && git config user.name t && echo a > src/a.txt && git add -A && git commit -qm b)
+(cd "$R3" && "$ROMPELO" init --id OTRO --check ok >/dev/null 2>&1)
+o="$(observar claude "$(python3 -c 'import json,sys;print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stdout":"","stderr":"Error: ajeno 1","exit_code":1}}))' $SA "$R3")")"
+nueva_sesion; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: ajeno 2')"; [ -z "$o" ] && ok "el fallo de OTRO proyecto no contamina: una sola vez aquí, silencio" || bad "contaminación entre proyectos" "$o"
+printf '{"ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; SA=$SID; nueva_sesion; SB=$SID
+bash_ev $SA 'pnpm test' 1 '' 'Error: sinventana 1' >/dev/null; o="$(bash_ev $SB 'pnpm test' 1 '' 'Error: sinventana 2')"
+[ -z "$o" ] && ok "ventana_horas: 0 apaga la mirada entre sesiones (configurable por instalación)" || bad "ventana 0" "$o"
+rm "$ROMPELO_HOME/config/observacion.json"
+
+echo "── state prune (RMP-013): retención comprobable, con previsualización y sin tocar evidencia ni estado del repo"
+reset_estado; nueva_sesion; bash_ev $SID 'git status' 0 'ok' '' >/dev/null
+VIEJO="$ROMPELO_HOME/state/sesiones/claude-viejisimo.jsonl"; printf '{"t":"2026-01-01T00:00:00+00:00","repo":"x"}\n' > "$VIEJO"; touch -t 202601010000 "$VIEJO"
+mkdir -p "$ROMPELO_HOME/state/marcas"; printf '1' > "$ROMPELO_HOME/state/marcas/stop-claude-vieja-T"; touch -t 202601010000 "$ROMPELO_HOME/state/marcas/stop-claude-vieja-T"
+o="$("$ROMPELO" state prune --dias 30 --dry-run)"; printf '%s' "$o" | grep -q 'viejisimo' && [ -f "$VIEJO" ] && ok "--dry-run lista el libro viejo y no lo borra" || bad "prune dry-run" "$o"
+"$ROMPELO" state prune --dias 30 >/dev/null; [ ! -f "$VIEJO" ] && [ ! -f "$ROMPELO_HOME/state/marcas/stop-claude-vieja-T" ] && [ -f "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" ] && ok "prune borra el libro y la marca viejos y conserva el reciente" || bad "prune" "$(ls "$ROMPELO_HOME/state/sesiones")"
+[ -f "$ROMPELO_HOME/state/repos/$(ls "$ROMPELO_HOME/state/repos" | head -1)" ] && [ -d .rompelo/evidence ] && ok "no toca el estado del repo ni la evidencia" || bad "prune tocó estado/evidencia"
+"$ROMPELO" state prune --dias 0 >/dev/null 2>&1; [ $? -ne 0 ] && ok "--dias 0 se rechaza (borraría lo de hoy)" || bad "dias 0 aceptado"
+
 echo "── §8 informe de cierre con patrones, nivel y permisos"
 reset_estado; nueva_sesion
 bash_ev $SID 'pnpm test' 1 '' 'Error: z 1' >/dev/null; bash_ev $SID 'pnpm test' 1 '' 'Error: z 2' >/dev/null
