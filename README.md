@@ -7,7 +7,7 @@ does not let the task end until the evidence exists: checks run on the current t
 when two systems must agree, findings with a decision. Plain code decides, outside the model.
 Python 3.9 and git, no dependencies. Español: [README.es.md](README.es.md).
 
-![The agent says done, the Stop hook calls rompelo, rompelo compares contract and evidence; if something is missing it blocks with reasons, if everything holds there is silence](docs/img/en/how-it-works.png)
+![The agent says done, the Stop hook calls rompelo, rompelo compares contract and evidence; if something is missing it blocks with reasons, if everything holds there is silence](docs/img/en/como-funciona.png)
 
 ## Install
 
