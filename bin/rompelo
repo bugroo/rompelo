@@ -18,7 +18,7 @@ Decide código normal. El modelo pide; esto concede. Fail-closed: un repo alista
 contrato ilegible bloquea. Repos fuera de la allowlist: silencio, y no se ejecuta nada.
 Tope de 3 bloqueos por sesión y tarea.
 """
-import collections, datetime, fnmatch, hashlib, json, os, re, subprocess, sys, tempfile
+import collections, datetime, fnmatch, hashlib, json, os, re, stat, subprocess, sys, tempfile
 
 TOPE_BLOQUEOS = 3
 # Idioma de los mensajes del gate y del observador: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json.
@@ -47,6 +47,9 @@ EN = {
     "estado: cerrada, pero cambió en el registro la definición de un check. Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but a check definition changed in the registry. Run `rompelo check` and `rompelo close` again.",
     "check `{cid}` salió con 0 pero sin la salida mínima ({lineas} < {min} líneas): «limpio» no se distingue de «no miré»": "check `{cid}` exited 0 without its minimum output ({lineas} < {min} lines): \"clean\" cannot be told from \"did not look\"",
     "check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)": "check `{cid}` ran on a different tree (there are later changes)",
+    "check `{cid}`: evidencia con formato de huella antiguo; vuelve a ejecutar `rompelo check` (no se migra)": "check `{cid}`: evidence carries an old fingerprint format; run `rompelo check` again (no migration)",
+    "el cruce real tiene formato de huella antiguo; vuelve a cruzar con `rompelo cruce` (no se migra)": "the real crossing carries an old fingerprint format; cross again with `rompelo cruce` (no migration)",
+    "estado: cerrada con una huella de formato antiguo. Vuelve a `rompelo check` y `rompelo close` (no se migra).": "state: closed with an old-format fingerprint. Run `rompelo check` and `rompelo close` again (no migration).",
     "nivel 3: ": "level 3: ",
     "toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.": "toca_junta: true. The real crossing cannot be reproduced in CI; do it outside and record it with `rompelo cruce`.",
     "toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)": "toca_junta: true and no real crossing recorded (`rompelo cruce --nota '…' -- <real command>`)",
@@ -101,8 +104,21 @@ EXCL = [".", ":(exclude).rompelo"]
 
 
 # ── git ─────────────────────────────────────────────────────────────────────
+class GitError(ValueError):
+    """git no pudo mirar. Es un error del instrumento y en el hook acaba en fail-closed, no en silencio."""
+
+
 def git(root, *args):
     return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
+
+
+def git_ok(root, *args):
+    """git que tiene que salir con 0. Devuelve stdout en bytes (los nombres van con -z, sin decodificar)."""
+    r = subprocess.run(["git", "-C", root, *args], capture_output=True)
+    if r.returncode != 0:
+        err = r.stderr.decode("utf-8", "replace").strip().splitlines()
+        raise GitError(f"git {' '.join(args[:2])} falló ({r.returncode}): {err[-1] if err else 'sin mensaje'}")
+    return r.stdout
 
 
 def raiz_repo(cwd):
@@ -110,37 +126,90 @@ def raiz_repo(cwd):
     return os.path.realpath(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
 
 
+SIN_HEAD = "sin-head"  # `base` que escribe init en un repo sin commits: la tarea empezó desde el árbol vacío
+
+
 def head(root):
-    r = git(root, "rev-parse", "HEAD")
-    return r.stdout.strip() if r.returncode == 0 else "sin-head"
+    r = git(root, "rev-parse", "--verify", "-q", "HEAD")
+    return r.stdout.strip() if r.returncode == 0 else SIN_HEAD
+
+
+def arbol_vacio(root):
+    return git_ok(root, "hash-object", "-t", "tree", os.devnull).decode().strip()
 
 
 def ref_base(root, base):
-    if base and git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode == 0:
-        return str(base)
-    return "HEAD"
+    """Commit contra el que se mide la tarea. Sin `base` en el contrato: HEAD (o el árbol vacío si no hay
+    commits). `sin-head`: el árbol vacío. Una base explícita que no existe es un ERROR y nunca HEAD en
+    silencio (RMP-002: un checkout superficial en CI comparaba contra otro conjunto de cambios sin decirlo)."""
+    if not base:
+        h = head(root)
+        return h if h != SIN_HEAD else arbol_vacio(root)
+    if base == SIN_HEAD:
+        return arbol_vacio(root)
+    if git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode != 0:
+        raise ValueError(f"la base del contrato ({base}) no existe en este repo: trae ese commit (git fetch) "
+                         "o corrige `base` en .rompelo/task.json")
+    return str(base)
 
 
-def huella_arbol(root, base=None):
-    """Huella del CONTENIDO del árbol sin `.rompelo/`: para cada ruta que difiere de la base
-    (rastreada o no), su hash de contenido, o D si se borró. No depende de HEAD ni de si el
-    fichero está en el índice: commitear el mismo contenido no cambia la huella."""
-    h = hashlib.sha256()
-    for p in ficheros_cambiados(root, base):
-        f = os.path.join(root, p)
-        if os.path.isfile(f):
-            h.update(f"{p}:{git(root, 'hash-object', '--', p).stdout.strip()}\n".encode())
-        else:
-            h.update(f"{p}:D\n".encode())
-    return h.hexdigest()[:16]
+def _nul(b):
+    return [x.decode("utf-8", "surrogateescape") for x in b.split(b"\0") if x]
 
 
 def ficheros_cambiados(root, base):
-    out = set()
-    if head(root) != "sin-head":
-        out |= {p for p in git(root, "diff", "--name-only", ref_base(root, base), "--", *EXCL).stdout.split("\n") if p}
-    out |= {p for p in git(root, "ls-files", "--others", "--exclude-standard", "--", *EXCL).stdout.split("\n") if p}
+    """Rutas con nombre REAL (-z, no la forma entrecomillada de core.quotePath) que difieren de la base, más
+    las no rastreadas. Sin `.rompelo/`. Un renombrado son dos rutas (--no-renames): la vieja borrada y la
+    nueva. Ignorados por .gitignore: no cuentan. Submódulos: cuentan como ruta (ver `sujeto`)."""
+    ref = ref_base(root, base)
+    out = set(_nul(git_ok(root, "diff", "--name-only", "-z", "--no-renames", ref, "--", *EXCL)))
+    out |= set(_nul(git_ok(root, "ls-files", "--others", "--exclude-standard", "-z", "--", *EXCL)))
     return sorted(out)
+
+
+def sujeto(root, p):
+    """Qué es hoy la ruta, en una cadena estable: D borrada · F:<sha> fichero · X:<sha> fichero ejecutable ·
+    L:<sha del destino> enlace · S:<commit> submódulo · T:dir directorio · O:<tipo> otro. Cambiar el
+    contenido, el modo ejecutable o el destino del enlace cambia el sujeto; commitear lo mismo, no."""
+    f = os.path.join(root, p)
+    try:
+        st = os.lstat(f)
+    except FileNotFoundError:
+        return "D"
+    except OSError as exc:
+        raise ValueError(f"no pude mirar {p!r}: {exc}")
+    if stat.S_ISLNK(st.st_mode):
+        return "L:" + hashlib.sha256(os.readlink(f).encode("utf-8", "surrogateescape")).hexdigest()[:16]
+    if stat.S_ISDIR(st.st_mode):
+        if os.path.exists(os.path.join(f, ".git")):
+            r = git(f, "rev-parse", "--verify", "-q", "HEAD")
+            return "S:" + (r.stdout.strip() or "sin-head")
+        return "T:dir"
+    if stat.S_ISREG(st.st_mode):
+        h = hashlib.sha256()
+        with open(f, "rb") as fh:
+            for bloque in iter(lambda: fh.read(1 << 20), b""):
+                h.update(bloque)
+        return ("X:" if st.st_mode & 0o100 else "F:") + h.hexdigest()[:16]
+    return "O:" + oct(stat.S_IFMT(st.st_mode))
+
+
+HUELLA_VERSION = "v2"
+
+
+def huella_arbol(root, base=None):
+    """Huella versionada del SUJETO de la tarea: para cada ruta que difiere de la base (rastreada o no), su
+    nombre real y su `sujeto`. No depende de HEAD ni del índice: preparar o commitear el mismo contenido no la
+    cambia; cambiar contenido, modo, destino de enlace, borrar o añadir sí. Una evidencia con huella de otra
+    versión (o sin versión: v1, hasta 07-09-2026) no vale y hay que volver a ejecutar; no se migra."""
+    h = hashlib.sha256()
+    for p in ficheros_cambiados(root, base):
+        h.update(p.encode("utf-8", "surrogateescape") + b"\0" + sujeto(root, p).encode() + b"\n")
+    return f"{HUELLA_VERSION}:{h.hexdigest()[:16]}"
+
+
+def huella_vigente(guardada):
+    return isinstance(guardada, str) and guardada.startswith(HUELLA_VERSION + ":")
 
 
 # ── configuración de confianza (fuera del repo) ─────────────────────────────
@@ -355,6 +424,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
                 m.append(_("estado: cerrada, pero cambió en el registro la definición de un check. Vuelve a `rompelo check` y `rompelo close`."))
             elif cerr and cerr.get("huella") == hu:
                 m.append(_("estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`."))
+            elif cerr and not huella_vigente(cerr.get("huella")):
+                m.append(_("estado: cerrada con una huella de formato antiguo. Vuelve a `rompelo check` y `rompelo close` (no se migra)."))
             else:
                 m.append(_("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`."))
 
@@ -381,6 +452,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             motivo = motivo_check(cid, reg[cid], e)
             if motivo:
                 m.append(pre + motivo)
+            elif not huella_vigente(e.get("huella")):
+                m.append(pre + _("check `{cid}`: evidencia con formato de huella antiguo; vuelve a ejecutar `rompelo check` (no se migra)", cid=cid))
             elif e.get("huella") != hu:
                 m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
 
@@ -394,6 +467,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             mc.append(_("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)"))
         elif cr.get("codigo") != 0:
             mc.append(_("el cruce real FALLÓ con código {codigo}: {argv}", codigo=cr.get("codigo"), argv=cr.get("argv")))
+        elif not huella_vigente(cr.get("huella")):
+            mc.append(_("el cruce real tiene formato de huella antiguo; vuelve a cruzar con `rompelo cruce` (no se migra)"))
         elif cr.get("huella") != hu:
             mc.append(_("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio"))
         if mc and junta_por_perfil:
@@ -427,7 +502,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
 
     if c.get("exige_prueba_en_diff"):
         globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
-        prueba = [p for p in cambiados if any(casa(p, g) for g in globs)]
+        prueba = [p for p in cambiados if any(casa(p, g) for g in globs) and sujeto(root, p) != "D"]  # borrar un test no es cubrir
         if [p for p in cambiados if p not in prueba] and not prueba:
             m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto."))
     return m

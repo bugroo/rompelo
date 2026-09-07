@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # la base del contrato tiene que existir: una base ausente es ERROR, no HEAD
       - name: Battery (every gate seen red and green)
         run: |
           mkdir -p "$HOME/rompelo"

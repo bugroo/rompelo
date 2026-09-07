@@ -10,6 +10,12 @@ no verificado de cada versión está en el relevo enlazado.
   aserción de bloqueo exige que TODA la salida sea el JSON. `tests/instrumento-test.sh` ejercita las
   aserciones contra hooks falsos en las dos direcciones. El binario que prueban las baterías es el que
   está junto a ellas (`ROMPELO_BIN` para otro), no `~/rompelo`. Recuento nuevo: `PASS= FAIL= ROTOS=`.
+- **Huella v2 (RMP-001/002/015).** El sujeto de cada ruta cambiada es contenido + bit ejecutable + destino
+  del enlace + borrado, con el nombre real (`git … -z`): `año.py`, tabuladores y espacios ya no se firman como
+  borrados ni salen «fuera de scope». Una `base` que no existe en el repo es un error con instrucción, no
+  `HEAD` en silencio; un repo sin commits mide contra el árbol vacío; un fallo de git bloquea. La evidencia con
+  huella sin versión queda obsoleta y pide `rompelo check` de nuevo (no se migra). Borrar el único test ya no
+  cuenta como «prueba en el diff». La CI propia hace `fetch-depth: 0`.
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.

@@ -69,7 +69,7 @@ allowlist local. Desde entonces el agente no puede terminar una tarea hasta que:
 
 | Condición | Cómo se cumple |
 |---|---|
-| cada id de check ha corrido sobre el contenido **actual** del árbol (huella del contenido, no el commit) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
+| cada id de check ha corrido sobre el contenido **actual** del árbol (huella versionada de cada ruta cambiada: contenido, bit ejecutable, destino del enlace, borrado; nombres reales vía `git … -z`, así que `año.py` es `año.py`; una `base` del contrato que no existe en el repo es un error, nunca `HEAD` en silencio) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
 | un check que sale con 0 sin la salida mínima declarada **no** es verde | `min_lineas` en el registro |
 | el control positivo declarado detecta el caso malo antes del check real | `control_positivo` debe salir con 1; 0 significa ciego, 2 no pudo mirar y cualquier otro código bloquea |
 | los hallazgos se distinguen del fallo del instrumento | `triestado: true`: 0 limpio, 1 hallazgos, 2 no pudo mirar, otros códigos inesperados |

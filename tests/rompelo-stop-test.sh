@@ -336,5 +336,71 @@ registro_positivo control_positivo '{"argv":"touch canario","cwd":"repo"}'
 [ "$rc" -ne 0 ] && [ ! -s "$ROMPELO_HOME/orden" ] && ok "control malformado se rechaza antes de ejecutar" || bad "control malformado ejecutó el real"
 espera_bloqueo "control malformado bloquea el cierre" cpinvalido "no pudo evaluar"
 
+echo "── huella (RMP-001/002, 07-09): el sujeto es contenido + tipo + modo + destino del enlace, con nombres de cualquier clase"
+R3="$T/repo3"; mkdir -p "$R3/src" "$R3/tests"
+(cd "$R3" && git init -q && git config user.email t@t && git config user.name t && git config core.quotePath true \
+  && printf 'a\n' > 'src/año.py' && printf 'a\n' > 'src/con espacio.py' && printf 'a\n' > "$(printf 'src/tab\there.py')" \
+  && printf '#!/bin/sh\n' > src/run.sh && chmod 644 src/run.sh && printf 'same\n' > src/t1.txt && printf 'same\n' > src/t2.txt && printf 'same\n' > src/t3.txt \
+  && ln -s t1.txt src/ln && echo t > tests/a.test.txt && git add -A && git commit -qm base)
+R="$R3"; cd "$R3" || exit 2
+"$ASSURE" init --id H1 --scope 'src/**' --scope 'tests/**' --check ok >/dev/null || exit 2
+BASE3="$(git rev-parse HEAD)"
+huella() { "$ASSURE" status 2>/dev/null | sed -n 's/.*huella \([^ ]*\).*/\1/p' | head -1; }
+h0=$(huella)
+printf 'b\n' > src/año.py; h1=$(huella)
+[ -n "$h0" ] && [ "$h1" != "$h0" ] && ok "año.py: la primera modificación cambia la huella (control)" || bad "año.py primera" "$h0 → $h1"
+printf 'c\n' > src/año.py; h2=$(huella)
+[ "$h2" != "$h1" ] && ok "año.py: la segunda modificación también la cambia (antes se firmaba como borrado)" || bad "año.py segunda: huella igual" "$h1 = $h2"
+"$ASSURE" status 2>/dev/null | grep -q "src/año.py" && ok "status lista el nombre real, no la forma entrecomillada de git" || bad "nombre entrecomillado" "$("$ASSURE" status 2>/dev/null | grep cambiados)"
+contrato 'scope_paths=["src/*.py","tests/**"]'; "$ASSURE" check >/dev/null
+espera_paso "año.py cabe en src/*.py: silencio (antes salía «fuera de scope» por el nombre entrecomillado)" h3
+contrato 'scope_paths=["src/**","tests/**"]'
+printf 'b\n' > "$(printf 'src/tab\there.py')"; h4=$(huella); printf 'c\n' > "$(printf 'src/tab\there.py')"; h5=$(huella)
+[ "$h4" != "$h2" ] && [ "$h5" != "$h4" ] && ok "nombre con tabulador: las dos modificaciones cambian la huella" || bad "tabulador" "$h2 $h4 $h5"
+printf 'b\n' > 'src/con espacio.py'; h6=$(huella); printf 'c\n' > 'src/con espacio.py'; h7=$(huella)
+[ "$h6" != "$h5" ] && [ "$h7" != "$h6" ] && ok "nombre con espacio: las dos modificaciones cambian la huella" || bad "espacio" "$h5 $h6 $h7"
+chmod 755 src/run.sh; h8=$(huella); [ "$h8" != "$h7" ] && ok "+x sobre un fichero limpio cambia la huella" || bad "+x limpio" "$h7 = $h8"
+printf '#!/bin/sh\necho x\n' > src/run.sh; h9=$(huella); chmod 644 src/run.sh; h10=$(huella)
+[ "$h9" != "$h8" ] && [ "$h10" != "$h9" ] && ok "el modo ejecutable forma parte del sujeto también sobre un fichero ya modificado" || bad "+x modificado" "$h8 $h9 $h10"
+rm src/ln && ln -s t2.txt src/ln; h11=$(huella); rm src/ln && ln -s t3.txt src/ln; h12=$(huella)
+[ "$h11" != "$h10" ] && [ "$h12" != "$h11" ] && ok "el destino del enlace simbólico forma parte del sujeto (mismo contenido, destinos distintos)" || bad "symlink" "$h10 $h11 $h12"
+git mv src/t1.txt src/t9.txt
+"$ASSURE" status 2>/dev/null | grep -q "src/t1.txt" && "$ASSURE" status 2>/dev/null | grep -q "src/t9.txt" && ok "renombrado: aparecen el origen (borrado) y el destino" || bad "renombrado" "$("$ASSURE" status 2>/dev/null | grep cambiados)"
+"$ASSURE" check >/dev/null; "$ASSURE" close >/dev/null 2>&1 && ok "cierre con nombres raros, +x y symlink" || bad "close raros" "$("$ASSURE" verify 2>&1)"
+espera_paso "cerrada: silencio" h13
+git add -A >/dev/null && git commit -qm "mismo contenido" && espera_paso "commit del mismo contenido (nombres raros incluidos): sigue en silencio" h14
+printf 'd\n' > src/año.py
+espera_bloqueo "y una modificación más de año.py reabre" h15 "cambios posteriores al cierre"
+contrato 'estado="abierta"' 'base="0000000000000000000000000000000000000000"'
+espera_bloqueo "base explícita que no existe en el repo: bloquea, no compara con HEAD en silencio" h16 "no existe en este repo"
+contrato "base=\"$BASE3\""
+"$ASSURE" check >/dev/null
+python3 - <<'PY'
+import json;f='.rompelo/evidence/H1/check-ok.json';e=json.load(open(f));e['huella']='0123456789abcdef';json.dump(e,open(f,'w'))
+PY
+espera_bloqueo "evidencia con huella de formato antiguo (sin versión): hay que volver a ejecutar, no se migra" h17 "formato de huella antiguo"
+"$ASSURE" check >/dev/null; espera_paso "reejecutado: silencio" h18
+chmod 000 .git/index
+espera_bloqueo "git falla (índice ilegible): bloquea diciendo que no pudo mirar" h19 "git"
+chmod 644 .git/index; espera_paso "git restaurado: silencio" h20
+
+echo "── exige_prueba_en_diff: borrar el único test no es «prueba en el diff» (RMP-015 mínimo)"
+contrato 'exige_prueba_en_diff=true'
+printf 'e\n' > src/año.py; git rm -q tests/a.test.txt
+espera_bloqueo "código cambiado y test borrado: bloquea" h23 "ninguna prueba"
+git checkout -q HEAD -- tests/a.test.txt; echo t3 >> tests/a.test.txt; "$ASSURE" check >/dev/null
+espera_paso "con un test modificado de verdad: silencio" h24
+contrato 'exige_prueba_en_diff=false'
+
+echo "── repo sin primer commit: lo preparado en el índice cuenta desde el principio"
+R4="$T/repo4"; mkdir -p "$R4"; R="$R4"; cd "$R4" || exit 2
+git init -q && git config user.email t@t && git config user.name t
+printf 'x\n' > s.py && git add s.py
+"$ASSURE" init --id S1 --check ok >/dev/null 2>&1 || exit 2
+"$ASSURE" status 2>/dev/null | grep -q "s.py" && ok "fichero preparado sin HEAD aparece en cambiados" || bad "staged sin HEAD" "$("$ASSURE" status 2>/dev/null | grep cambiados)"
+h21=$(huella); printf 'y\n' > s.py; h22=$(huella); [ -n "$h21" ] && [ "$h22" != "$h21" ] && ok "y su contenido forma parte de la huella" || bad "staged sin HEAD huella" "$h21 $h22"
+"$ASSURE" check >/dev/null; espera_paso "sin HEAD y check hecho: silencio" s21
+git commit -qm primero >/dev/null; espera_paso "primer commit del mismo contenido: silencio" s22
+
 rm -rf "$T"
 resumen

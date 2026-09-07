@@ -1,6 +1,6 @@
 import importlib.util, importlib.machinery, os, subprocess, tempfile, json, shutil
 H = tempfile.mkdtemp(prefix="rompelo-home-"); os.environ["ROMPELO_HOME"] = H
-loader = importlib.machinery.SourceFileLoader("rompelo", os.path.expanduser("~/rompelo/bin/rompelo"))
+loader = importlib.machinery.SourceFileLoader("rompelo", os.environ.get("ROMPELO_BIN") or os.path.expanduser("~/rompelo/bin/rompelo"))
 spec = importlib.util.spec_from_loader("rompelo", loader); R = importlib.util.module_from_spec(spec); loader.exec_module(R)
 def sh(*a, cwd=None): return subprocess.run(list(a), cwd=cwd, capture_output=True, text=True)
 def repo():

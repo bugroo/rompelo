@@ -3,10 +3,10 @@ import importlib.util, importlib.machinery, os, subprocess, sys, tempfile, json,
 
 HOME_ROMPELO = tempfile.mkdtemp(prefix="rompelo-home-")
 os.environ["ROMPELO_HOME"] = HOME_ROMPELO
-loader = importlib.machinery.SourceFileLoader("rompelo", os.path.expanduser("~/rompelo/bin/rompelo"))
+loader = importlib.machinery.SourceFileLoader("rompelo", os.environ.get("ROMPELO_BIN") or os.path.expanduser("~/rompelo/bin/rompelo"))
 spec = importlib.util.spec_from_loader("rompelo", loader)
 R = importlib.util.module_from_spec(spec); loader.exec_module(R)
-BIN = os.path.expanduser("~/rompelo/bin/rompelo")
+BIN = os.environ.get("ROMPELO_BIN") or os.path.expanduser("~/rompelo/bin/rompelo")
 
 def sh(*a, cwd=None, inp=None, env=None):
     e = dict(os.environ); e.update(env or {})
@@ -51,9 +51,15 @@ d2 = repo(); w(d2, "s.py", "x\n"); sh("git", "add", "s.py", cwd=d2)
 rep("RMP-001d staged en repo sin HEAD queda fuera de cambiados", R.ficheros_cambiados(d2, None) == [], f"cambiados={R.ficheros_cambiados(d2, None)}")
 
 # ── RMP-002 base inexistente ────────────────────────────────────────────────
-rep("RMP-002 ref_base('deadbeef') devuelve HEAD en silencio", R.ref_base(d, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef") == "HEAD")
+try:
+    rep("RMP-002 ref_base('deadbeef') devuelve HEAD en silencio", R.ref_base(d, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef") == "HEAD")
+except ValueError as e:
+    rep("RMP-002 ref_base('deadbeef') devuelve HEAD en silencio", False, f"ahora lanza: {str(e)[:60]}")
 d3 = repo(); w(d3, "a.py", "1\n"); commit(d3); w(d3, "a.py", "2\n"); commit(d3, "2")
-rep("RMP-002b dos commits distintos, base inexistente → huella vacía igual", R.huella_arbol(d3, "0"*40) == R.huella_arbol(d3, "1"*40) and R.ficheros_cambiados(d3, "0"*40) == [])
+try:
+    rep("RMP-002b dos commits distintos, base inexistente → huella vacía igual", R.huella_arbol(d3, "0"*40) == R.huella_arbol(d3, "1"*40) and R.ficheros_cambiados(d3, "0"*40) == [])
+except ValueError as e:
+    rep("RMP-002b dos commits distintos, base inexistente → huella vacía igual", False, f"ahora lanza: {str(e)[:60]}")
 
 # ── RMP-005 registro del consumidor ignorado si hay global ──────────────────
 d4 = repo(); os.makedirs(os.path.join(d4, ".rompelo")); w(d4, ".rompelo/registry.json", json.dumps({"consumer.test": {"argv": ["true"]}}))

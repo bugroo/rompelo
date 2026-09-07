@@ -72,7 +72,7 @@ allowlist. From then on the agent cannot end a task until:
 
 | Condition | Satisfied by |
 |---|---|
-| every check id ran on the **current** working-tree content (content fingerprint, not the commit) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
+| every check id ran on the **current** working-tree content (versioned fingerprint of every changed path: content, executable bit, symlink target, deletion; real file names via `git … -z`, so `año.py` is `año.py`; a contract `base` that is missing from the repo is an error, never a silent fallback to `HEAD`) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
 | a check that exits 0 without its declared minimum output is **not** green | `min_lineas` in the registry |
 | a declared positive control detects a known bad input before the real check runs | `control_positivo` must exit 1; 0 means blind, 2 means unable to inspect; any other code blocks |
 | findings and instrument failures are reported separately | `triestado: true`: 0 clean, 1 findings, 2 unable to inspect, other codes unexpected |
