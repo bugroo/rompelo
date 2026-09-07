@@ -15,7 +15,7 @@ PASS=0; FAIL=0
 # Los hooks se invocan dentro de `$(…)`, o sea en subshell: el recuento de roturas va a un fichero.
 ROTOS_F="$(mktemp)"
 ok()  { PASS=$((PASS+1)); echo "  ✅ $1"; }
-bad() { FAIL=$((FAIL+1)); echo "  ❌ $1"; [ -n "${2:-}" ] && echo "     salida: $2"; }
+bad() { FAIL=$((FAIL+1)); echo "  ❌ $1"; [ -n "${2:-}" ] && echo "     salida: $2"; true; }  # siempre 0: `x && bad || ok` no puede acabar en ok
 
 # invocar <subcomando> <agente>  (JSON por stdin) → stdout del hook, con marca si el proceso no está sano.
 # Sano = existe, termina antes del plazo, código 0 y stderr vacío. Cualquier otra cosa es un fallo del

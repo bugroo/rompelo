@@ -297,6 +297,15 @@ echo "── repo fuera de la allowlist: se observa pero no se escala"
 reset_estado; nueva_sesion; R2="$T/ajeno"; mkdir -p "$R2"; git -C "$R2" init -q
 o=""; for i in 1 2; do o+="$(observar claude "$(python3 -c 'import json,sys;print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stderr":"Error: y","exit_code":1}}))' $SID "$R2")")"; done; [ -z "$o" ] && [ ! -d "$ROMPELO_HOME/state/repos" ] && ok "sin aviso ni estado para un repo no alistado" || bad "ajeno" "$o"
 
+echo "── estado del repo corrupto (RMP-003): el observador calla, deja rastro y NO lo pisa"
+reset_estado; nueva_sesion
+EST="$ROMPELO_HOME/state/repos/$(python3 -c "import hashlib,os,sys;print(hashlib.sha256(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:16])" "$R").json"
+mkdir -p "$(dirname "$EST")"; printf '{"nivel": 3, "perfiles": ["junta"' > "$EST"
+o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: corrupto 1')"
+[ -z "$o" ] && [ "$(cat "$EST")" = '{"nivel": 3, "perfiles": ["junta"' ] && grep -q 'estado del repo' "$ROMPELO_HOME/state/observe.err" && ok "estado corrupto: silencio, rastro en observe.err y el fichero sigue intacto (antes se reescribía como {})" || bad "estado corrupto" "o=$o est=$(cat "$EST") err=$(tail -1 "$ROMPELO_HOME/state/observe.err" 2>/dev/null)"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'estado del repo' && ok "y el gate bloquea diciéndolo" || bad "gate con estado corrupto" "$out"
+rm -f "$EST"
+
 echo "── entrada malformada: silencio y rastro en observe.err"
 printf 'basura' | "$ROMPELO" observe claude; rc=$?; [ $rc -eq 0 ] && [ -f "$ROMPELO_HOME/state/observe.err" ] && ok "no rompe la sesión y deja rastro" || bad "malformado" "rc=$rc"
 

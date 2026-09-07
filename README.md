@@ -74,6 +74,8 @@ allowlist. From then on the agent cannot end a task until:
 |---|---|
 | every check id ran on the **current** working-tree content (versioned fingerprint of every changed path: content, executable bit, symlink target, deletion; real file names via `git … -z`, so `año.py` is `año.py`; a contract `base` that is missing from the repo is an error, never a silent fallback to `HEAD`) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
 | a check that exits 0 without its declared minimum output is **not** green | `min_lineas` in the registry |
+| a check that does not finish, cannot start or floods the output is an **instrument** failure, not a finding | `timeout` in the registry (default 900 s; the whole process group is killed), 4 MiB capture cap, output read as bytes |
+| evidence never stores argv or output | only the program name, a hash of argv, exit code, timing, line/byte counts and a hash of the output; state and evidence are written atomically and updated under a lock |
 | a declared positive control detects a known bad input before the real check runs | `control_positivo` must exit 1; 0 means blind, 2 means unable to inspect; any other code blocks |
 | findings and instrument failures are reported separately | `triestado: true`: 0 clean, 1 findings, 2 unable to inspect, other codes unexpected |
 | if the task touches an integration boundary, a real crossing **after** the last change | `rompelo cruce -- <real command>` or `--id <registered check>` |
@@ -114,7 +116,7 @@ one id each, as argv:
 
 ```json
 {
-  "my-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1},
+  "my-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600},
   "my-app.smoke": {"argv": ["node", "scripts/smoke.mjs"], "cwd": "repo"}
 }
 ```

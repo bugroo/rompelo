@@ -18,7 +18,7 @@ Decide código normal. El modelo pide; esto concede. Fail-closed: un repo alista
 contrato ilegible bloquea. Repos fuera de la allowlist: silencio, y no se ejecuta nada.
 Tope de 3 bloqueos por sesión y tarea.
 """
-import collections, datetime, fnmatch, hashlib, json, os, re, stat, subprocess, sys, tempfile
+import collections, contextlib, datetime, fcntl, fnmatch, hashlib, json, os, re, signal, stat, subprocess, sys, tempfile, threading, time
 
 TOPE_BLOQUEOS = 3
 # Idioma de los mensajes del gate y del observador: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json.
@@ -53,7 +53,12 @@ EN = {
     "nivel 3: ": "level 3: ",
     "toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.": "toca_junta: true. The real crossing cannot be reproduced in CI; do it outside and record it with `rompelo cruce`.",
     "toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)": "toca_junta: true and no real crossing recorded (`rompelo cruce --nota '…' -- <real command>`)",
-    "el cruce real FALLÓ con código {codigo}: {argv}": "the real crossing FAILED with exit code {codigo}: {argv}",
+    "el cruce real FALLÓ con código {codigo} ({programa}, {n} argumentos)": "the real crossing FAILED with exit code {codigo} ({programa}, {n} arguments)",
+    "el cruce real no pudo ejecutarse o no terminó ({programa}): instrumento, no resultado": "the real crossing could not run or did not finish ({programa}): instrument, not a result",
+    "check `{cid}` no pudo ejecutarse ({error}): instrumento, no hallazgo": "check `{cid}` could not run ({error}): instrument, not a finding",
+    "check `{cid}` no terminó en {s} s y se cortó: instrumento, no hallazgo": "check `{cid}` did not finish within {s} s and was cut: instrument, not a finding",
+    "check `{cid}`: control positivo no pudo ejecutarse o no terminó (instrumento, no hallazgo)": "check `{cid}`: positive control could not run or did not finish (instrument, not a finding)",
+    "no puedo leer la allowlist ({exc}): no sé si este repo está alistado. Arréglala o quítala; hasta entonces no doy ninguna tarea por terminada.": "I cannot read the allowlist ({exc}): I do not know whether this repo is enrolled. Fix it or remove it; until then no task is marked done.",
     "el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio": "the real crossing predates the last change; cross AFTER deploying the last change",
     "observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false": "observation: the task touched boundary paths (`junta` profile), so a real crossing is required even though the contract says toca_junta: false",
     "hallazgo sin disposición: {h}": "finding without disposition: {h}",
@@ -218,6 +223,51 @@ def leer_json(f):
         return json.load(fh)
 
 
+def leer_json_estricto(f, defecto):
+    """Ausente → defecto (primera ejecución: legítimo). Ilegible o corrupto → ValueError con la ruta. Un
+    estado que no se puede leer no es un estado vacío: convertirlo en {} borraba el nivel y los perfiles que
+    imponían comprobaciones (RMP-003)."""
+    try:
+        with open(f) as fh:
+            return json.load(fh)
+    except FileNotFoundError:
+        return defecto
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"{f} ilegible o corrupto ({exc.__class__.__name__}: {exc}); arréglalo o quítalo: no se sobrescribe")
+
+
+def escribir_json_atomico(f, datos):
+    """Fichero temporal en el mismo directorio + fsync + os.replace: nunca queda un JSON a medias."""
+    os.makedirs(os.path.dirname(f), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(f) + ".", suffix=".tmp", dir=os.path.dirname(f))
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(datos, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, f)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+@contextlib.contextmanager
+def cerrojo(f):
+    """flock sobre <f>.lock: serializa leer-modificar-escribir entre procesos. Reemplazar atómicamente no
+    evita que dos observadores (dos sesiones sobre el mismo repo) se pisen la actualización."""
+    os.makedirs(os.path.dirname(f), exist_ok=True)
+    with open(f + ".lock", "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lk, fcntl.LOCK_UN)
+
+
 def registro(root=None):
     """registry.json (versionado, checks genéricos) + registry.local.json (sin versionar,
     checks de tus repos). Los locales ganan si repiten un id. Si ROMPELO_HOME no tiene ningún
@@ -239,25 +289,20 @@ def registro(root=None):
 
 
 def repos_permitidos():
-    try:
-        d = leer_json(ALLOWLIST)
-        return [os.path.realpath(p) for p in d.get("repos", [])]
-    except FileNotFoundError:
-        return []
+    """Sin fichero: nada alistado (silencio legítimo). Corrupto: ValueError; quien llama decide, y en el hook
+    eso es un bloqueo que lo dice, no una autorización ni un silencio."""
+    d = leer_json_estricto(ALLOWLIST, {"repos": []})
+    if not isinstance(d, dict) or not isinstance(d.get("repos", []), list):
+        raise ValueError(f"{ALLOWLIST} tiene que ser {{\"repos\": [rutas]}}")
+    return [os.path.realpath(p) for p in d.get("repos", []) if isinstance(p, str)]
 
 
 def permitir_repo(root):
-    os.makedirs(os.path.dirname(ALLOWLIST), exist_ok=True)
-    d = {"repos": []}
-    try:
-        d = leer_json(ALLOWLIST)
-    except FileNotFoundError:
-        pass
-    if root not in d.setdefault("repos", []):
-        d["repos"].append(root)
-        with open(ALLOWLIST, "w") as fh:
-            json.dump(d, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
+    with cerrojo(ALLOWLIST):
+        d = leer_json_estricto(ALLOWLIST, {"repos": []})
+        if root not in d.setdefault("repos", []):
+            d["repos"].append(root)
+            escribir_json_atomico(ALLOWLIST, d)
 
 
 def resolver_check(cid, root):
@@ -273,6 +318,8 @@ def resolver_check(cid, root):
         raise ValueError(f"registro: {cid}.triestado tiene que ser booleano")
     if type(e.get("min_lineas", 0)) is not int or e.get("min_lineas", 0) < 0:
         raise ValueError(f"registro: {cid}.min_lineas tiene que ser un entero no negativo")
+    if type(e.get("timeout", TIMEOUT_DEFECTO)) is not int or e.get("timeout", TIMEOUT_DEFECTO) <= 0:
+        raise ValueError(f"registro: {cid}.timeout tiene que ser un entero de segundos > 0")
     if "control_positivo" in e:
         resolver_argv(e["control_positivo"], cid + ".control_positivo", root)
     return argv, cwd
@@ -373,9 +420,7 @@ def leer_evidencia(d, nombre):
 
 
 def escribir_evidencia(d, nombre, datos):
-    with open(os.path.join(d, nombre), "w") as fh:
-        json.dump(datos, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
+    escribir_json_atomico(os.path.join(d, nombre), datos)
 
 
 def ahora():
@@ -465,8 +510,10 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
         mc = []
         if cr is None:
             mc.append(_("toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)"))
+        elif cr.get("instrumento") in ("no_arranco", "sin_respuesta"):
+            mc.append(_("el cruce real no pudo ejecutarse o no terminó ({programa}): instrumento, no resultado", programa=cr.get("programa")))
         elif cr.get("codigo") != 0:
-            mc.append(_("el cruce real FALLÓ con código {codigo}: {argv}", codigo=cr.get("codigo"), argv=cr.get("argv")))
+            mc.append(_("el cruce real FALLÓ con código {codigo} ({programa}, {n} argumentos)", codigo=cr.get("codigo"), programa=cr.get("programa"), n=cr.get("n_args")))
         elif not huella_vigente(cr.get("huella")):
             mc.append(_("el cruce real tiene formato de huella antiguo; vuelve a cruzar con `rompelo cruce` (no se migra)"))
         elif cr.get("huella") != hu:
@@ -509,33 +556,82 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
 
 
 # ── ejecución sin shell ─────────────────────────────────────────────────────
-def ejecutar(argv, cwd):
-    t0 = datetime.datetime.now()
+TIMEOUT_DEFECTO = 900          # segundos por check; `timeout` en el registro lo cambia
+LIMITE_SALIDA = 4 * 1024 * 1024  # bytes de salida que se conservan para contar y hashear; el resto se descarta
+
+
+def matar_grupo(p):
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(p.pid, sig)
+        except ProcessLookupError:
+            return
+        try:
+            p.wait(timeout=1)
+            return
+        except subprocess.TimeoutExpired:
+            continue
+
+
+def ejecutar(argv, cwd, timeout=TIMEOUT_DEFECTO):
+    """Sin shell, con plazo y captura acotada. La evidencia lleva programa, hash del argv, código, tiempo,
+    recuentos y hash de la salida: nunca el argv entero (una cabecera o una URL con credencial iría dentro,
+    RMP-007) ni la salida. La salida se lee como bytes: un byte que no es UTF-8 no rompe la evaluación.
+    Al agotar el plazo se mata el grupo de procesos (también los hijos) y queda `instrumento: sin_respuesta`."""
+    t0 = time.monotonic()
+    ev = {"programa": os.path.basename(argv[0]), "argv_sha": hashlib.sha256(json.dumps(argv).encode()).hexdigest()[:12],
+          "n_args": len(argv) - 1, "cwd": cwd, "codigo": None, "segundos": 0.0, "lineas_salida": 0, "bytes_salida": 0,
+          "salida_truncada": False, "sha_salida": None, "fecha": ahora()}
     try:
-        r = subprocess.run(argv, cwd=cwd, capture_output=True, text=True)
-        codigo, salida = r.returncode, (r.stdout or "") + (r.stderr or "")
+        p = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             start_new_session=True)
     except OSError as exc:
-        codigo, salida = 127, str(exc)
-    dur = (datetime.datetime.now() - t0).total_seconds()
-    # No se guarda la salida (podría llevar secretos): solo tamaño y hash.
-    return {"argv": argv, "cwd": cwd, "codigo": codigo, "segundos": round(dur, 1),
-            "lineas_salida": salida.count("\n"),
-            "sha_salida": hashlib.sha256(salida.encode()).hexdigest()[:12], "fecha": ahora()}, salida
+        ev.update(codigo=127, instrumento="no_arranco", error=f"{exc.__class__.__name__}: {exc.strerror or exc}")
+        return ev, ""
+    trozos, contador = [], {"total": 0, "guardado": 0}
+
+    def leer():
+        while True:
+            b = p.stdout.read1(65536)
+            if not b:
+                return
+            contador["total"] += len(b)
+            if contador["guardado"] < LIMITE_SALIDA:
+                trozos.append(b)
+                contador["guardado"] += len(b)
+
+    hilo = threading.Thread(target=leer, daemon=True)
+    hilo.start()
+    try:
+        p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        matar_grupo(p)
+        ev.update(instrumento="sin_respuesta", timeout=timeout)
+    except KeyboardInterrupt:
+        matar_grupo(p)
+        raise
+    hilo.join()
+    salida = b"".join(trozos)[:LIMITE_SALIDA]
+    ev.update(codigo=None if ev.get("instrumento") else p.returncode, segundos=round(time.monotonic() - t0, 1),
+              lineas_salida=salida.count(b"\n"), bytes_salida=contador["total"],
+              salida_truncada=contador["total"] > len(salida), sha_salida=hashlib.sha256(salida).hexdigest()[:12])
+    return ev, salida.decode("utf-8", "replace")
 
 
 def ejecutar_check(cid, root):
     """El control prueba el mismo instrumento ANTES del caso real. Solo 1 autoriza seguir."""
     argv, cwd = resolver_check(cid, root)
     reg = registro(root)[cid]
+    plazo = reg.get("timeout", TIMEOUT_DEFECTO)
     cp = None
     if "control_positivo" in reg:
-        cp, _salida = ejecutar(*resolver_argv(reg["control_positivo"], cid + ".control_positivo", root))
+        cp, _salida = ejecutar(*resolver_argv(reg["control_positivo"], cid + ".control_positivo", root), timeout=plazo)
     if cp is not None and cp["codigo"] != 1:
-        e = {"argv": argv, "cwd": cwd, "codigo": None, "segundos": 0,
-             "lineas_salida": 0, "fecha": ahora(),
+        e = {"programa": os.path.basename(argv[0]), "argv_sha": hashlib.sha256(json.dumps(argv).encode()).hexdigest()[:12],
+             "n_args": len(argv) - 1, "cwd": cwd, "codigo": None, "segundos": 0, "lineas_salida": 0, "fecha": ahora(),
              "instrumento": {0: "ciego", 2: "no_pudo_mirar"}.get(cp["codigo"], "abortado")}
     else:
-        e, _salida = ejecutar(argv, cwd)
+        e, _salida = ejecutar(argv, cwd, timeout=plazo)
         if cp is not None:
             e["instrumento"] = "operativo"
     if cp is not None:
@@ -546,13 +642,20 @@ def ejecutar_check(cid, root):
 
 def motivo_check(cid, reg, e):
     if "control_positivo" in reg:
-        codigo = (e.get("control_positivo") or {}).get("codigo")
+        cp = e.get("control_positivo") or {}
+        codigo = cp.get("codigo")
+        if cp.get("instrumento") in ("no_arranco", "sin_respuesta"):
+            return _("check `{cid}`: control positivo no pudo ejecutarse o no terminó (instrumento, no hallazgo)", cid=cid)
         if codigo == 0:
             return _("check `{cid}`: su control positivo no detectó el caso malo; el verde no vale", cid=cid)
         if codigo == 2:
             return _("check `{cid}`: control positivo NO PUDO MIRAR (instrumento, no hallazgo)", cid=cid)
         if codigo != 1:
             return _("check `{cid}`: control positivo abortó por una ruta no prevista (código {codigo})", cid=cid, codigo=codigo)
+    if e.get("instrumento") == "no_arranco":
+        return _("check `{cid}` no pudo ejecutarse ({error}): instrumento, no hallazgo", cid=cid, error=e.get("error"))
+    if e.get("instrumento") == "sin_respuesta":
+        return _("check `{cid}` no terminó en {s} s y se cortó: instrumento, no hallazgo", cid=cid, s=e.get("timeout"))
     codigo = e.get("codigo")
     if reg.get("triestado") and codigo == 2:
         return _("check `{cid}` NO PUDO MIRAR (instrumento, no hallazgo; código 2)", cid=cid)
@@ -734,7 +837,7 @@ def cmd_cruce(root, args):
         argv, cwd = args[args.index("--") + 1:], root
     else:
         sys.exit("uso: rompelo cruce [--nota TXT] (--id <check del registro> | -- <argv del comando real>)")
-    e, salida = ejecutar(argv, cwd)
+    e, salida = ejecutar(argv, cwd)  # la evidencia lleva programa y hash del argv, no el argv (RMP-007)
     e["nota"] = valor(args, "--nota") or ""
     e["huella"] = huella_arbol(root, c.get("base"))
     escribir_evidencia(ev, "cruce.json", e)
@@ -825,7 +928,7 @@ def informe_llano(root, c, ev):
             no_pudo.append(f"{cid}: sin control positivo registrado; no se registró una ejecución separada del caso malo")
     if c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json") or {}
-        comprobado.append("cruce real de la junta: " + " ".join(cr.get("argv") or []) + (f" · {cr.get('nota')}" if cr.get("nota") else ""))
+        comprobado.append(f"cruce real de la junta: {cr.get('programa')} ({cr.get('n_args')} argumentos, argv sha {cr.get('argv_sha')})" + (f" · {cr.get('nota')}" if cr.get("nota") else ""))
     for a in c.get("afirmaciones") or []:
         if not isinstance(a, dict):
             continue
@@ -853,7 +956,7 @@ def informe_llano(root, c, ev):
         obs.append("perfiles de riesgo tocados: " + ", ".join(est["perfiles"]))
     if est.get("patrones"):
         obs.append("patrones vistos: " + ", ".join(est["patrones"]))
-    for patron, entradas in (leer_json_o(PERMISOS, {}) or {}).items():
+    for patron, entradas in (leer_json_estricto(PERMISOS, {}) or {}).items():
         for p in entradas:
             if isinstance(p, dict) and p.get("repo") == root:
                 obs.append(f"permiso pedido por `{patron}`: {'sí' if p.get('respuesta') == 'si' else 'no'} ({p.get('fecha', '')[:10]}{', recordado' if p.get('recordar') else ''})")
@@ -975,12 +1078,14 @@ def ruta_estado_repo(root):
 
 
 def estado_repo(root):
-    return leer_json_o(ruta_estado_repo(root), {})
+    try:
+        return leer_json_estricto(ruta_estado_repo(root), {})
+    except ValueError as exc:
+        raise ValueError(f"estado del repo {exc}")
 
 
 def guardar_estado_repo(root, d):
-    with open(ruta_estado_repo(root), "w") as fh:
-        json.dump(d, fh, indent=2, ensure_ascii=False)
+    escribir_json_atomico(ruta_estado_repo(root), d)
 
 
 def normalizar_firma(texto):
@@ -1213,7 +1318,7 @@ def cmd_observe(agente, args):
                 forma["subclaves"] = {k: sorted(v.keys())[:10] for k, v in resp.items() if isinstance(v, dict)}
                 forma["tipos"] = {k: type(v).__name__ for k, v in resp.items()}
             elif isinstance(resp, str):
-                forma["cabeza"] = resp[:120]  # solo bajo la variable de depuración, puesta a mano por el operador
+                forma["longitud"] = len(resp)  # nunca texto, ni en depuración (RMP-007)
             os.makedirs(ESTADO, exist_ok=True)
             with open(os.path.join(ESTADO, "forma.jsonl"), "a") as fh:
                 fh.write(json.dumps(forma, ensure_ascii=False) + "\n")
@@ -1234,31 +1339,34 @@ def cmd_observe(agente, args):
         if not root or root not in repos_permitidos():
             return 0  # se observa, pero solo se escala en repos alistados
         u = umbrales()
-        est = estado_repo(root)
-        est.setdefault("perfiles", [])
-        est.setdefault("patrones", [])
-        est.setdefault("avisos", {})
-        nuevos = []
-        libro_repo = [e for e in libro if e.get("repo") == root]
-        toques = collections.Counter(p for e in libro_repo for p in (e.get("perfiles") or []))
-        for p in sorted(perfiles):
-            if p not in est["perfiles"] and toques[p] >= toques_perfil(p):
-                est["perfiles"].append(p)
-                nuevos.append(("perfil", p, _("la tarea toca `{p}` ({n} veces)", p=p, n=toques[p])))
-        for nombre, detalle in patrones_de(libro_repo, u).items():
-            if nombre not in est["patrones"]:
-                est["patrones"].append(nombre)
-                nuevos.append(("patron", nombre, detalle))
-        if not nuevos:
+        with cerrojo(ruta_estado_repo(root)):  # dos sesiones sobre el mismo repo: leer-modificar-escribir en serie
+            est = estado_repo(root)
+            if os.environ.get("ROMPELO_RETARDO_ESTADO"):  # solo para la batería: ensancha la ventana de la carrera
+                time.sleep(float(os.environ["ROMPELO_RETARDO_ESTADO"]))
+            est.setdefault("perfiles", [])
+            est.setdefault("patrones", [])
+            est.setdefault("avisos", {})
+            nuevos = []
+            libro_repo = [e for e in libro if e.get("repo") == root]
+            toques = collections.Counter(p for e in libro_repo for p in (e.get("perfiles") or []))
+            for p in sorted(perfiles):
+                if p not in est["perfiles"] and toques[p] >= toques_perfil(p):
+                    est["perfiles"].append(p)
+                    nuevos.append(("perfil", p, _("la tarea toca `{p}` ({n} veces)", p=p, n=toques[p])))
+            for nombre, detalle in patrones_de(libro_repo, u).items():
+                if nombre not in est["patrones"]:
+                    est["patrones"].append(nombre)
+                    nuevos.append(("patron", nombre, detalle))
+            if not nuevos:
+                guardar_estado_repo(root, est)
+                return 0
+            est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+            clave = f"{agente}-{sid}"
+            est["avisos"].setdefault(clave, [])
+            pendientes = [n for n in nuevos if n[1] not in est["avisos"][clave]]
+            est["avisos"][clave] += [n[1] for n in pendientes]
+            est["fecha"] = ahora()
             guardar_estado_repo(root, est)
-            return 0
-        est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
-        clave = f"{agente}-{sid}"
-        est["avisos"].setdefault(clave, [])
-        pendientes = [n for n in nuevos if n[1] not in est["avisos"][clave]]
-        est["avisos"][clave] += [n[1] for n in pendientes]
-        est["fecha"] = ahora()
-        guardar_estado_repo(root, est)
         if not pendientes:
             return 0
         exige = []
@@ -1293,12 +1401,11 @@ def cmd_observe(agente, args):
 def cmd_permiso(root, args):
     if len(args) < 2 or args[1] not in ("si", "sí", "no"):
         sys.exit("uso: rompelo permiso <patron> si|no [--recordar]")
-    d = leer_json_o(PERMISOS, {})
     entrada = {"respuesta": "si" if args[1] in ("si", "sí") else "no", "fecha": ahora(), "repo": root, "recordar": "--recordar" in args}
-    d.setdefault(args[0], []).append(entrada)
-    os.makedirs(os.path.dirname(PERMISOS), exist_ok=True)
-    with open(PERMISOS, "w") as fh:
-        json.dump(d, fh, indent=2, ensure_ascii=False)
+    with cerrojo(PERMISOS):
+        d = leer_json_estricto(PERMISOS, {})  # corrupto: error, y no se pisa
+        d.setdefault(args[0], []).append(entrada)
+        escribir_json_atomico(PERMISOS, d)
     est = estado_repo(root)
     if entrada["respuesta"] == "si":
         est["nivel"] = 3
@@ -1336,17 +1443,26 @@ def cmd_hook(agente, args):
     cwd = ent.get("cwd") or os.getcwd()
     sid = re.sub(r"[^A-Za-z0-9._-]", "_", str(ent.get("session_id") or "nosession"))
     root = raiz_repo(cwd)
-    if not root or root not in repos_permitidos():
-        return 0  # fuera de la allowlist: silencio, y no se ejecuta nada
+    if not root:
+        return 0  # cwd sin git: no hay tarea que juzgar
     tid = "sin-id"
+    m = None
     try:
+        permitidos = repos_permitidos()
+    except ValueError as exc:
+        # allowlist ilegible: no sé si este repo está alistado. Ni autorizo ni callo: lo digo (con tope de 3).
+        m = [_("no puedo leer la allowlist ({exc}): no sé si este repo está alistado. Arréglala o quítala; hasta entonces no doy ninguna tarea por terminada.", exc=str(exc))]
+    if m is None:
+        if root not in permitidos:
+            return 0  # fuera de la allowlist: silencio, y no se ejecuta nada
         try:
-            tid = re.sub(r"[^A-Za-z0-9._-]", "_", str(leer_contrato(root)["id"]))
-        except Exception:
-            pass
-        m = motivos_bloqueo(root)
-    except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
-        m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
+            try:
+                tid = re.sub(r"[^A-Za-z0-9._-]", "_", str(leer_contrato(root)["id"]))
+            except Exception:
+                pass
+            m = motivos_bloqueo(root)
+        except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
+            m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
     if not m:
         return 0
     # La marca del tope vive en el estado de rompelo, no en el tempdir: bajo el sandbox de Codex el

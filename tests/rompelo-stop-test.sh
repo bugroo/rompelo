@@ -4,7 +4,7 @@
 # Usa un ROMPELO_HOME desechable: registro y allowlist propios, nunca los reales.
 # Exit 0 = todo OK · 1 = hay fallos · 2 = no se pudo ejecutar.
 . "$(dirname "$0")/lib.sh"   # ROMPELO (binario junto a los tests), ok/bad, hook_stop, espera_*, resumen
-ASSURE="$ROMPELO"
+ASSURE="$ROMPELO"; export ROMPELO_BIN_PARA_PY="$ROMPELO"
 [ -x "$ASSURE" ] || { echo "no existe $ASSURE"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
@@ -401,6 +401,85 @@ printf 'x\n' > s.py && git add s.py
 h21=$(huella); printf 'y\n' > s.py; h22=$(huella); [ -n "$h21" ] && [ "$h22" != "$h21" ] && ok "y su contenido forma parte de la huella" || bad "staged sin HEAD huella" "$h21 $h22"
 "$ASSURE" check >/dev/null; espera_paso "sin HEAD y check hecho: silencio" s21
 git commit -qm primero >/dev/null; espera_paso "primer commit del mismo contenido: silencio" s22
+
+echo "── errores propios del gate (RMP-003): corrupto no es «vacío» ni «autorizado»"
+R5="$T/repo5"; mkdir -p "$R5/src"; R="$R5"; cd "$R5" || exit 2
+git init -q && git config user.email t@t && git config user.name t && echo a > src/a.txt && git add -A && git commit -qm base
+"$ASSURE" init --id E1 --check ok >/dev/null || exit 2; "$ASSURE" check >/dev/null
+espera_paso "partida: verde" e0
+cp "$ROMPELO_HOME/config/repos.json" "$T/repos.bak"; printf '{"repos": [' > "$ROMPELO_HOME/config/repos.json"
+espera_bloqueo "allowlist truncada: bloquea diciendo que no puede saber si el repo está alistado (antes moría sin JSON)" e1 "allowlist"
+cp "$T/repos.bak" "$ROMPELO_HOME/config/repos.json"; espera_paso "allowlist restaurada: verde" e2
+mv "$ROMPELO_HOME/config/repos.json" "$T/repos.mv"; espera_paso "sin allowlist (primera ejecución): silencio, nada alistado" e3
+mv "$T/repos.mv" "$ROMPELO_HOME/config/repos.json"
+EST="$ROMPELO_HOME/state/repos/$(python3 -c "import hashlib,os,sys;print(hashlib.sha256(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:16])" "$R5").json"  # la clave es la ruta real (/private/var…), no la de mktemp
+mkdir -p "$(dirname "$EST")"; printf '{"nivel": 3, "perfiles": ["junta"' > "$EST"
+espera_bloqueo "estado del repo truncado: bloquea (antes se leía como {} y el nivel 3 desaparecía)" e4 "estado"
+[ "$(cat "$EST")" = '{"nivel": 3, "perfiles": ["junta"' ] && ok "y no lo sobrescribe" || bad "el gate reescribió el estado corrupto"
+rm "$EST"; espera_paso "sin estado (primera vez): verde" e5
+printf '{"x": [' > "$ROMPELO_HOME/config/permisos.json"
+"$ASSURE" permiso lo-que-sea si >/dev/null 2>&1; rc=$?
+[ "$rc" -ne 0 ] && [ "$(cat "$ROMPELO_HOME/config/permisos.json")" = '{"x": [' ] && ok "permisos.json corrupto: permiso se niega y no lo pisa" || bad "permisos corrupto rc=$rc" "$(cat "$ROMPELO_HOME/config/permisos.json")"
+rm "$ROMPELO_HOME/config/permisos.json"
+python3 - "$ROMPELO_HOME" "$R5" <<'PY'
+import json,os,sys,subprocess
+home,repo=sys.argv[1:3]; est=os.path.join(home,"state","repos")
+r=subprocess.run([os.environ["ROMPELO_BIN_PARA_PY"],"nivel"],cwd=repo,capture_output=True,text=True)
+sobras=[f for f in os.listdir(est) if f.endswith(".tmp") or "~" in f] if os.path.isdir(est) else []
+assert not sobras, sobras
+PY
+[ $? -eq 0 ] && ok "escrituras sin temporales huérfanos" || bad "temporales huérfanos"
+
+echo "── estado concurrente (RMP-003): cinco observadores a la vez no se pisan"
+rm -rf "$ROMPELO_HOME/state"
+for p in auth secretos datos despliegue junta; do
+  case $p in auth) c='sed -i s/a/b/ src/auth/login.ts';; secretos) c='sed -i s/a/b/ .env';; datos) c='psql -f migrations/1.sql';; despliegue) c='wrangler pages deploy dist';; junta) c='sed -i s/a/b/ functions/api/x.ts';; esac
+  ( for i in 1 2; do printf '{"session_id":"conc-%s","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"%s"},"tool_response":{"stdout":"","stderr":"","exit_code":0}}' "$p" "$R5" "$c" | ROMPELO_RETARDO_ESTADO=0.3 "$ASSURE" observe claude >/dev/null 2>&1; done ) &
+done; wait
+python3 - "$EST" <<'PY'
+import json,sys
+est=json.load(open(sys.argv[1])); falta=sorted({"auth","secretos","datos","despliegue","junta"}-set(est.get("perfiles",[])))
+print("faltan:", falta); sys.exit(1 if falta else 0)
+PY
+[ $? -eq 0 ] && ok "los cinco perfiles quedan en el estado (lectura-modificación-escritura bajo cerrojo)" || bad "se perdieron actualizaciones concurrentes"
+rm -rf "$ROMPELO_HOME/state"
+
+echo "── runner (RMP-010): plazo, salida binaria, salida enorme, ejecutable ausente, hijos"
+python3 - "$ROMPELO_HOME/checks/registry.json" <<'PY'
+import json,sys;f=sys.argv[1];r=json.load(open(f))
+r['lento']={'argv':['sh','-c','sleep 30 & sleep 30'],'timeout':1}
+r['binario']={'argv':['python3','-c',"import sys;sys.stdout.buffer.write(b'\\xff\\xfe visto\\n')"],'min_lineas':1}
+r['chorro']={'argv':['python3','-c',"print('x'*6000000)"]}
+r['ausente']={'argv':['/no/existe/rompelo-canario']}
+r['malplazo']={'argv':['true'],'timeout':'mucho'}
+json.dump(r,open(f,'w'))
+PY
+contrato 'checks=["lento"]'; t0=$(date +%s); "$ASSURE" check >"$T/lento.txt" 2>&1; rc=$?; t1=$(date +%s)
+[ "$rc" -ne 0 ] && [ $((t1-t0)) -lt 10 ] && grep -q 'no terminó' "$T/lento.txt" && ok "check que no termina: corta al plazo ($((t1-t0)) s) y lo dice" || bad "plazo rc=$rc $((t1-t0))s" "$(cat "$T/lento.txt")"
+sleep 1; pgrep -f 'sleep 30' >/dev/null && bad "quedan hijos vivos tras el plazo" "$(pgrep -fl 'sleep 30')" || ok "no quedan hijos vivos (se mata el grupo de procesos)"
+espera_bloqueo "y el gate lo cuenta como instrumento, no como hallazgo" r1 "no terminó"
+contrato 'checks=["binario"]'; "$ASSURE" check >/dev/null 2>&1 && ok "salida no UTF-8: el check pasa (antes UnicodeDecodeError sin capturar)" || bad "binario"
+contrato 'checks=["chorro"]'; "$ASSURE" check >/dev/null 2>&1 && python3 -c 'import json;e=json.load(open(".rompelo/evidence/E1/check-chorro.json"));assert e["salida_truncada"] is True and e["bytes_salida"]>6000000,e' && ok "salida de 6 MB: acotada, anotada como truncada, con el tamaño real" || bad "chorro" "$(cat .rompelo/evidence/E1/check-chorro.json 2>/dev/null)"
+contrato 'checks=["ausente"]'; "$ASSURE" check >"$T/aus.txt" 2>&1; rc=$?
+[ "$rc" -ne 0 ] && grep -q 'no pudo ejecutarse' "$T/aus.txt" && ok "ejecutable ausente: instrumento, no «FALLÓ con código 127»" || bad "ausente rc=$rc" "$(cat "$T/aus.txt")"
+espera_bloqueo "y el gate lo dice igual" r2 "no pudo ejecutarse"
+contrato 'checks=["malplazo"]'; "$ASSURE" check >/dev/null 2>&1; [ $? -ne 0 ] && ok "timeout no numérico en el registro se rechaza" || bad "malplazo aceptado"
+contrato 'checks=["ok"]'; "$ASSURE" check >/dev/null
+
+echo "── privacidad (RMP-007): la evidencia no guarda argumentos ni salida"
+python3 - "$ROMPELO_HOME/checks/registry.json" <<'PY'
+import json,sys;f=sys.argv[1];r=json.load(open(f))
+r['con-token']={'argv':['sh','-c','echo "respuesta CANARIO_SALIDA_9"; exit 0','--','--header','Authorization: CANARIO_ARGV_7'],'min_lineas':1}
+json.dump(r,open(f,'w'))
+PY
+contrato 'checks=["con-token"]' 'toca_junta=true'; "$ASSURE" check >/dev/null
+"$ASSURE" cruce --nota "cruce" -- sh -c 'echo CANARIO_SALIDA_CRUCE_5; exit 1' -- --url 'https://user:CANARIO_URL_3@x' >/dev/null 2>&1
+grep -rl 'CANARIO_' .rompelo/evidence/ >/dev/null 2>&1 && bad "canario en la evidencia" "$(grep -rl 'CANARIO_' .rompelo/evidence/)" || ok "ni argumentos ni salida del check ni del cruce llegan a la evidencia"
+out="$(hook claude pr1 "$R")"; printf '%s' "$out" | grep -q 'CANARIO_' && bad "canario en el motivo de bloqueo" "$out" || ok "el motivo del cruce fallido no repite los argumentos"
+"$ASSURE" cruce -- sh -c 'echo CANARIO_SALIDA_CRUCE_6' -- --header 'X: CANARIO_ARGV_8' >/dev/null; "$ASSURE" close >"$T/close.txt" 2>&1
+grep -q 'CANARIO_' "$T/close.txt" .rompelo/evidence/E1/INFORME.md && bad "canario en el informe" || ok "el informe de cierre tampoco lleva argumentos"
+grep -q 'cruce real de la junta: sh' .rompelo/evidence/E1/INFORME.md && ok "el informe sí dice el programa y la nota" || bad "informe sin programa" "$(grep cruce .rompelo/evidence/E1/INFORME.md)"
+contrato 'checks=["ok"]' 'toca_junta=false'
 
 rm -rf "$T"
 resumen

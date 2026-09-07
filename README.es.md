@@ -71,6 +71,8 @@ allowlist local. Desde entonces el agente no puede terminar una tarea hasta que:
 |---|---|
 | cada id de check ha corrido sobre el contenido **actual** del árbol (huella versionada de cada ruta cambiada: contenido, bit ejecutable, destino del enlace, borrado; nombres reales vía `git … -z`, así que `año.py` es `año.py`; una `base` del contrato que no existe en el repo es un error, nunca `HEAD` en silencio) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
 | un check que sale con 0 sin la salida mínima declarada **no** es verde | `min_lineas` en el registro |
+| un check que no termina, no arranca o inunda la salida es un fallo del **instrumento**, no un hallazgo | `timeout` en el registro (900 s por defecto; se mata el grupo de procesos entero), captura acotada a 4 MiB, salida leída como bytes |
+| la evidencia nunca guarda el argv ni la salida | solo programa, hash del argv, código, tiempo, recuentos y hash de la salida; estado y evidencia se escriben de forma atómica y se actualizan bajo cerrojo |
 | el control positivo declarado detecta el caso malo antes del check real | `control_positivo` debe salir con 1; 0 significa ciego, 2 no pudo mirar y cualquier otro código bloquea |
 | los hallazgos se distinguen del fallo del instrumento | `triestado: true`: 0 limpio, 1 hallazgos, 2 no pudo mirar, otros códigos inesperados |
 | si la tarea toca una junta con otro sistema, un cruce real **después** del último cambio | `rompelo cruce -- <comando real>` o `--id <check del registro>` |
@@ -110,7 +112,7 @@ viven tus comandos, un id cada uno, como argv:
 
 ```json
 {
-  "mi-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1},
+  "mi-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600},
   "mi-app.humo": {"argv": ["node", "scripts/humo.mjs"], "cwd": "repo"}
 }
 ```

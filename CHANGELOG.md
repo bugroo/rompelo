@@ -16,6 +16,15 @@ no verificado de cada versión está en el relevo enlazado.
   `HEAD` en silencio; un repo sin commits mide contra el árbol vacío; un fallo de git bloquea. La evidencia con
   huella sin versión queda obsoleta y pide `rompelo check` de nuevo (no se migra). Borrar el único test ya no
   cuenta como «prueba en el diff». La CI propia hace `fetch-depth: 0`.
+- **Errores propios, runner y privacidad (RMP-003/007/010).** Una allowlist corrupta bloquea diciéndolo (antes
+  el hook moría sin JSON); un estado de repo o `permisos.json` corrupto es un error y no se pisa (antes se leía
+  como `{}` y el nivel 3 desaparecía). Estado, permisos, allowlist y evidencia se escriben de forma atómica;
+  el observador actualiza el estado bajo cerrojo (`flock`), así dos sesiones sobre el mismo repo no se pierden
+  actualizaciones. El runner tiene plazo por check (`timeout`, 900 s), mata el grupo de procesos, acota la
+  captura a 4 MiB y lee bytes (un `0xff` ya no tumba la evaluación); «no arrancó» y «no terminó» son
+  instrumento, no «FALLÓ con código». La evidencia guarda programa y hash del argv, no el argv: una cabecera
+  o una URL con credencial ya no llega a `.rompelo/evidence/` ni al informe. `ROMPELO_DEBUG_FORMA` guarda
+  la longitud del texto, no su cabeza.
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.
