@@ -1,0 +1,21 @@
+id: INC-2026-0044
+titulo: "Mensaje de navegador no soportado medido como diseño de un estudio"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/04-typography.md § Method note
+tipo: instrumento
+evidencia_verde: >
+  activetheory.net devolvió una medición tipográfica completa y coherente: nbarchitekt,
+  18 px, peso 700.
+lo_que_faltaba: >
+  El texto medido era "Your browser is not supported": el sitio bloquea navegadores sin
+  cabeza. La ficha describía un mensaje de error, no un diseño. Se descartó del conjunto
+  en vez de citarse.
+gate: leer-el-contenido-antes-de-medirlo
+gate_descripcion: >
+  Al extraer de un sitio ajeno, capturar también el texto medido, no sólo los números.
+  Un valor sin su contenido no se puede auditar.
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: los números eran plausibles en aislamiento"
+disparador: "extracción automatizada sobre sitios con detección de bots"

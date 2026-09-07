@@ -1,0 +1,25 @@
+id: INC-2026-0045
+titulo: "Regla de detección sin excepción documentada: #fff bajo mix-blend-mode"
+fecha: 2026-09-07
+fuente: ~/tails/checks/slop.mjs · regla pure-black-white
+tipo: instrumento
+evidencia_verde: >
+  El detector de slop marcó "color: #fff" en la hoja del propio banco como defecto de
+  paleta, con su explicación bien formada.
+lo_que_faltaba: >
+  El bloque llevaba mix-blend-mode: difference, donde el blanco puro no es una elección
+  de color sino el operando de la inversión. Falso positivo legítimo. La regla ahora
+  salta los bloques con difference o exclusion.
+gate: correr-el-detector-sobre-codigo-real
+gate_descripcion: >
+  Una regla nueva se prueba contra código real, no sólo contra sus propias fixtures. Las
+  fixtures las escribe quien escribe la regla y comparten sus puntos ciegos. Una regla
+  que produce falsos positivos acaba desactivada, y entonces no protege nada.
+existe_hoy: "sí"
+existe_hoy_detalle: >
+  checks/slop.mjs --selftest corre control positivo y negativo; la excepción se
+  descubrió al apuntarlo a lab/ y a una hoja de producción de 3.000 líneas.
+spike_cubre: "no"
+clase: I
+senal_al_stop: "el hallazgo era correcto en forma y falso en contenido"
+disparador: "añadir una regla de detección estática"

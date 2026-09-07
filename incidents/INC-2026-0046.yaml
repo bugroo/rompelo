@@ -1,0 +1,26 @@
+id: INC-2026-0046
+titulo: "Verificador de contraste que parsea oklch() como si fuera rgb(): trece fallos imposibles"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/11-verify.md § 8
+tipo: instrumento
+evidencia_verde: >
+  El verificador reportó 13 fallos de contraste en una página nueva, uno por cada
+  elemento medido, con sus ratios, sus tamaños y su veredicto. Un informe completo.
+lo_que_faltaba: >
+  Los trece daban ~1,05:1. La hoja declara los colores en oklch() y el verificador
+  extraía los tres números de "oklch(22% 0.018 55)" tratándolos como R, G y B. Trece
+  ratios casi idénticos en una página con fondos y textos distintos es aritméticamente
+  imposible, y esa imposibilidad fue lo único que lo delató. Resuelto pintando el color
+  en un canvas y leyendo el píxel, que resuelve cualquier formato que acepte el
+  navegador. Resultado real: todo pasa, peor caso 6,61:1.
+gate: instrumento-control-positivo
+gate_descripcion: >
+  Un medidor de contraste debe verificar antes de usarse que negro sobre blanco le da
+  21:1. Un instrumento sin autocomprobación produce informes bien formados y falsos.
+existe_hoy: "sí"
+existe_hoy_detalle: >
+  Añadido al propio verificador tras el incidente; es la primera línea de su salida.
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: trece fallos coherentes parecen un diseño malo, no un medidor roto"
+disparador: "medir color computado cuando la hoja usa oklch, lab, color-mix o hsl"

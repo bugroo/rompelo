@@ -1,0 +1,26 @@
+id: INC-2026-0040
+titulo: "Prueba de position:sticky que nunca alcanzó el punto de pegado"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/08-collisions.md § 2
+tipo: prueba-ciega
+evidencia_verde: >
+  La prueba reportó "sticky roto" en las CUATRO configuraciones del banco, incluida la
+  de control que no cargaba ninguna librería de smooth scroll.
+lo_que_faltaba: >
+  Scrolleaba 700 px hacia un elemento cuyo punto de pegado estaba a 965 px. El elemento
+  nunca llegó a pegarse, así que se movía con la página, que es lo correcto. Corregido
+  scrolleando 200 px MÁS ALLÁ del punto de pegado y añadiendo un control: un elemento
+  normal cercano debe moverse exactamente lo scrolleado. Resultado real: sticky aguanta
+  con Lenis 1.3.26.
+gate: control-obligatorio
+gate_descripcion: >
+  Un efecto que aparece también en la configuración de control no es un hallazgo: es un
+  fallo del instrumento. Exigir una corrida de control por experimento.
+existe_hoy: "no"
+existe_hoy_detalle: >
+  El banco tenía la bandera de control (?noLenis=1) y la corrió; lo que faltaba era la
+  regla de interpretación que dice qué hacer cuando el control también falla.
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: cuatro fallos consistentes parecen un hallazgo sólido"
+disparador: "prueba de comportamiento dependiente de una posición de scroll"

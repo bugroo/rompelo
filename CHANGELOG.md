@@ -14,6 +14,12 @@ no verificado de cada versión está en el relevo enlazado.
   `--id`.
 - Corpus 38 (I=18): INC-0037 y INC-0038 (código de salida del envoltorio que no es el del
   trabajo: cinco checks en verde reportados como exit 1).
+- Corpus 47 (I=27): INC-0039 a INC-0047, nueve fallos de instrumento de una sola sesión de medición
+  (07-09-2026) que dieron un número con buena pinta y se cazaron solo porque el resultado era
+  imposible: unidades distintas en dos ramas del mismo reloj, la página 404 medida como home,
+  un contraste sobre fotografía en verde con el control positivo pasando. Gates nuevos propuestos,
+  ninguno construido; el más barato es `plausibilidad-fisica` (declarar el rango antes de creerse
+  el número).
 - `docs/observacion.md` §9: el control positivo del observador abarca dos llamadas de
   herramienta separadas; solo repos git quedan cubiertos.
 - Control positivo opcional por check: debe detectar un caso malo con código 1 antes de

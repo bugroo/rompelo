@@ -1,0 +1,28 @@
+id: INC-2026-0047
+titulo: "Contraste de texto sobre fotografía medido contra el fondo CSS: verde falso en el elemento más visible"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/11-verify.md § 9
+tipo: instrumento
+evidencia_verde: >
+  El verificador de contraste, ya corregido de su fallo con oklch y con su control
+  positivo pasando (negro sobre blanco = 21:1), dio "todo pasa" en la portada de una
+  muestra. Dieciocho elementos comprobados, ninguno por debajo del mínimo.
+lo_que_faltaba: >
+  El titular, el subtítulo y el precio estaban SOBRE UNA FOTOGRAFÍA. getComputedStyle
+  devuelve el fondo del contenedor, y el texto sobre una imagen no tiene fondo CSS
+  detrás: el verificador leía el color de la sección. Muestreando los píxeles reales de
+  la foto bajo el texto: 1,09:1 en el peor punto contra un mínimo de 3. El elemento más
+  visible de la página, con el peor contraste, y en verde.
+gate: contraste-sobre-imagen
+gate_descripcion: >
+  Si un elemento de texto se superpone a un <img> o a un background-image, el contraste
+  se mide muestreando píxeles: la imagen dibujada en un canvas, o una captura de la
+  página compuesta si hay capas encima. Un verificador que solo lee CSS debe DETECTAR
+  ese caso y declararse incompetente, no aprobarlo.
+existe_hoy: "no"
+existe_hoy_detalle: >
+  Se midió a mano tras sospechar del resultado al mirar la captura.
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: el verificador ya tenía control positivo y lo pasaba"
+disparador: "texto posicionado sobre una imagen o un canvas"
