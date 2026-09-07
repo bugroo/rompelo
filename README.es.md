@@ -211,6 +211,12 @@ en `checks_nivel3` del contrato. No se exigen hasta que el observador haya subid
 3 con `rompelo permiso <patron> si`; desde entonces `rompelo check` los ejecuta y la puerta los
 exige como a cualquier otro.
 
+Los permisos tienen alcance (desde el 07-09-2026): `rompelo permiso <id de check> si` autoriza solo
+ese check; un patrón general autoriza todos los `checks_nivel3`. Sin `--recordar` el permiso es de la
+tarea actual (por id) y la siguiente no lo hereda. `rompelo permiso <x> no` después de un `si` lo
+revoca, y el check revocado no desaparece: queda **pendiente** hasta un permiso nuevo o una entrada
+explícita en `excepciones` del contrato. `rompelo nivel bajar` también borra los permisos.
+
 ## Hoja de ruta, en orden
 
 El control positivo ya corre en `check` y `verify --ci`. Incluidos: mutante de scope de la

@@ -243,6 +243,75 @@ echo "── permiso y nivel"
 grep -q '"recordar": true' "$ROMPELO_HOME/config/permisos.json" && ok "permisos.json guarda la respuesta" || bad "permisos.json"
 "$ROMPELO" nivel bajar --motivo "prueba" | grep -q 'nivel 0' && ok "nivel bajar deja 0 con motivo" || bad "nivel bajar"
 
+echo "── permisos (RMP-009): revocar revoca, A no autoriza B, sin --recordar no se hereda"
+reset_estado; nueva_sesion
+printf '{"ok": {"argv": ["true"]}, "externo": {"argv": ["true"]}, "externo2": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['id']='P1';c['estado']='abierta';c['checks_nivel3']=['externo','externo2'];c['segunda_pasada']='revisado';c.pop('obligaciones_efectivas',None);c['excepciones']=[];json.dump(c,open(f,'w'))
+PY
+"$ROMPELO" check >/dev/null; rm -f .rompelo/evidence/*/check-externo*.json
+"$ROMPELO" permiso externo si | grep -q 'nivel del repo: 3' && ok "permiso para el check externo: nivel 3" || bad "permiso externo"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q '`externo` sin ejecutar' && ! printf '%s' "$out" | grep -q 'externo2' && ok "exige externo y NO externo2: un permiso para A no autoriza B" || bad "alcance del permiso" "$out"
+"$ROMPELO" permiso externo no | grep -q 'nivel del repo: 0' && ok "permiso no después de sí: revoca y el nivel baja" || bad "revocar" "$("$ROMPELO" nivel)"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'permiso revocado' && ok "revocar no da por cumplido el check: queda pendiente de decisión" || bad "revocado pendiente" "$out"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['excepciones']=[{"que":"externo","motivo":"no se autoriza la herramienta externa en este repo","quien":"jose"}];json.dump(c,open(f,'w'))
+PY
+out="$(hook $SID)"; [ -z "$out" ] && ok "una excepción explícita en el contrato lo resuelve" || bad "excepción tras revocar" "$out"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['excepciones']=[];json.dump(c,open(f,'w'))
+PY
+reset_estado
+"$ROMPELO" permiso herramientas-externas si >/dev/null
+out="$(hook $SID)"; printf '%s' "$out" | grep -q '`externo` sin ejecutar' && printf '%s' "$out" | grep -q '`externo2` sin ejecutar' && ok "un permiso general (no es id de check) exige todos los checks_nivel3" || bad "permiso general" "$out"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['id']='P2';json.dump(c,open(f,'w'))
+PY
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'externo' && bad "el permiso sin --recordar se heredó en otra tarea" "$out" || ok "otra tarea (id distinto): el permiso sin --recordar no se hereda"
+reset_estado; "$ROMPELO" permiso herramientas-externas si --recordar >/dev/null
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['id']='P3';json.dump(c,open(f,'w'))
+PY
+out="$(hook $SID)"; printf '%s' "$out" | grep -q '`externo` sin ejecutar' && ok "con --recordar sí vale para la tarea siguiente" || bad "recordar" "$out"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['id']='O1';c.pop('checks_nivel3',None);json.dump(c,open(f,'w'))
+PY
+printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"; reset_estado
+
+echo "── RMP-011: la respuesta lleva el nombre del evento que llegó"
+reset_estado; nueva_sesion
+fail_ev $SID 'pnpm test' $'Exit code 1\nError: ev 1' >/dev/null
+o="$(fail_ev $SID 'pnpm test' $'Exit code 1\nError: ev 2')"
+printf '%s' "$o" | grep -q '"hookEventName": "PostToolUseFailure"' && ok "aviso tras PostToolUseFailure responde con hookEventName PostToolUseFailure (doc oficial de Claude Code)" || bad "hookEventName failure" "$o"
+reset_estado; nueva_sesion
+bash_ev $SID 'pnpm test' 1 '' 'Error: ev 3' >/dev/null; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: ev 4')"
+printf '%s' "$o" | grep -q '"hookEventName": "PostToolUse"' && ok "y tras PostToolUse, PostToolUse" || bad "hookEventName post" "$o"
+
+echo "── RMP-019: apply_patch de Codex lleva el parche en tool_input.command (doc oficial, 07-09-2026)"
+reset_estado; nueva_sesion
+patch_ev() { observar codex "$(python3 - $SID "$R" "$1" <<'PY'
+import json,sys; sid,cwd,patch=sys.argv[1:4]
+# forma MEDIDA con codex-cli 0.153.4 el 07-09-2026 (sesión desechable con hooks de proyecto): tool_input solo trae
+# `command` con el parche; tool_response es texto cuya primera línea es «Exit code 0».
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"apply_patch","tool_input":{"command":patch},"tool_response":"Exit code 0\nSuccess. Updated the following files:\nM src/a.ts\n"}))
+PY
+)"; }
+P=$'*** Begin Patch\n*** Update File: src/a.ts\n@@\n-a\n+b\n*** Add File: functions/api/x.ts\n+export const x = process.env.TOKEN\n*** Delete File: old.ts\n*** End Patch'
+patch_ev "$P" >/dev/null
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | python3 -c "
+import json,sys,os; d=json.load(sys.stdin); R=os.path.realpath(sys.argv[1])
+assert d['tool']=='apply_patch' and d['prog']=='apply_patch', d
+assert [os.path.relpath(f,R) for f in d['ficheros']]==['src/a.ts','functions/api/x.ts','old.ts'], d['ficheros']
+assert d['codigo']==0 and d['firma'] is None, d" "$R" && ok "las tres rutas del parche quedan anotadas, absolutas al repo, código 0 de la primera línea (antes: ficheros vacío en 64 eventos reales)" || bad "apply_patch rutas" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+o="$(patch_ev "$P")"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "dos parches sobre functions/api/: perfil junta (por la ruta, no por el cuerpo)" || bad "junta por parche" "$o"
+reset_estado; nueva_sesion
+P2=$'*** Begin Patch\n*** Update File: src/a.ts\n@@\n-a\n+b\n*** End Patch'
+for i in 1 2 3; do patch_ev "$P2" >/dev/null; done; o="$(patch_ev "$P2")"
+printf '%s' "$o" | grep -q 'editado 4 veces' && ok "cuatro parches al mismo fichero sin check verde: thrashing" || bad "thrashing por parche" "$o"
+reset_estado; nueva_sesion
+P3=$'*** Begin Patch\n*** Add File: docs/nota.md\n+la junta vive en functions/api/ y usa process.env con wrangler deploy\n*** End Patch'
+o="$(patch_ev "$P3"; patch_ev "$P3")"; [ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "el cuerpo del parche no dispara perfiles (solo las rutas)" || bad "cuerpo del parche" "$o"
+
 echo "── §8 informe de cierre con patrones, nivel y permisos"
 reset_estado; nueva_sesion
 bash_ev $SID 'pnpm test' 1 '' 'Error: z 1' >/dev/null; bash_ev $SID 'pnpm test' 1 '' 'Error: z 2' >/dev/null

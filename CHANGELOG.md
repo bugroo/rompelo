@@ -36,6 +36,12 @@ no verificado de cada versión está en el relevo enlazado.
   registro es error, no carga implícita). El tope de 3 bloqueos deja `SIN-VERIFICAR.json` en la evidencia,
   `status` lo dice y solo un `close` real lo quita. Plantilla de CI con `permissions: contents: read` y
   revisión de rompelo fijable (`ROMPELO_REV`).
+- **Permisos con alcance, eventos correctos y `apply_patch` de Codex (RMP-009/011/019).** `permiso <x> no`
+  revoca de verdad y el check queda pendiente (no cumplido) hasta un permiso nuevo o una excepción en el
+  contrato; un permiso para un check autoriza solo ese; sin `--recordar` no se hereda en otra tarea; el
+  nivel 3 se calcula, no se guarda. El observador responde con el `hookEventName` del evento recibido.
+  Las ediciones de Codex por `apply_patch` (64 eventos reales sin fichero hasta hoy) quedan anotadas con
+  sus rutas: forma medida con codex-cli 0.153.4 en una sesión desechable (docs/observacion.md §12.5).
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.

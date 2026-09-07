@@ -37,6 +37,7 @@ EN = {
     "fuera de scope_paths: {lista}": "outside scope_paths: {lista}",
     "check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta": "check `{cid}` is not in the registry ({reg}); it neither runs nor counts",
     "check `{cid}` es solo_local y no se ha comprobado aquí (--estricto)": "check `{cid}` is solo_local and was not checked here (--estricto)",
+    "nivel 3: check `{cid}`: permiso revocado; queda pendiente. Vuelve a concederlo (`rompelo permiso {cid} si`) o escribe una excepción en el contrato": "level 3: check `{cid}`: permission revoked; it stays pending. Grant it again (`rompelo permiso {cid} si`) or write an exception in the contract",
     "check `{cid}` sin ejecutar (usa `rompelo check`)": "check `{cid}` not run (use `rompelo check`)",
     "check `{cid}` cambió en el registro después de ejecutarse": "check `{cid}` changed in the registry after it ran",
     "check `{cid}` FALLÓ con código {codigo}": "check `{cid}` FAILED with exit code {codigo}",
@@ -407,6 +408,27 @@ def leer_contrato(root):
     return c
 
 
+def permisos_de(est, tarea):
+    """(activos, revocados) como conjuntos de patrones. Activo = concedido, no revocado y (recordado o de esta
+    misma tarea): sin --recordar un permiso no se hereda. Un permiso es un id de check de `checks_nivel3`
+    (autoriza solo ese) o un patrón general (autoriza todos). Formato viejo (lista de cadenas) = recordado."""
+    activos, revocados = set(), set()
+    for p in est.get("permisos") or []:
+        if isinstance(p, str):
+            p = {"patron": p, "recordar": True}
+        if p.get("revocado"):
+            revocados.add(str(p.get("patron")))
+        elif p.get("recordar") or p.get("tarea") == tarea:
+            activos.add(str(p.get("patron")))
+    return activos, revocados - activos
+
+
+def nivel_efectivo(est, tarea):
+    """El 3 solo sale de un permiso activo; un 3 guardado en el estado (formato anterior) no vale por sí solo."""
+    base = min(int(est.get("nivel", 0) or 0), 2)
+    return 3 if permisos_de(est, tarea)[0] else base
+
+
 def contrato_efectivo(root, ci=False):
     """Lo que de verdad se exige, en un solo sitio: el contrato escrito más lo que impone la observación
     (nivel ≥ 2: perfiles `junta`/`exterior` y segunda pasada; nivel 3: `checks_nivel3`) y más las
@@ -414,12 +436,17 @@ def contrato_efectivo(root, ci=False):
     estado local exige lo mismo). check, verify, close, hook e informe consumen ESTO (RMP-008/014).
     Devuelve (contrato efectivo, info) con info.hash = hash del contrato ESCRITO, que es lo que firma close."""
     c = leer_contrato(root)
+    tarea = str(c["id"])
     # En local manda el estado del observador (y `rompelo nivel bajar` lo baja de verdad). En CI no hay estado:
     # mandan las obligaciones_efectivas que escribió el último close, que van en el contrato y pasan por revisión.
-    fuente = (c.get("obligaciones_efectivas") or {}) if ci else estado_repo(root)
-    nivel = int(fuente.get("nivel", 0) or 0)
-    perfiles = set(fuente.get("perfiles") or [])
     oe = c.get("obligaciones_efectivas") or {}
+    fuente = oe if ci else estado_repo(root)
+    perfiles = set(fuente.get("perfiles") or [])
+    if ci:
+        nivel, activos, revocados = int(oe.get("nivel", 0) or 0), set(oe.get("permisos") or []), set()
+    else:
+        nivel = nivel_efectivo(fuente, tarea)
+        activos, revocados = permisos_de(fuente, tarea)
     ef = dict(c)
     info = {"hash": hash_contrato(c), "nivel": nivel, "perfiles": sorted(perfiles), "patrones": list(fuente.get("patrones") or []),
             "junta_por_perfil": False, "exterior_por_perfil": False, "segunda_pasada": nivel >= 2}
@@ -431,11 +458,18 @@ def contrato_efectivo(root, ci=False):
             ef["toca_exterior"] = True
             info["exterior_por_perfil"] = True
     checks = [(cid, False) for cid in c["checks"]]
-    extra = list(c.get("checks_nivel3") or []) if nivel >= 3 else []
+    n3 = list(c.get("checks_nivel3") or [])
+    # Un permiso para A autoriza A; uno general autoriza todos. Revocado: el check no desaparece, queda
+    # PENDIENTE hasta un permiso nuevo o una excepción explícita en el contrato (RMP-009).
+    generales_activos = activos - set(n3)
+    generales_revocados = revocados - set(n3)
+    extra = [x for x in n3 if x in activos or generales_activos] if not ci else []
     if ci:
         extra += [x for x in (oe.get("checks") or []) if x not in extra]
+    info["pendientes"] = [] if ci else [x for x in n3 if x not in extra and (x in revocados or generales_revocados)]
     checks += [(cid, True) for cid in extra if cid not in c["checks"] and ID_OK.match(str(cid))]
     info["checks"] = checks
+    info["permisos"] = sorted(activos)
     return ef, info
 
 
@@ -558,6 +592,11 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
                 m.append(pre + _("check `{cid}`: evidencia con formato de huella antiguo; vuelve a ejecutar `rompelo check` (no se migra)", cid=cid))
             elif e.get("huella") != hu:
                 m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
+
+    for cid in info.get("pendientes") or []:
+        if cid in exc:
+            continue  # excepción explícita en el contrato: decisión tomada y trazable
+        m.append(_("nivel 3: check `{cid}`: permiso revocado; queda pendiente. Vuelve a concederlo (`rompelo permiso {cid} si`) o escribe una excepción en el contrato", cid=cid))
 
     if c["toca_junta"] and ci:
         if "junta" in exc:
@@ -978,7 +1017,7 @@ def cmd_close(root, args):
     hu = huella_arbol(root, c.get("base"))
     # Las obligaciones con las que se cierra viajan en el contrato (versionado y revisado): un runner de CI
     # sin estado local exige lo mismo, y rebajarlas a mano cambia el hash del contrato e invalida el cierre.
-    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "perfiles": info["perfiles"],
+    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "perfiles": info["perfiles"], "permisos": info["permisos"],
                                    "checks": [cid for cid, _n3 in info["checks"]], "toca_junta": bool(ef["toca_junta"]),
                                    "toca_exterior": bool(ef.get("toca_exterior")), "fecha": ahora()}
     c["estado"] = "cerrada"
@@ -1042,7 +1081,7 @@ def informe_llano(root, c, ev):
     lineas += ["- " + x for x in a_cargo] or ["- nada: no hay hallazgos aceptados sin corregir"]
     # §8 de docs/observacion.md: lo que vio el observador durante la tarea, con sus permisos.
     est = estado_repo(root)
-    obs = [f"nivel {est.get('nivel', 0)}"]
+    obs = [f"nivel {info['nivel']}"]
     if est.get("perfiles"):
         obs.append("perfiles de riesgo tocados: " + ", ".join(est["perfiles"]))
     if est.get("patrones"):
@@ -1064,7 +1103,7 @@ def cmd_status(root, args):
     est = estado_repo(root)
     sv = leer_evidencia(dir_evidencia(root, c), "SIN-VERIFICAR.json")
     print(f"tarea {c['id']} · estado {c['estado']}" + (f" · SIN VERIFICAR desde {sv.get('fecha', '')[:16]} (tope de bloqueos alcanzado)" if sv else "")
-          + f" · huella {huella_arbol(root, c.get('base'))} · nivel {est.get('nivel', 0)} {est.get('perfiles', [])} {est.get('patrones', [])}")
+          + f" · huella {huella_arbol(root, c.get('base'))} · nivel {nivel_efectivo(est, str(c['id']))} {est.get('perfiles', [])} {est.get('patrones', [])}")
     print(f"scope: {c['scope_paths']}  checks: {c['checks']}")
     print(f"cambiados: {ficheros_cambiados(root, c.get('base'))}")
     return cmd_verify(root, args)
@@ -1257,7 +1296,12 @@ def evento_desde_hook(ent):
     if not isinstance(ti, dict):
         ti = {}
     es_shell = tool in ("Bash", "bash", "shell")
+    # Codex (doc oficial developers.openai.com/codex/hooks, leída 07-09-2026): «Bash and apply_patch use
+    # tool_input.command». Para apply_patch ese `command` es el PARCHE, no una orden: no se busca programa ni
+    # código en él; solo las rutas de sus cabeceras. 64 eventos reales de apply_patch habían pasado sin fichero.
+    es_parche = tool in ("apply_patch", "ApplyPatch")
     cmd = str(ti.get("command") or "") if es_shell else ""
+    parche = str(ti.get("command") or "") if es_parche else ""
     stdout, stderr, codigo = "", "", None
     sin_codigo = False  # el agente no manda código de salida (Codex): la firma sale del texto, por heurística
     fallo = evento == "PostToolUseFailure"
@@ -1307,8 +1351,12 @@ def evento_desde_hook(ent):
     for k in ("file_path", "path", "notebook_path"):
         if isinstance(ti.get(k), str):
             ficheros.append(ti[k])
-    if tool == "apply_patch" or (cmd.startswith("apply_patch") or "*** Begin Patch" in cmd):
-        ficheros += re.findall(r"\*\*\* (?:Add|Update|Delete) File: (.+)", cmd)
+    texto_parche = parche or (cmd if (cmd.startswith("apply_patch") or "*** Begin Patch" in cmd) else "")
+    if texto_parche:
+        ficheros += re.findall(r"^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$", texto_parche, re.M)
+        ficheros += re.findall(r"^\*\*\* Move to: (.+?)\s*$", texto_parche, re.M)
+    cwd_ev = str(ent.get("cwd") or os.getcwd())
+    ficheros = [os.path.realpath(f if os.path.isabs(f) else os.path.join(cwd_ev, f)) for f in ficheros]  # el parche trae rutas relativas al cwd
     prog = programa(cmd) if cmd else tool.lower()
     if not cmd:
         firma = None
@@ -1406,6 +1454,7 @@ def cmd_observe(agente, args):
                      "tool_use_id": str(ent.get("tool_use_id") or "")[:20], "transcript": bool(ent.get("transcript_path")),
                      "tipo": type(resp).__name__, "claves": sorted(resp.keys())[:20] if isinstance(resp, dict) else None,
                      "claves_error": sorted(k for k in ent.keys() if k not in ("tool_input", "tool_response")),
+                     "claves_input": sorted((ent.get("tool_input") or {}).keys())[:20] if isinstance(ent.get("tool_input"), dict) else type(ent.get("tool_input")).__name__,
                      "primera_linea_exit": bool(re.match(r"\s*(?:Error:\s*)?Exit code", (resp if isinstance(resp, str) else "").split("\n", 1)[0]))}
             if isinstance(resp, dict):
                 forma["subclaves"] = {k: sorted(v.keys())[:10] for k, v in resp.items() if isinstance(v, dict)}
@@ -1479,7 +1528,8 @@ def cmd_observe(agente, args):
         if n3:
             texto += _(" Para nivel 3 hay checks registrados en el contrato ({lista}): se exigen solo con permiso.", lista=", ".join(n3))
         texto += _(" Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.")
-        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": texto}}, ensure_ascii=False))
+        # Claude Code documenta hookEventName "PostToolUseFailure" para la respuesta a ese evento (doc leída 07-09).
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": ev["evento"], "additionalContext": texto}}, ensure_ascii=False))
         return 0
     except Exception as exc:
         try:
@@ -1499,12 +1549,24 @@ def cmd_permiso(root, args):
         d = leer_json_estricto(PERMISOS, {})  # corrupto: error, y no se pisa
         d.setdefault(args[0], []).append(entrada)
         escribir_json_atomico(PERMISOS, d)
-    est = estado_repo(root)
-    if entrada["respuesta"] == "si":
-        est["nivel"] = 3
-        est.setdefault("permisos", []).append(args[0])
+    try:
+        tarea = str(leer_contrato(root)["id"])
+    except Exception:
+        tarea = "sin-id"
+    with cerrojo(ruta_estado_repo(root)):
+        est = estado_repo(root)
+        lista = [({"patron": p, "recordar": True} if isinstance(p, str) else p) for p in (est.get("permisos") or [])]
+        if entrada["respuesta"] == "si":
+            lista.append({"patron": args[0], "tarea": tarea, "recordar": entrada["recordar"], "fecha": entrada["fecha"]})
+        else:
+            vivos = [p for p in lista if p.get("patron") == args[0] and not p.get("revocado")]
+            for p in vivos:
+                p["revocado"] = entrada["fecha"]  # un «no» después de un «sí» revoca; el check queda pendiente, no cumplido
+            if not vivos:
+                lista.append({"patron": args[0], "tarea": tarea, "recordar": False, "fecha": entrada["fecha"], "revocado": entrada["fecha"]})
+        est["permisos"] = lista
         guardar_estado_repo(root, est)
-    print(f"permiso {entrada['respuesta']} para `{args[0]}`" + (" (recordado)" if entrada["recordar"] else "") + f" · nivel del repo: {est.get('nivel', 0)}")
+    print(f"permiso {entrada['respuesta']} para `{args[0]}`" + (" (recordado)" if entrada["recordar"] else "") + f" · nivel del repo: {nivel_efectivo(est, tarea)}")
     return 0
 
 
@@ -1514,9 +1576,13 @@ def cmd_nivel(root, args):
         motivo = valor(args, "--motivo")
         if not motivo:
             sys.exit("uso: rompelo nivel bajar --motivo 'por qué'")
-        est.update({"nivel": 0, "perfiles": [], "patrones": [], "bajado": {"fecha": ahora(), "motivo": motivo}})
+        est.update({"nivel": 0, "perfiles": [], "patrones": [], "permisos": [], "bajado": {"fecha": ahora(), "motivo": motivo}})
         guardar_estado_repo(root, est)
-    print(f"nivel {est.get('nivel', 0)} · perfiles {est.get('perfiles', [])} · patrones {est.get('patrones', [])}")
+    try:
+        tarea = str(leer_contrato(root)["id"])
+    except Exception:
+        tarea = "sin-id"
+    print(f"nivel {nivel_efectivo(est, tarea)} · perfiles {est.get('perfiles', [])} · patrones {est.get('patrones', [])} · permisos activos {sorted(permisos_de(est, tarea)[0])}")
     return 0
 
 

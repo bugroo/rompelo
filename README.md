@@ -215,6 +215,13 @@ Level 3 exists: list expensive or external checks (mutation testing, a security 
 3 through `rompelo permiso <pattern> si`; from then on `rompelo check` runs them and the gate
 requires them like any other.
 
+Permissions are scoped (since 2026-09-07): `rompelo permiso <check id> si` authorises that check
+only; a general pattern authorises every `checks_nivel3`. Without `--recordar` a permission
+belongs to the current task id and is not inherited by the next one. `rompelo permiso <x> no`
+after a `si` revokes it, and the revoked check does not vanish: it stays **pending** until a new
+permission or an explicit `excepciones` entry in the contract decides it. `rompelo nivel bajar`
+clears permissions too.
+
 ## Roadmap, in order
 
 Positive controls now run in `check` and `verify --ci`. Included: a scope mutant for the gate
