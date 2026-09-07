@@ -1,287 +1,93 @@
 # rompelo
 
-*Spanish for "break it."*
+**Your coding agent cannot say "done" until a check that has been seen failing says so.**
 
-**Your coding agent cannot say "done" until a check that has been seen to fail says so.**
+A closing gate for Claude Code and Codex. It hooks into `Stop`, reads a small per-task contract and
+does not let the task end until the evidence exists: checks run on the current tree, a real crossing
+when two systems must agree, findings with a decision. Plain code decides, outside the model.
+Python 3.9 and git, no dependencies. Español: [README.es.md](README.es.md).
 
-`rompelo` is a completion gate for AI coding agents. It plugs into the `Stop` hook of
-Claude Code and Codex, reads a small contract for the current task, and blocks the agent from
-finishing until the evidence exists: checks that ran on the current code, a real request
-through the deployed path when two systems have to agree, findings with a decision, claims
-with a source. Ordinary code decides, outside the model. Green results that could not have
-been red do not count.
-
-Documentación en español: [README.es.md](README.es.md).
-
-## How it works
-
-![How it works: the agent says done, the Stop hook calls rompelo, rompelo reads the contract and compares it with the evidence; missing evidence blocks with reasons, everything met means silence](docs/img/en/como-funciona.png)
-
-## The problem it is built around
-
-![Bar chart of 36 real incidents by class: blind instrument 16, signal at Stop 6, context 4, mixed 3, tool time 3, audit 2, runtime 2](docs/img/en/corpus.png)
-
-Thirty-six real incidents from one month of agent-written code, each written down with what
-looked green at the moment the agent said "done" ([corpus/TABLA.md](corpus/TABLA.md), generated
-from [incidents/](incidents/)). The largest class is not "the test failed". It is "the check
-could not fail": a validator run on the wrong artifact, a guard that crashed and exited with
-the code reserved for a real finding, a `0` after a timeout, "no tests" read as zero failures, a
-mutation that never applied. A careful model does not catch these, because nothing looks
-inconsistent. Only forcing the check to fail does.
-
-## What the agent sees
-
-![Real hook output: the task cannot be marked done; two checks not run; boundary touched and no real crossing recorded](docs/img/en/bloqueo.png)
-
-The agent receives the exact list of unmet conditions and keeps working. Three blocks per task
-and session; after that `rompelo` warns the user and lets go, so nobody gets trapped.
-
-## Every gate was seen red before it was trusted
-
-![Three steps: start from green, confirmed mutation turns it red, undo it and it is green again](docs/img/en/rojo-primero.png)
-
-The test battery (109 cases, run in CI on every push) applies this cycle to every condition of the
-gate itself. When a mutation is used to force red, the test first confirms the mutation actually
-happened. A mutation that did not apply proves nothing, and that mistake is in the corpus twice.
-
-## It notices when to look harder
-
-Checking everything, always, does not survive contact with a real day: a guard that always
-shouts gets switched off. So the gate has a cheap floor and an observation layer that raises the
-rigor only when one of three triggers fires, and warns before doing so:
-
-| Trigger | Fires on | What the gate then demands |
-|---|---|---|
-| **task risk** | two write touches (reads do not count) on `auth`, secrets, migrations, deploys or an integration boundary (`functions/api/`, webhooks, `process.env`); a new dependency needs one (`pnpm add`, `package.json`) | a real crossing even if the contract said `toca_junta: false`; claims with a source for a new dependency |
-| **repeated pattern** | the same error signature twice, the same check red twice, one file edited four times without a green check in between, a command that exits 0 with empty output twice | an explicit second pass before closing (`segunda_pasada` in the contract) |
-| **claims about the world** | `toca_exterior` in the contract, or the dependency trigger above | every claim with `verificado` (source + quote), `derivado` or `no_verificado` |
-
-The observer is a `PostToolUse` hook (`rompelo observe <agent>`). It never blocks and it never
-stores command text or output: per-session ledger with program name, a hash of the command, exit
-code, line counts, a normalized error signature and the paths touched, kept outside the repo.
-Thresholds live in `config/observacion.json`, risk patterns in `config/riesgo.json`, and the
-battery mutates them to prove they are read. Raising to level 2 warns the agent (it must tell you
-in two lines) and does not ask; spending on external checks (level 3) does: `rompelo permiso
-<pattern> si|no --recordar` records your answer so you are asked once. Design and limits in
-[docs/observacion.md](docs/observacion.md).
-
-## What the gate enforces
-
-A repo opts in with `rompelo init`, which writes `.rompelo/task.json` and adds the repo to a local
-allowlist. From then on the agent cannot end a task until:
-
-| Condition | Satisfied by |
-|---|---|
-| every check id ran on the **current** working-tree content (versioned fingerprint of every changed path: content, executable bit, symlink target, deletion; real file names via `git … -z`, so `año.py` is `año.py`; a contract `base` that is missing from the repo is an error, never a silent fallback to `HEAD`) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
-| a check that exits 0 without its declared minimum output is **not** green | `min_lineas` in the registry |
-| a check that does not finish, cannot start or floods the output is an **instrument** failure, not a finding | `timeout` in the registry (default 900 s; the whole process group is killed), 4 MiB capture cap, output read as bytes |
-| evidence never stores argv or output | only the program name, a hash of argv, exit code, timing, line/byte counts and a hash of the output; state and evidence are written atomically and updated under a lock |
-| a declared positive control detects a known bad input before the real check runs | `control_positivo` must exit 1; 0 means blind, 2 means unable to inspect; any other code blocks |
-| findings and instrument failures are reported separately | `triestado: true`: 0 clean, 1 findings, 2 unable to inspect, other codes unexpected |
-| if the task touches an integration boundary, a real crossing **after** the last change | `rompelo cruce -- <real command>` or `--id <registered check>` |
-| every finding has a disposition | `hallazgos` in the contract |
-| every claim about the outside world has a state | `afirmaciones`: `verificado` needs a primary source and a verbatim quote, `derivado` needs what it derives from, `no_verificado` needs what is missing |
-| every changed file is inside `scope_paths` | or widen the scope on purpose |
-| if required, a test file is part of the diff | green is not covered |
-
-What it deliberately does not do:
-
-- It never executes strings found in the repository. The contract only carries ids; an injected
-  command is rejected without running (proven with a canary file in the battery).
-- It stays silent in repos outside the allowlist, so a foreign `.rompelo/` folder hooks nothing.
-- It never reads command output, which could contain secrets.
-- It fails closed: an unreadable contract in an enrolled repo blocks.
-- It has no dependencies. Python 3.9 standard library and git.
-
-## The limit, said plainly
-
-The agent can edit its own contract and could write evidence files by hand. The gate stops
-carelessness, not a determined cheat. The independent judge is `rompelo verify --ci`: it
-re-runs every check on a runner where the agent has written nothing, ignores stored evidence,
-and reports the real boundary crossing as the one thing CI cannot reproduce. A ready-made
-workflow is in [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); this repository
-runs it on itself.
-
-What CI reports (since 2026-09-07): one state per obligation, `PASS`, `FAIL`, `ERROR` (the instrument
-could not look), `SKIPPED` (a `solo_local` check or the boundary crossing, not reproducible on the
-runner) or `WAIVED` (an explicit exception written in the contract: `"excepciones": [{"que": "<check
-id>|junta", "motivo": "…", "quien": "…"}]`). The verdict distinguishes «OK: contract complete» from
-«OK PARTIAL, contract INCOMPLETE» (what ran passed, something was not checked here): a skipped
-obligation never counts as met, and CI never says "the task can be closed". With `--estricto` a
-`SKIPPED` blocks; a `WAIVED` does not. `--json` carries `ok`, `completo` and `resultados`.
-
-Where the checks come from is explicit: `ROMPELO_REGISTRO=home` (default) reads `checks/registry.json`
-and `registry.local.json` from `ROMPELO_HOME`; `ROMPELO_REGISTRO=repo` reads only `.rompelo/registry.json`
-of the repo being judged (the template sets it: the rompelo clone ships its own registry and would
-otherwise win). Without any registry it is an error, never a silent load from the repo.
-
-Obligations travel with the task: `rompelo close` writes `obligaciones_efectivas` (level, profiles,
-level-3 checks, whether the boundary was required) into the contract. A CI runner with no local state
-requires the same thing the close did, and lowering them by hand changes the contract hash and voids
-the close. `check`, `verify`, `close`, the hooks and the report all read one effective contract.
-
-## The skill: `/rompelo` in Claude Code, `$rompelo` in Codex
-
-`adapters/skill/SKILL.md` tells the agent how to work a task behind the gate: open its own contract
-(scope, registry checks, `--junta`, `--prueba`), work, then `check` → `cruce` → `close`, and what to
-declare as NOT VERIFIED instead of faking green. Install: copy it to `~/.claude/skills/rompelo/SKILL.md`
-(Claude Code) and to `~/.codex/skills/rompelo/SKILL.md` (Codex; do it from Codex's side). Then
-`/rompelo <task>` or `$rompelo <task>`.
-
-## Diagnosis
-
-`rompelo doctor` prints, read-only, the binary and its revision, Python and git versions, `ROMPELO_HOME`,
-which registry is selected and how many checks it holds, the allowlist and whether the current repo is in
-it, the state directory, the effective contract, and which hooks in `~/.claude/settings.json` and
-`~/.codex/hooks.json` point at rompelo. It never writes or runs a check.
+![The agent says done, the Stop hook calls rompelo, rompelo compares contract and evidence; if something is missing it blocks with reasons, if everything holds there is silence](docs/img/en/how-it-works.png)
 
 ## Install
 
 ```bash
 git clone https://github.com/bugroo/rompelo ~/rompelo
-cp ~/rompelo/checks/registry.example.json ~/rompelo/checks/registry.local.json   # your checks
 ```
 
-Or let `rompelo init` find them: with no `--check`, it reads `package.json` scripts, `pyproject.toml`,
-`Cargo.toml`, `go.mod` and the `Makefile`, registers what it finds in `registry.local.json` as
-`<repo>.<name>`, and puts them in the contract. `registry.local.json` is where your commands live,
-one id each, as argv:
-
-```json
-{
-  "my-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600},
-  "my-app.smoke": {"argv": ["node", "scripts/smoke.mjs"], "cwd": "repo"}
-}
-```
-
-Then connect the hook:
-
-- **Claude Code**: add the `Stop` and `PostToolUse` entries from
-  [`adapters/claude/settings-fragment.json`](adapters/claude/settings-fragment.json) to
-  `~/.claude/settings.json`.
-- **Codex**: merge [`adapters/codex/hooks.json`](adapters/codex/hooks.json) into
-  `~/.codex/hooks.json` and trust the hook in `/hooks`. Details in
-  [`adapters/codex/LEEME.md`](adapters/codex/LEEME.md).
+1. **Hooks.** Claude Code: add the `Stop`, `PostToolUse` and `PostToolUseFailure` entries from
+   [`adapters/claude/settings-fragment.json`](adapters/claude/settings-fragment.json) to
+   `~/.claude/settings.json`. Codex: merge [`adapters/codex/hooks.json`](adapters/codex/hooks.json)
+   into `~/.codex/hooks.json` and trust the hook in `/hooks` (details in
+   [`adapters/codex/LEEME.md`](adapters/codex/LEEME.md), Spanish).
+2. **Skill**, so the agent knows what to do when it reads `/rompelo`:
+   ```bash
+   mkdir -p ~/.claude/skills/rompelo && cp ~/rompelo/adapters/skill/SKILL.md ~/.claude/skills/rompelo/
+   mkdir -p ~/.codex/skills/rompelo  && cp ~/rompelo/adapters/skill/SKILL.md ~/.codex/skills/rompelo/
+   ```
+3. **Checks.** Your commands live in `~/rompelo/checks/registry.local.json`, one id per command, as
+   argv (no shell). Or let `rompelo init` detect them from `package.json`, `pyproject.toml`,
+   `Cargo.toml`, `go.mod` or the `Makefile`.
+   ```json
+   {"my-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600}}
+   ```
+4. `rompelo doctor` confirms hooks, registry and allowlist.
 
 ## Use
 
-### How to tell the agent to work behind the gate
+Three ways to tell the agent:
 
-Three ways, most to least convenient:
+1. `/rompelo <task>` in Claude Code, `$rompelo <task>` in Codex. It reads the skill and opens its contract.
+2. Without the skill, at the top of the task: *"This task runs behind rompelo: `rompelo init --force
+   --id <ID> --scope '<paths>' --check <ids> [--junta] [--prueba]`. Do not call it done until
+   `rompelo close` closes green; whatever you cannot meet, write it as NOT VERIFIED."*
+3. Nothing. With the repo enrolled and a contract open, `Stop` blocks anyway and hands the agent the
+   exact commands.
 
-1. **The skill.** In Claude Code, `/rompelo <the task>`; in Codex, `$rompelo <the task>` or "use the
-   rompelo skill". The agent reads `adapters/skill/SKILL.md` and knows what to do: open its own
-   contract with scope, checks, `--junta` and `--prueba`, work, and close with `check` → `cruce` →
-   `close`. Needs the skill copied (previous section).
-2. **Without the skill, two sentences at the top of the task:**
-
-   ```
-   This task runs behind rompelo. Before touching anything: `rompelo init --force --id <ID>
-   --desc "<what>" --scope '<paths>' --check <registry ids> [--junta] [--prueba]`. Do not call the
-   task done until `rompelo close` closes green; whatever you cannot meet, write it in the contract
-   as NOT VERIFIED.
-   ```
-
-3. **Saying nothing.** If the repo is enrolled and a contract is open, the Stop hook acts anyway: when
-   the agent tries to finish it gets the block with the reasons and the exact commands (`rompelo
-   check`, `rompelo cruce`, finding disposition). It does not need to know anything up front; it
-   helps, because a well-opened contract (narrow scope, real checks) is what makes the block say
-   something useful.
-
-`rompelo doctor` tells whether the repo is enrolled, which contract is open and which check ids exist.
-
-### By hand
+By hand:
 
 ```bash
 cd your-repo
-~/rompelo/bin/rompelo init --id T-42 --scope 'src/**' --check my-app.test --junta
+rompelo init --id T-42 --scope 'src/**' --check my-app.test --junta   # contract + enroll the repo
 # ... the agent works ...
-~/rompelo/bin/rompelo check                                   # runs the registered checks, records evidence
-~/rompelo/bin/rompelo cruce --nota "real request" -- curl -sf https://…   # the real crossing
-~/rompelo/bin/rompelo close                                   # refuses if anything is missing
+rompelo check                                  # runs the checks and stores evidence (may take minutes)
+rompelo cruce --nota "real request" -- curl -sf https://…   # the real crossing, AFTER the last change
+rompelo close                                  # refuses if anything is missing; prints the report
 ```
 
-`close` prints a plain-language report and saves it next to the evidence: what was checked
-(exit code, duration, lines of output, the real crossing, verified claims), what could not be
-checked (claims marked `no_verificado`, checks that only run on this machine), and what is left
-to you (findings accepted without a fix).
+Two sessions on the same root share the contract: each opens its own (`--force`) or works in a worktree.
 
-`rompelo check` runs every check the contract demands. While iterating, `rompelo check --id my-app.test`
-runs only that one; any other argument is an error (it used to be dropped silently, running
-everything and printing "all green" for a check you never asked for). A full suite can take
-several minutes, and the Bash tool in Claude Code times out at 120 s by default: run it with a
-timeout of 300000 ms or more, or in the background. Otherwise the agent sees a timeout and
-believes the checks failed.
+## What the gate requires
 
-`rompelo verify` shows the current verdict at any time. `rompelo --help` lists everything.
-The gate and observer messages come in Spanish by default; set `ROMPELO_LANG=en` (or
-`"idioma": "en"` in `config/observacion.json`) for English. The closing report is in Spanish.
+- Every contract check run on the **current** tree (content fingerprint, not the commit). Exit 0
+  with no output is not green (`min_lineas`); a check that does not finish or start is an
+  instrument failure, not a finding; a positive control that misses the known-bad case voids the green.
+- If the task touches a boundary, a real crossing after the last change.
+- Every finding as `confirmado` (+ regression), `rechazado` (+ reason) or `aceptado` (+ note).
+- Every claim about the outside world as `verificado` (source + quote), `derivado` or `no_verificado`.
+- Nothing changed outside `scope_paths`; with `--prueba`, a test in the diff.
+- The observer raises the rigor on its own (second pass, crossing by profile, level-3 checks with
+  `rompelo permiso`) when it sees repeated errors, editing without checking, or auth, secrets, data,
+  deploy or boundary paths being touched.
 
-## Verified, and not
+Evidence never stores command arguments or output. The contract only carries ids: no text from the
+repo is executed. Repos outside the allowlist: silence. Unreadable contract: block.
 
-- 109 cases in [`tests/rompelo-stop-test.sh`](tests/rompelo-stop-test.sh), each condition seen
-  red with a confirmed mutation, then green. CI runs them on Ubuntu on every push.
-- The Claude Code side has been crossed live: ending a turn with an unmet contract returned the
-  block with the right reasons, and the configured `settings.json` line is replayed by
-  [`tests/cruce-settings-claude.sh`](tests/cruce-settings-claude.sh), which has been seen to
-  return all three of its exit codes.
-- The observer is crossed live in Claude Code through both paths: `PostToolUse` (which Claude
-  Code only sends when the tool succeeded) and `PostToolUseFailure` (where a command with a
-  non-zero exit arrives). Until 05-09 it listened to the first one only, so two of its four
-  patterns could never fire: that is [INC-2026-0031](incidents/INC-2026-0031.yaml), filed in the
-  corpus as one more blind-instrument incident. The first two crossings also exposed two false
-  positives (prose inside a heredoc read as a command; exit codes read from output text), fixed
-  with a red case first.
-- Negative control with real sessions: [`tests/control-negativo-sesiones.py`](tests/control-negativo-sesiones.py)
-  replays, from local transcripts, what the hook would have received (storing and printing no
-  text) and counts alarms. Five sessions, about 2,300 events: from 7 alarms down to 2, both
-  true; the five false positives are fixed with a red case each. The check requires those two
-  to keep firing: an observer that stopped looking would report zero.
-- The Codex side is crossed live (05-09, with `codex exec` on a disposable repo): with the contract
-  unmet, the `Stop` hook returned the block with the two right reasons, Codex met the contract on
-  its own (`check`, `cruce`, `close`) and the next stop was silence; with a model that insists,
-  three blocks and on the fourth the warning to the user. The observer receives every Codex tool too.
-- **Limit measured in Codex:** its `PostToolUse` delivers only the text the model printed, with no
-  exit code ([INC-2026-0036](incidents/INC-2026-0036.yaml)). The observer keeps it as unknown and
-  derives the error signature from the last line by heuristic; "red check" and "ambiguous green"
-  cannot fire on Codex. On Claude Code they can, through `PostToolUseFailure`.
-- Level 3 with real tools, on a ClaveON worktree: gitleaks and ShellCheck registered as
-  `checks_nivel3`, required after `rompelo permiso`, and both red with real findings (placeholders
-  in docs, a publishable key, twelve shell warnings). Adjudication belongs in the tool's own
-  configuration, not in the contract: a red check does not turn green by writing it down.
-- Risk profiles per repo: `por_repo` in `config/riesgo.json` or in `config/riesgo.local.json`
-  (untracked) switches a profile off or changes it for one path.
+## CI
 
-Level 3 exists: list expensive or external checks (mutation testing, a security scanner) under
-`checks_nivel3` in the contract. They are ignored until the observer has raised the repo to level
-3 through `rompelo permiso <pattern> si`; from then on `rompelo check` runs them and the gate
-requires them like any other.
+Copy [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml) to `.github/workflows/`. It re-runs
+the checks on a runner where the agent has written nothing and reports per obligation: `PASS`,
+`FAIL`, `ERROR`, `SKIPPED`, `WAIVED`. "OK PARTIAL" means something (boundary, `solo_local`) is only
+crossed outside CI. Consumer registry: `ROMPELO_REGISTRO=repo` reads `.rompelo/registry.json`.
 
-Permissions are scoped (since 2026-09-07): `rompelo permiso <check id> si` authorises that check
-only; a general pattern authorises every `checks_nivel3`. Without `--recordar` a permission
-belongs to the current task id and is not inherited by the next one. `rompelo permiso <x> no`
-after a `si` revokes it, and the revoked check does not vanish: it stays **pending** until a new
-permission or an explicit `excepciones` entry in the contract decides it. `rompelo nivel bajar`
-clears permissions too.
+## The limit
 
-## Roadmap, in order
+The agent can edit its contract and write evidence by hand. The gate stops carelessness, not a
+determined cheat; the independent judge is `verify --ci`. Green here means "I found none of my
+kind", not "it is fine".
 
-Positive controls now run in `check` and `verify --ci`. Included: a scope mutant for the gate
-battery and a known bad shell file for `sin-var-pegada`. The closing report distinguishes checks
-with and without a control. Evidence is invalidated when the control or check definition changes,
-even after closing. [Configuration and limits](docs/control-positivo.md) (Spanish).
+## More
 
-1. Add controls for each real requirement: the ClaveON cases in INC-0033, 0034 and 0035 still
-   need their own fixtures and assertions. A scope mutant does not establish their coverage.
-2. Compile incidents into registered checks, so a lesson becomes a detector instead of prose.
-
-Changes per version: [CHANGELOG.md](CHANGELOG.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Related work
-
-[Agentic OS](https://github.com/KbWen/agentic-os) enforces a phased workflow with evidence through
-git hooks and CI. [Hermes Agent](https://github.com/NousResearch/hermes-agent) learns skills from
-experience. Mutation testing tools such as Stryker and PIT measure test strength. `rompelo` sits
-next to them and adds the part none of them checks: that the check itself was looking.
-
-MIT.
+[Full documentation](docs/README-completo.md) · [observation layer](docs/observacion.md) (Spanish) ·
+[corpus of 48 real incidents](corpus/TABLA.md) · [audit of 2026-09-07](docs/auditoria-2026-09-07/SEGUIMIENTO.md) ·
+[changelog](CHANGELOG.md). MIT license.
