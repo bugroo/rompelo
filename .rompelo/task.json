@@ -1,11 +1,13 @@
 {
   "schema": 1,
-  "id": "ROMPELO-CODEX-03",
+  "id": "ROMPELO-CORPUS-2026-09-07",
   "estado": "cerrada",
-  "base": "86001d25aa08703e85f1d7636b1a1336babe988e",
-  "descripcion": "Parte 3: ponerse al día con check --id y timeout, verificar el Stop automático tras el pull y anotar resultados en LEEME",
+  "base": "af6ee5e",
+  "descripcion": "Nueve incidentes INC-0039..0047 de la sesión rootml-0e, tabla del corpus y CHANGELOG",
   "scope_paths": [
-    "adapters/codex/LEEME.md"
+    "incidents/**",
+    "corpus/**",
+    "CHANGELOG.md"
   ],
   "checks": [
     "rompelo.tests",
@@ -14,9 +16,9 @@
     "rompelo.observe-tests",
     "rompelo.control-negativo-sesiones"
   ],
-  "toca_junta": true,
+  "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Leídos Parte 3, CHANGELOG, ayuda, README, LEEME y observación §9: --id repetible acotado al contrato; argumentos sueltos inválidos; llamadas separadas del observador; allowlist por raíz y worktree aparte. Baterías previas 113/113 y 75/75. Sin construcción del detector opcional INC-0038 ni cambios en hooks o confianza."
+  "segunda_pasada": "Revisado: los nueve YAML cargan con las 14 claves; fuentes en ~/tails comprobadas línea a línea; TABLA regenerada (47, I=27); generador da 2 sin clave; dos gates agrupados (0046→instrumento-control-positivo, 0043→plausibilidad-fisica). No se tocó bin/ ni tests/."
 }
