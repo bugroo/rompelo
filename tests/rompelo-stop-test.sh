@@ -174,11 +174,15 @@ contrato 'checks=["hay-a","ko"]' 'toca_junta=false'
 "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -eq 1 ] && grep -q 'FALLÓ' "$T/ci.txt" && ok "--ci en rojo con un check que falla" || bad "--ci ko" "$(cat "$T/ci.txt")"
 contrato 'checks=["hay-a","ok"]'
 "$ASSURE" verify --ci --json | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["ok"] and d["advertencias"]==[]' && ok "--ci --json bien formado" || bad "--ci --json"
-echo "── registro de respaldo en el repo cuando ROMPELO_HOME no tiene ninguno (runner de CI)"
+echo "── registro del consumidor (RMP-005): explícito con ROMPELO_REGISTRO=repo, nunca implícito"
 mkdir -p "$T/vacio"; printf '{"hay-a": {"argv": ["test","-f","src/a.txt"]}, "ok": {"argv": ["true"]}}' > .rompelo/registry.json
-ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >/dev/null 2>&1 && ok "sin registro en HOME, vale .rompelo/registry.json del repo" || bad "fallback"
+ROMPELO_REGISTRO=repo ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1 && grep -q 'registro: .rompelo/registry.json' "$T/ci.txt" && ok "ROMPELO_REGISTRO=repo usa .rompelo/registry.json del repo y lo dice" || bad "registro repo" "$(cat "$T/ci.txt")"
+ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -ne 0 ] && grep -q 'ROMPELO_REGISTRO=repo' "$T/ci.txt" && ok "sin registro en HOME y sin la variable: error que explica cómo habilitarlo (antes cargaba el del repo en silencio)" || bad "fallback implícito" "$(cat "$T/ci.txt")"
+printf '{"ok": {"argv": ["true"]}}' > "$T/vacio.json"; mkdir -p "$T/conglobal/checks"; cp "$T/vacio.json" "$T/conglobal/checks/registry.json"
+ROMPELO_REGISTRO=repo ROMPELO_HOME="$T/conglobal" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1 && grep -q 'registro: .rompelo/registry.json' "$T/ci.txt" && ok "con registro global presente, =repo sigue eligiendo el del consumidor (topología real de la plantilla)" || bad "repo con global" "$(cat "$T/ci.txt")"
+ROMPELO_HOME="$T/conglobal" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -eq 1 ] && grep -q 'hay-a.*no está en el registro' "$T/ci.txt" && ok "sin la variable manda el global aunque le falte el check: bloquea, no ejecuta el del repo" || bad "global manda" "$(cat "$T/ci.txt")"
 rm .rompelo/registry.json
-ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -eq 1 ] && grep -q 'no está en el registro' "$T/ci.txt" && ok "sin ningún registro: bloquea, no ejecuta" || bad "sin registro" "$(cat "$T/ci.txt")"
+ROMPELO_HOME="$T/vacio" "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -ne 0 ] && ok "sin ningún registro: error, no ejecuta" || bad "sin registro" "$(cat "$T/ci.txt")"
 "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
 
 echo "── contrato cambiado después del cierre (hallazgo de Codex, 05-09)"
@@ -193,8 +197,65 @@ import json,sys;f=sys.argv[1];r=json.load(open(f));r['local']={'argv':['false'],
 PY2
 contrato 'checks=["hay-a","ok","local"]'
 "$ASSURE" verify --ci >"$T/ci.txt" 2>&1; rc=$?; [ $rc -eq 0 ] && grep -q 'solo_local' "$T/ci.txt" && ok "--ci salta el check solo_local y lo dice" || bad "solo_local en CI" "rc=$rc $(cat "$T/ci.txt")"
+echo "── resultado de CI (RMP-006): lo ejecutado pasa ≠ contrato completo"
+grep -q 'puede cerrarse' "$T/ci.txt" && bad "CI dice «puede cerrarse» con un check sin comprobar" "$(cat "$T/ci.txt")" || ok "con un check omitido, CI no dice «puede cerrarse»"
+grep -q 'INCOMPLETO' "$T/ci.txt" && ok "lo llama INCOMPLETO y nombra lo que falta" || bad "sin INCOMPLETO" "$(cat "$T/ci.txt")"
+"$ASSURE" verify --ci --json > "$T/ci.json" 2>/dev/null; python3 - "$T/ci.json" <<'PY'
+import json,sys;d=json.load(open(sys.argv[1]))
+assert d["ok"] is True and d["completo"] is False, d
+assert d["resultados"]["local"]=="SKIPPED" and d["resultados"]["ok"]=="PASS" and d["resultados"]["hay-a"]=="PASS", d["resultados"]
+PY
+[ $? -eq 0 ] && ok "--json: ok=true (lo ejecutado pasa), completo=false, resultados PASS/SKIPPED por check" || bad "json ci" "$(cat "$T/ci.json")"
+"$ASSURE" verify --ci --estricto >/dev/null 2>&1; [ $? -eq 1 ] && ok "--estricto: un check omitido bloquea" || bad "estricto con SKIPPED"
+contrato 'excepciones=[{"que":"local","motivo":"necesita el navegador de esta máquina; cruzado a mano el 07-09","quien":"jose"}]'
+"$ASSURE" verify --ci --json > "$T/ci.json" 2>/dev/null; rc=$?; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["completo"] is True and d["resultados"]["local"]=="WAIVED",d' "$T/ci.json" && [ $rc -eq 0 ] && ok "excepción explícita en el contrato: WAIVED y completo" || bad "waiver" "$(cat "$T/ci.json")"
+"$ASSURE" verify --ci --estricto >/dev/null 2>&1; [ $? -eq 0 ] && ok "--estricto acepta la excepción explícita (trazable en el contrato)" || bad "estricto con WAIVED"
+contrato 'excepciones=[{"que":"local"}]'
+"$ASSURE" verify --ci >"$T/ci.txt" 2>&1; [ $? -ne 0 ] && grep -q 'excepciones' "$T/ci.txt" && ok "una excepción sin motivo ni quién se rechaza" || bad "waiver sin motivo aceptado" "$(cat "$T/ci.txt")"
+contrato 'excepciones=[]'
+contrato 'checks=["hay-a","ok"]' 'toca_junta=true'
+"$ASSURE" verify --ci --json > "$T/ci.json" 2>/dev/null; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["completo"] is False and d["resultados"]["junta"]=="SKIPPED",d' "$T/ci.json" && ok "la junta sin cruzar en CI es SKIPPED, no silencio" || bad "junta skipped" "$(cat "$T/ci.json")"
+contrato 'excepciones=[{"que":"junta","motivo":"cruzada a mano contra staging el 07-09","quien":"jose"}]'
+"$ASSURE" verify --ci --estricto --json > "$T/ci.json" 2>/dev/null; rc=$?; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["completo"] is True and d["resultados"]["junta"]=="WAIVED",d' "$T/ci.json" && [ $rc -eq 0 ] && ok "junta con excepción explícita: WAIVED también en --estricto" || bad "junta waived" "$(cat "$T/ci.json")"
+contrato 'excepciones=[]' 'toca_junta=false' 'checks=["hay-a","ok","local"]'
 "$ASSURE" check >/dev/null 2>&1; [ $? -eq 1 ] && ok "fuera de CI el check solo_local sí corre (y aquí falla)" || bad "solo_local local"
 contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+
+echo "── contrato efectivo único (RMP-008): el perfil exige junta; close y verify juzgan lo mismo"
+contrato 'checks=["hay-a","ok"]' 'toca_junta=false' 'segunda_pasada="revisado"' 'estado="abierta"'
+EST1="$ROMPELO_HOME/state/repos/$(python3 -c "import hashlib,os,sys;print(hashlib.sha256(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:16])" "$R").json"
+mkdir -p "$(dirname "$EST1")"; printf '{"nivel": 2, "perfiles": ["junta"], "patrones": []}' > "$EST1"
+"$ASSURE" check >/dev/null; rm -f .rompelo/evidence/T1/cruce.json
+espera_bloqueo "perfil junta con toca_junta:false: exige cruce" ef1 "perfil \`junta\`"
+"$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >"$T/close.txt" 2>&1 && ok "close con la junta exigida por perfil" || bad "close perfil" "$(cat "$T/close.txt")"
+espera_paso "verify justo después de close, sin tocar nada: silencio (antes: «el contrato cambió»)" ef2
+grep -q 'cruce real de la junta' .rompelo/evidence/T1/INFORME.md && ok "el informe cuenta el cruce que de verdad se exigió" || bad "informe sin cruce" "$(cat .rompelo/evidence/T1/INFORME.md)"
+python3 -c 'import json;c=json.load(open(".rompelo/task.json"));o=c["obligaciones_efectivas"];assert o["toca_junta"] is True and o["nivel"]==2 and "junta" in o["perfiles"],o' && ok "el contrato lleva las obligaciones efectivas con las que se cerró (viajan con la tarea)" || bad "obligaciones_efectivas"
+python3 - <<'PY'
+import json;f='.rompelo/task.json';c=json.load(open(f));c['obligaciones_efectivas']['toca_junta']=False;json.dump(c,open(f,'w'))
+PY
+espera_bloqueo "rebajar a mano las obligaciones efectivas invalida el cierre" ef3 "contrato cambió"
+"$ASSURE" close >/dev/null 2>&1; espera_paso "re-cerrado: silencio" ef4
+
+echo "── checks: [] no apaga los de nivel 3 (RMP-014)"
+contrato 'checks=[]' 'checks_nivel3=["habla"]' 'estado="abierta"'
+printf '{"nivel": 3, "perfiles": [], "patrones": [], "permisos": ["x"]}' > "$EST1"
+"$ASSURE" check > "$T/n3.txt" 2>&1; rc=$?
+[ $rc -eq 0 ] && grep -q 'habla' "$T/n3.txt" && [ -f .rompelo/evidence/T1/check-habla.json ] && ok "rompelo check ejecuta el de nivel 3 aunque checks esté vacío" || bad "nivel3 con checks vacío rc=$rc" "$(cat "$T/n3.txt")"
+"$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null 2>&1 && ok "y cierra" || bad "close n3"
+echo "── las obligaciones viajan: un runner sin estado local exige lo mismo que había al cerrar"
+mkdir -p "$T/runner/checks"; cp "$ROMPELO_HOME/checks/registry.json" "$T/runner/checks/"
+ROMPELO_HOME="$T/runner" "$ASSURE" verify --ci --json > "$T/ci.json" 2>/dev/null; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["resultados"].get("habla")=="PASS",d' "$T/ci.json" && ok "CI sin estado ejecuta el check de nivel 3 que el cierre dejó escrito" || bad "obligaciones en CI" "$(cat "$T/ci.json")"
+contrato 'checks=["hay-a","ok"]' 'checks_nivel3=[]' 'obligaciones_efectivas=null'; rm -f "$EST1"
+"$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null 2>&1
+
+echo "── tope alcanzado ≠ verificado: queda escrito"
+contrato 'estado="abierta"' 'checks=["ko"]'; "$ASSURE" check >/dev/null 2>&1
+for i in 1 2 3 4; do hook claude tope9 "$R" >/dev/null; done
+[ -f .rompelo/evidence/T1/SIN-VERIFICAR.json ] && grep -q 'FALLÓ' .rompelo/evidence/T1/SIN-VERIFICAR.json && ok "tras el tope queda SIN-VERIFICAR.json con los motivos" || bad "sin marca de SIN VERIFICAR"
+"$ASSURE" status 2>/dev/null | grep -q 'SIN VERIFICAR' && ok "status lo dice" || bad "status calla el SIN VERIFICAR" "$("$ASSURE" status 2>/dev/null | head -3)"
+contrato 'checks=["hay-a","ok"]'; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null 2>&1
+[ ! -f .rompelo/evidence/T1/SIN-VERIFICAR.json ] && ok "un cierre de verdad la quita" || bad "SIN-VERIFICAR persiste tras cerrar"
 
 echo "── init sin --check detecta los checks del repo"
 R2="$T/repo2"; mkdir -p "$R2/src"; (cd "$R2" && git init -q && git config user.email t@t && git config user.name t \

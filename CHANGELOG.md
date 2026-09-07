@@ -25,6 +25,17 @@ no verificado de cada versión está en el relevo enlazado.
   instrumento, no «FALLÓ con código». La evidencia guarda programa y hash del argv, no el argv: una cabecera
   o una URL con credencial ya no llega a `.rompelo/evidence/` ni al informe. `ROMPELO_DEBUG_FORMA` guarda
   la longitud del texto, no su cabeza.
+- **Contrato efectivo único y CI sin falsos completos (RMP-005/006/008/014).** `contrato_efectivo()` es lo
+  que leen `check`, `verify`, `close`, hook e informe: `close` firma el contrato escrito y `verify` compara
+  lo mismo (antes un perfil `junta` hacía que verify dijera «el contrato cambió» nada más cerrar).
+  `checks: []` ya no apaga los `checks_nivel3`. `close` escribe `obligaciones_efectivas` en el contrato y
+  CI las exige sin estado local. `verify --ci` informa `PASS/FAIL/ERROR/SKIPPED/WAIVED` por obligación,
+  distingue «contrato completo» de «OK PARCIAL, INCOMPLETO» y nunca dice «puede cerrarse» con algo
+  omitido; `excepciones: [{que, motivo, quien}]` en el contrato es la única forma de un `WAIVED`.
+  `ROMPELO_REGISTRO=repo` elige el registro del consumidor a propósito (la plantilla lo pone; sin
+  registro es error, no carga implícita). El tope de 3 bloqueos deja `SIN-VERIFICAR.json` en la evidencia,
+  `status` lo dice y solo un `close` real lo quita. Plantilla de CI con `permissions: contents: read` y
+  revisión de rompelo fijable (`ROMPELO_REV`).
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.

@@ -36,6 +36,7 @@ EN = {
     "estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but there are changes after closing (different fingerprint). Run `rompelo check` and `rompelo close` again.",
     "fuera de scope_paths: {lista}": "outside scope_paths: {lista}",
     "check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta": "check `{cid}` is not in the registry ({reg}); it neither runs nor counts",
+    "check `{cid}` es solo_local y no se ha comprobado aquí (--estricto)": "check `{cid}` is solo_local and was not checked here (--estricto)",
     "check `{cid}` sin ejecutar (usa `rompelo check`)": "check `{cid}` not run (use `rompelo check`)",
     "check `{cid}` cambió en el registro después de ejecutarse": "check `{cid}` changed in the registry after it ran",
     "check `{cid}` FALLÓ con código {codigo}": "check `{cid}` FAILED with exit code {codigo}",
@@ -268,16 +269,31 @@ def cerrojo(f):
             fcntl.flock(lk, fcntl.LOCK_UN)
 
 
-def registro(root=None):
-    """registry.json (versionado, checks genéricos) + registry.local.json (sin versionar,
-    checks de tus repos). Los locales ganan si repiten un id. Si ROMPELO_HOME no tiene ningún
-    registro (un runner de CI), vale `.rompelo/registry.json` del propio repo: ahí el repo es la
-    fuente de confianza, porque sus cambios pasan por revisión."""
-    fuentes = [REGISTRO, REGISTRO_LOCAL]
-    if root and not any(os.path.exists(f) for f in fuentes):
+def fuentes_registro(root=None):
+    """De dónde salen los checks. ROMPELO_REGISTRO=home (defecto): registry.json + registry.local.json de
+    ROMPELO_HOME (los locales ganan si repiten un id). ROMPELO_REGISTRO=repo: SOLO `.rompelo/registry.json` del
+    repo, para CI, donde el repo es la fuente de confianza porque sus cambios pasan por revisión. Nunca se
+    cargan comandos de un repo en silencio: sin registro en HOME el error dice cómo habilitar el del repo
+    (RMP-005: la plantilla prometía leer el del consumidor y leía el del clon de rompelo)."""
+    modo = os.environ.get("ROMPELO_REGISTRO", "home")
+    if modo == "repo":
+        if not root:
+            raise ValueError("ROMPELO_REGISTRO=repo solo vale dentro de un repo")
         fuentes = [os.path.join(root, ".rompelo", "registry.json")]
+    elif modo == "home":
+        fuentes = [REGISTRO, REGISTRO_LOCAL]
+    else:
+        raise ValueError(f"ROMPELO_REGISTRO tiene que ser home o repo, no {modo!r}")
+    existentes = [f for f in fuentes if os.path.exists(f)]
+    if not existentes:
+        raise ValueError(f"no hay registro de checks ({' ni '.join(fuentes)}). Crea {REGISTRO}, o en CI usa "
+                         "ROMPELO_REGISTRO=repo para leer .rompelo/registry.json del repo")
+    return existentes
+
+
+def registro(root=None):
     r = {}
-    for f in fuentes:
+    for f in fuentes_registro(root):
         try:
             parte = leer_json(f)
         except FileNotFoundError:
@@ -344,9 +360,9 @@ def hash_check(e):
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
 
-def hash_registro(root, c):
+def hash_registro(root, checks):
     reg = registro(root)
-    d = {cid: hash_check(reg[cid]) if cid in reg else None for cid, _ in checks_exigidos(root, c)}
+    d = {cid: hash_check(reg[cid]) if cid in reg else None for cid, _ in checks}
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -382,22 +398,55 @@ def leer_contrato(root):
         raise ValueError("checks_nivel3: lista de ids del registro; se exigen solo cuando el repo está a nivel 3 (permiso)")
     if not isinstance(c.get("hallazgos", []), list):
         raise ValueError("hallazgos tiene que ser una lista")
+    for x in c.get("excepciones") or []:
+        if not (isinstance(x, dict) and all(str(x.get(k) or "").strip() for k in ("que", "motivo", "quien"))):
+            raise ValueError("excepciones: lista de {que: <id de check | junta>, motivo, quien}; una excepción sin motivo ni responsable no existe")
+    oe = c.get("obligaciones_efectivas")
+    if oe is not None and not isinstance(oe, dict):
+        raise ValueError("obligaciones_efectivas tiene que ser un objeto (lo escribe `rompelo close`)")
     return c
 
 
-def checks_exigidos(root, c):
-    """[(id, es_nivel3)]: los del contrato siempre; los de `checks_nivel3` solo si el observador ha
-    subido el repo a nivel 3 con permiso (docs/observacion.md §5)."""
-    out = [(cid, False) for cid in c["checks"]]
-    if int(estado_repo(root).get("nivel", 0) or 0) >= 3:
-        out += [(cid, True) for cid in (c.get("checks_nivel3") or []) if cid not in c["checks"]]
-    return out
+def contrato_efectivo(root, ci=False):
+    """Lo que de verdad se exige, en un solo sitio: el contrato escrito más lo que impone la observación
+    (nivel ≥ 2: perfiles `junta`/`exterior` y segunda pasada; nivel 3: `checks_nivel3`) y más las
+    `obligaciones_efectivas` con las que se cerró la última vez (viajan en el contrato: un runner de CI sin
+    estado local exige lo mismo). check, verify, close, hook e informe consumen ESTO (RMP-008/014).
+    Devuelve (contrato efectivo, info) con info.hash = hash del contrato ESCRITO, que es lo que firma close."""
+    c = leer_contrato(root)
+    # En local manda el estado del observador (y `rompelo nivel bajar` lo baja de verdad). En CI no hay estado:
+    # mandan las obligaciones_efectivas que escribió el último close, que van en el contrato y pasan por revisión.
+    fuente = (c.get("obligaciones_efectivas") or {}) if ci else estado_repo(root)
+    nivel = int(fuente.get("nivel", 0) or 0)
+    perfiles = set(fuente.get("perfiles") or [])
+    oe = c.get("obligaciones_efectivas") or {}
+    ef = dict(c)
+    info = {"hash": hash_contrato(c), "nivel": nivel, "perfiles": sorted(perfiles), "patrones": list(fuente.get("patrones") or []),
+            "junta_por_perfil": False, "exterior_por_perfil": False, "segunda_pasada": nivel >= 2}
+    if nivel >= 2:
+        if "junta" in perfiles and not c["toca_junta"]:
+            ef["toca_junta"] = True
+            info["junta_por_perfil"] = True
+        if "exterior" in perfiles and not c.get("toca_exterior"):
+            ef["toca_exterior"] = True
+            info["exterior_por_perfil"] = True
+    checks = [(cid, False) for cid in c["checks"]]
+    extra = list(c.get("checks_nivel3") or []) if nivel >= 3 else []
+    if ci:
+        extra += [x for x in (oe.get("checks") or []) if x not in extra]
+    checks += [(cid, True) for cid in extra if cid not in c["checks"] and ID_OK.match(str(cid))]
+    info["checks"] = checks
+    return ef, info
+
+
+def checks_exigidos(root, ci=False):
+    return contrato_efectivo(root, ci)[1]["checks"]
 
 
 def hash_contrato(c):
     """Huella del contrato sin `estado`: si cambian checks, scope, junta, hallazgos o
     afirmaciones después del cierre, el cierre deja de valer (hallazgo de Codex, 05-09-2026)."""
-    d = {k: v for k, v in c.items() if k != "estado"}
+    d = {k: v for k, v in c.items() if k != "estado"}  # obligaciones_efectivas SÍ entra: rebajarlas a mano invalida el cierre
     return hashlib.sha256(json.dumps(d, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
 
 
@@ -440,32 +489,23 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
     En CI no se cree ninguna evidencia guardada (la pudo escribir el agente): los checks se
     ejecutan de nuevo allí. El cruce real no se puede reproducir en CI: queda como advertencia,
     o como bloqueo con --estricto."""
-    c = leer_contrato(root)
+    c, info = contrato_efectivo(root, ci=bool(ci))
     ev = dir_evidencia(root, c)
     hu = huella_arbol(root, c.get("base"))
     m = []
-    junta_por_perfil = False
-    # La observación (§5 de docs/observacion.md) puede haber subido el nivel del repo. A nivel 2
-    # el perfil manda sobre lo que el agente escribió en el contrato.
-    obs = estado_repo(root)
-    if obs.get("nivel", 0) >= 2:
-        perfiles = set(obs.get("perfiles") or [])
-        if "junta" in perfiles and not c["toca_junta"]:
-            c = dict(c, toca_junta=True)
-            junta_por_perfil = True
-        if "exterior" in perfiles and not c.get("toca_exterior"):
-            c = dict(c, toca_exterior=True)
-        if not str(c.get("segunda_pasada") or "").strip():
-            m.append(_("observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
-                       nivel=int(obs.get("nivel", 0) or 0), patrones=", ".join(sorted(obs.get("patrones") or [])) or _("por permiso, sin patrones")))
+    junta_por_perfil = info["junta_por_perfil"]
+    exc = {str(x.get("que")): x for x in (c.get("excepciones") or [])}
+    if info["segunda_pasada"] and not str(c.get("segunda_pasada") or "").strip():
+        m.append(_("observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
+                   nivel=info["nivel"], patrones=", ".join(sorted(info["patrones"])) or _("por permiso, sin patrones")))
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
-        cierre_vigente = (cerr and cerr.get("huella") == hu and cerr.get("contrato") == hash_contrato(c)
-                          and cerr.get("registro") == hash_registro(root, c))
+        cierre_vigente = (cerr and cerr.get("huella") == hu and cerr.get("contrato") == info["hash"]
+                          and cerr.get("registro") == hash_registro(root, info["checks"]))
         # Un cierre no borra un check que se volvió a ejecutar y ahora falla.
         if not cierre_vigente and not para_cerrar:
-            if cerr and cerr.get("huella") == hu and cerr.get("contrato") == hash_contrato(c):
+            if cerr and cerr.get("huella") == hu and cerr.get("contrato") == info["hash"]:
                 m.append(_("estado: cerrada, pero cambió en el registro la definición de un check. Vuelve a `rompelo check` y `rompelo close`."))
             elif cerr and cerr.get("huella") == hu:
                 m.append(_("estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`."))
@@ -480,31 +520,53 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
         m.append(_("fuera de scope_paths: {lista}", lista=", ".join(fuera[:8]) + (" …" if len(fuera) > 8 else "")))
 
     reg = registro(root)
-    for cid, n3 in checks_exigidos(root, c):
+    for cid, n3 in info["checks"]:
         pre = _("nivel 3: ") if n3 else ""
         if cid not in reg:
-            m.append(pre + _("check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta", cid=cid, reg=REGISTRO))
+            m.append(pre + _("check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta", cid=cid, reg=" / ".join(fuentes_registro(root))))
+            if ci:
+                ci["resultados"][cid] = "ERROR"
             continue
         resolver_check(cid, root)  # también rechaza un control malformado antes de creer evidencia
         e = ci["evidencias"].get(cid) if ci else leer_evidencia(ev, f"check-{cid}.json")
         if ci and e and e.get("saltado"):
+            if cid in exc:
+                ci["resultados"][cid] = "WAIVED"
+                ci["advertencias"].append(f"check `{cid}` WAIVED: {exc[cid]['motivo']} ({exc[cid]['quien']})")
+            else:
+                ci["resultados"][cid] = "SKIPPED"
+                if ci.get("estricto"):
+                    m.append(pre + _("check `{cid}` es solo_local y no se ha comprobado aquí (--estricto)", cid=cid))
             continue
+        if ci:
+            ci["resultados"][cid] = "PASS"  # se corrige abajo si hay motivo
         if e is None:
             m.append(pre + _("check `{cid}` sin ejecutar (usa `rompelo check`)", cid=cid))
+            if ci:
+                ci["resultados"][cid] = "ERROR"
         elif e.get("definicion") != hash_check(reg[cid]):
             m.append(pre + _("check `{cid}` cambió en el registro después de ejecutarse", cid=cid))
+            if ci:
+                ci["resultados"][cid] = "ERROR"
         else:
             motivo = motivo_check(cid, reg[cid], e)
             if motivo:
                 m.append(pre + motivo)
+                if ci:
+                    ci["resultados"][cid] = "ERROR" if e.get("instrumento") not in (None, "operativo") else "FAIL"
             elif not huella_vigente(e.get("huella")):
                 m.append(pre + _("check `{cid}`: evidencia con formato de huella antiguo; vuelve a ejecutar `rompelo check` (no se migra)", cid=cid))
             elif e.get("huella") != hu:
                 m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
 
     if c["toca_junta"] and ci:
-        txt = _("toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.")
-        (m if ci.get("estricto") else ci["advertencias"]).append(txt)
+        if "junta" in exc:
+            ci["resultados"]["junta"] = "WAIVED"
+            ci["advertencias"].append(f"junta WAIVED: {exc['junta']['motivo']} ({exc['junta']['quien']})")
+        else:
+            ci["resultados"]["junta"] = "SKIPPED"
+            txt = _("toca_junta: true. El cruce real no se puede reproducir en CI; hay que hacerlo fuera y quedar registrado con `rompelo cruce`.")
+            (m if ci.get("estricto") else ci["advertencias"]).append(txt)
     elif c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json")
         mc = []
@@ -797,13 +859,13 @@ def cmd_check(root, args):
     if sobrantes or ("--id" in args and not pedidos):
         sys.exit(f"rompelo check: argumento(s) no reconocido(s): {' '.join(sobrantes) or '--id sin valor'}\n"
                  "uso: rompelo check [--id ID]...   (sin --id ejecuta todos los checks exigidos por el contrato)")
-    c = leer_contrato(root)
+    c, info = contrato_efectivo(root)
     ev = dir_evidencia(root, c)
-    if not c["checks"]:
-        print("el contrato no tiene checks")
+    exigidos = info["checks"]  # los de nivel 3 se exigen aunque `checks` esté vacío (RMP-014)
+    if not exigidos:
+        print("el contrato no exige ningún check" + (" (checks_nivel3 solo cuenta a nivel 3)" if c.get("checks_nivel3") else ""))
         return 0
     fallos = 0
-    exigidos = checks_exigidos(root, c)
     if pedidos:
         conocidos = {cid for cid, _n3 in exigidos}
         desconocidos = [p for p in pedidos if p not in conocidos]
@@ -850,17 +912,20 @@ def cmd_cruce(root, args):
 def cmd_verify(root, args):
     ci = None
     if "--ci" in args:
-        c = leer_contrato(root)
-        ci = {"evidencias": {}, "estricto": "--estricto" in args, "advertencias": []}
+        c, info = contrato_efectivo(root, ci=True)
+        ci = {"evidencias": {}, "estricto": "--estricto" in args, "advertencias": [], "resultados": {}}
         hu = huella_arbol(root, c.get("base"))
-        for cid, _n3 in checks_exigidos(root, c):
+        if "--json" not in args:
+            print("registro: " + " + ".join(os.path.relpath(f, root) if f.startswith(root + os.sep) else f for f in fuentes_registro(root)))
+        for cid, _n3 in info["checks"]:
             try:
                 argv, cwd = resolver_check(cid, root)
             except ValueError:
                 continue  # lo reporta motivos_bloqueo como «no está en el registro»
             if registro(root).get(cid, {}).get("solo_local"):
                 ci["evidencias"][cid] = {"saltado": True}
-                ci["advertencias"].append(f"check `{cid}` es solo_local: no se ejecuta en CI (necesita algo de la máquina de quien lo cruza)")
+                if not any(str(x.get("que")) == cid for x in (c.get("excepciones") or [])):
+                    ci["advertencias"].append(f"check `{cid}` es solo_local: no se ejecuta en CI (necesita algo de la máquina de quien lo cruza)")
                 continue
             e = ejecutar_check(cid, root)
             e["huella"] = hu
@@ -868,11 +933,26 @@ def cmd_verify(root, args):
             if "--json" not in args:
                 print(f"[ci] {cid}: " + resumen_check(registro(root)[cid], e))
     m = motivos_bloqueo(root, ci=ci)
-    if ci and ci["advertencias"] and "--json" not in args:
+    if ci:
+        # ok = lo ejecutado pasa · completo = no queda nada sin comprobar (SKIPPED). WAIVED es una excepción
+        # explícita del contrato (que, motivo, quien): cuenta como completo y queda a la vista (RMP-006).
+        sin_comprobar = sorted(k for k, v in ci["resultados"].items() if v == "SKIPPED")
+        completo = not sin_comprobar
+        if "--json" in args:
+            print(json.dumps({"ok": not m, "completo": completo, "resultados": ci["resultados"], "motivos": m,
+                              "advertencias": ci["advertencias"]}, ensure_ascii=False))
+            return 0 if not m else 1
         for a in ci["advertencias"]:
             print("ADVERTENCIA: " + a)
-    if ci and "--json" in args:
-        print(json.dumps({"ok": not m, "motivos": m, "advertencias": ci["advertencias"]}, ensure_ascii=False))
+        if m:
+            print("BLOQUEADO:")
+            for x in m:
+                print("  - " + x)
+        elif not completo:
+            print("OK PARCIAL, contrato INCOMPLETO: lo ejecutado pasa; sin comprobar aquí: " + ", ".join(sin_comprobar)
+                  + ". El cierre lo decide quien cruce eso fuera de CI (o una excepción explícita en `excepciones`).")
+        else:
+            print("OK: contrato completo en CI (" + ", ".join(f"{k}={v}" for k, v in sorted(ci["resultados"].items())) + ")")
         return 0 if not m else 1
     if "--json" in args:
         print(json.dumps({"ok": not m, "motivos": m}, ensure_ascii=False))
@@ -892,16 +972,25 @@ def cmd_close(root, args):
         for x in m:
             print("  - " + x)
         return 1
+    ef, info = contrato_efectivo(root)
     c = leer_contrato(root)
     ev = dir_evidencia(root, c)
     hu = huella_arbol(root, c.get("base"))
-    escribir_evidencia(ev, "cerrada.json", {"huella": hu, "contrato": hash_contrato(c),
-                                          "registro": hash_registro(root, c), "fecha": ahora()})
-    _, f = rutas(root)
+    # Las obligaciones con las que se cierra viajan en el contrato (versionado y revisado): un runner de CI
+    # sin estado local exige lo mismo, y rebajarlas a mano cambia el hash del contrato e invalida el cierre.
+    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "perfiles": info["perfiles"],
+                                   "checks": [cid for cid, _n3 in info["checks"]], "toca_junta": bool(ef["toca_junta"]),
+                                   "toca_exterior": bool(ef.get("toca_exterior")), "fecha": ahora()}
     c["estado"] = "cerrada"
-    with open(f, "w") as fh:
-        json.dump(c, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
+    escribir_evidencia(ev, "cerrada.json", {"huella": hu, "contrato": hash_contrato(c),
+                                          "registro": hash_registro(root, info["checks"]), "fecha": ahora(),
+                                          "obligaciones": c["obligaciones_efectivas"]})
+    _, f = rutas(root)
+    escribir_json_atomico(f, c)
+    try:
+        os.remove(os.path.join(ev, "SIN-VERIFICAR.json"))  # un cierre de verdad borra la marca del tope
+    except FileNotFoundError:
+        pass
     informe = informe_llano(root, c, ev)
     with open(os.path.join(ev, "INFORME.md"), "w") as fh:
         fh.write(informe)
@@ -914,8 +1003,9 @@ def informe_llano(root, c, ev):
     """Tres bloques para quien no lee código: qué se comprobó, qué no se pudo comprobar,
     qué queda a su cargo. Solo hechos que están en la evidencia."""
     reg = registro(root)
+    c, info = contrato_efectivo(root)
     comprobado, no_pudo, a_cargo = [], [], []
-    for cid, n3 in checks_exigidos(root, c):
+    for cid, n3 in info["checks"]:
         e = leer_evidencia(ev, f"check-{cid}.json") or {}
         nota = " (solo en esta máquina; CI no lo repite)" if reg.get(cid, {}).get("solo_local") else ""
         if n3:
@@ -928,7 +1018,8 @@ def informe_llano(root, c, ev):
             no_pudo.append(f"{cid}: sin control positivo registrado; no se registró una ejecución separada del caso malo")
     if c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json") or {}
-        comprobado.append(f"cruce real de la junta: {cr.get('programa')} ({cr.get('n_args')} argumentos, argv sha {cr.get('argv_sha')})" + (f" · {cr.get('nota')}" if cr.get("nota") else ""))
+        comprobado.append(f"cruce real de la junta{' (exigida por el perfil junta, no por el contrato)' if info['junta_por_perfil'] else ''}: "
+                          f"{cr.get('programa')} ({cr.get('n_args')} argumentos, argv sha {cr.get('argv_sha')})" + (f" · {cr.get('nota')}" if cr.get("nota") else ""))
     for a in c.get("afirmaciones") or []:
         if not isinstance(a, dict):
             continue
@@ -971,7 +1062,9 @@ def informe_llano(root, c, ev):
 def cmd_status(root, args):
     c = leer_contrato(root)
     est = estado_repo(root)
-    print(f"tarea {c['id']} · estado {c['estado']} · huella {huella_arbol(root, c.get('base'))} · nivel {est.get('nivel', 0)} {est.get('perfiles', [])} {est.get('patrones', [])}")
+    sv = leer_evidencia(dir_evidencia(root, c), "SIN-VERIFICAR.json")
+    print(f"tarea {c['id']} · estado {c['estado']}" + (f" · SIN VERIFICAR desde {sv.get('fecha', '')[:16]} (tope de bloqueos alcanzado)" if sv else "")
+          + f" · huella {huella_arbol(root, c.get('base'))} · nivel {est.get('nivel', 0)} {est.get('perfiles', [])} {est.get('patrones', [])}")
     print(f"scope: {c['scope_paths']}  checks: {c['checks']}")
     print(f"cambiados: {ficheros_cambiados(root, c.get('base'))}")
     return cmd_verify(root, args)
@@ -1482,6 +1575,13 @@ def cmd_hook(agente, args):
     except Exception:
         pass
     if n > TOPE_BLOQUEOS:
+        # El agente puede terminar el turno; la tarea NO está verificada, y eso queda escrito donde lo lee
+        # `rompelo status` y lo borra solo un `rompelo close` de verdad.
+        try:
+            escribir_evidencia(dir_evidencia(root, leer_contrato(root)), "SIN-VERIFICAR.json",
+                               {"fecha": ahora(), "agente": agente, "sesion": sid, "motivos": m})
+        except Exception:
+            pass
         print(json.dumps({"systemMessage": _("[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ", tope=TOPE_BLOQUEOS, tid=tid) + " | ".join(m)}, ensure_ascii=False))
         return 0
     texto = _("[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n", tid=tid, n=n, tope=TOPE_BLOQUEOS) + "\n".join("- " + x for x in m)

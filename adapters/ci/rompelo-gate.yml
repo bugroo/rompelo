@@ -2,20 +2,29 @@
 # El juez independiente: vuelve a ejecutar los checks del contrato en un runner donde el agente
 # no ha escrito nada. No se cree la evidencia guardada. El cruce real no se puede reproducir
 # aquí y sale como advertencia (o como bloqueo con --estricto).
-# El registro de checks lo lee de .rompelo/registry.json de tu repo (en CI no hay ~/rompelo).
+# El registro de checks lo lee de .rompelo/registry.json de TU repo: ROMPELO_REGISTRO=repo lo elige a
+# propósito (el clon de rompelo trae su propio checks/registry.json y sin la variable mandaría ese).
+# Resultado: «OK: contrato completo», «OK PARCIAL, contrato INCOMPLETO» (algo solo_local o la junta sin
+# comprobar aquí: ni es un fallo ni es un cierre) o «BLOQUEADO». Con --estricto lo omitido bloquea salvo
+# excepción explícita en el contrato (`excepciones: [{que, motivo, quien}]`).
 name: rompelo gate
 on:
   pull_request:
   push:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }   # la huella compara con el commit base del contrato
+        with: { fetch-depth: 0 }   # la base del contrato tiene que existir en el clon: si falta, es ERROR
       - name: rompelo
+        env:
+          ROMPELO_REV: main   # fija aquí un SHA concreto de github.com/bugroo/rompelo cuando lo apruebes
         run: |
-          git clone --depth 1 https://github.com/bugroo/rompelo "$RUNNER_TEMP/rompelo"
-          # fija un commit concreto en cuanto lo tengas: git -C "$RUNNER_TEMP/rompelo" checkout <sha>
-          ROMPELO_HOME="$RUNNER_TEMP/rompelo" "$RUNNER_TEMP/rompelo/bin/rompelo" verify --ci
+          git clone --no-checkout https://github.com/bugroo/rompelo "$RUNNER_TEMP/rompelo"
+          git -C "$RUNNER_TEMP/rompelo" checkout -q "$ROMPELO_REV"
+          echo "rompelo en $(git -C "$RUNNER_TEMP/rompelo" rev-parse HEAD)"
+          ROMPELO_HOME="$RUNNER_TEMP/rompelo" ROMPELO_REGISTRO=repo "$RUNNER_TEMP/rompelo/bin/rompelo" verify --ci

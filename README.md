@@ -102,6 +102,24 @@ and reports the real boundary crossing as the one thing CI cannot reproduce. A r
 workflow is in [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); this repository
 runs it on itself.
 
+What CI reports (since 2026-09-07): one state per obligation, `PASS`, `FAIL`, `ERROR` (the instrument
+could not look), `SKIPPED` (a `solo_local` check or the boundary crossing, not reproducible on the
+runner) or `WAIVED` (an explicit exception written in the contract: `"excepciones": [{"que": "<check
+id>|junta", "motivo": "…", "quien": "…"}]`). The verdict distinguishes «OK: contract complete» from
+«OK PARTIAL, contract INCOMPLETE» (what ran passed, something was not checked here): a skipped
+obligation never counts as met, and CI never says "the task can be closed". With `--estricto` a
+`SKIPPED` blocks; a `WAIVED` does not. `--json` carries `ok`, `completo` and `resultados`.
+
+Where the checks come from is explicit: `ROMPELO_REGISTRO=home` (default) reads `checks/registry.json`
+and `registry.local.json` from `ROMPELO_HOME`; `ROMPELO_REGISTRO=repo` reads only `.rompelo/registry.json`
+of the repo being judged (the template sets it: the rompelo clone ships its own registry and would
+otherwise win). Without any registry it is an error, never a silent load from the repo.
+
+Obligations travel with the task: `rompelo close` writes `obligaciones_efectivas` (level, profiles,
+level-3 checks, whether the boundary was required) into the contract. A CI runner with no local state
+requires the same thing the close did, and lowering them by hand changes the contract hash and voids
+the close. `check`, `verify`, `close`, the hooks and the report all read one effective contract.
+
 ## Install
 
 ```bash

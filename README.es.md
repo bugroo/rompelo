@@ -98,6 +98,24 @@ ejecutar cada check en un runner donde el agente no ha escrito nada, ignora la e
 y deja el cruce real como lo único que CI no puede reproducir. Hay un workflow listo en
 [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); este repositorio lo corre sobre sí mismo.
 
+Qué informa CI (desde el 07-09-2026): un estado por obligación, `PASS`, `FAIL`, `ERROR` (el instrumento no
+pudo mirar), `SKIPPED` (un check `solo_local` o el cruce de la junta, que el runner no puede reproducir) o
+`WAIVED` (una excepción explícita escrita en el contrato: `"excepciones": [{"que": "<id de check>|junta",
+"motivo": "…", "quien": "…"}]`). El veredicto distingue «OK: contrato completo» de «OK PARCIAL, contrato
+INCOMPLETO» (lo ejecutado pasa, algo no se comprobó aquí): una obligación omitida nunca cuenta como
+cumplida y CI nunca dice «la tarea puede cerrarse». Con `--estricto` un `SKIPPED` bloquea; un `WAIVED` no.
+`--json` lleva `ok`, `completo` y `resultados`.
+
+De dónde salen los checks es explícito: `ROMPELO_REGISTRO=home` (defecto) lee `checks/registry.json` y
+`registry.local.json` de `ROMPELO_HOME`; `ROMPELO_REGISTRO=repo` lee solo `.rompelo/registry.json` del repo
+juzgado (la plantilla lo pone: el clon de rompelo trae su propio registro y sin la variable mandaría ese).
+Sin ningún registro es un error, nunca una carga silenciosa desde el repo.
+
+Las obligaciones viajan con la tarea: `rompelo close` escribe `obligaciones_efectivas` (nivel, perfiles,
+checks de nivel 3, si se exigió la junta) en el contrato. Un runner de CI sin estado local exige lo mismo
+que había al cerrar, y rebajarlas a mano cambia el hash del contrato e invalida el cierre. `check`,
+`verify`, `close`, los hooks y el informe leen un único contrato efectivo.
+
 ## Instalar
 
 ```bash
