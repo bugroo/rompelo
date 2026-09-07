@@ -5,7 +5,7 @@
 A closing gate for Claude Code and Codex. It hooks into `Stop`, reads a small per-task contract and
 does not let the task end until the evidence exists: checks run on the current tree, a real crossing
 when two systems must agree, findings with a decision. Plain code decides, outside the model.
-Python 3.9 and git, no dependencies. Español: [README.es.md](README.es.md).
+Python 3.9 and git, no dependencies.
 
 ![The agent says done, the Stop hook calls rompelo, rompelo compares contract and evidence; if something is missing it blocks with reasons, if everything holds there is silence](docs/img/en/como-funciona.png)
 

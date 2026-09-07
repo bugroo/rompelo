@@ -11,7 +11,7 @@ through the deployed path when two systems have to agree, findings with a decisi
 with a source. Ordinary code decides, outside the model. Green results that could not have
 been red do not count.
 
-Documentación en español: [README.es.md](README-completo.es.md).
+Documentación en español: [README-completo.es.md](README-completo.es.md).
 
 ## How it works
 
