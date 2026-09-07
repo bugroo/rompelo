@@ -10,7 +10,11 @@
     "min_lineas": 10,
     "triestado": true,
     "control_positivo": {
-      "argv": ["python3", "tests/control-positivo.py", "gate"],
+      "argv": [
+        "python3",
+        "tests/control-positivo.py",
+        "gate"
+      ],
       "cwd": "rompelo"
     }
   },
@@ -33,7 +37,11 @@
     "min_lineas": 1,
     "triestado": true,
     "control_positivo": {
-      "argv": ["python3", "tests/control-positivo.py", "sin-var-pegada"],
+      "argv": [
+        "python3",
+        "tests/control-positivo.py",
+        "sin-var-pegada"
+      ],
       "cwd": "rompelo"
     },
     "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)"
@@ -64,5 +72,23 @@
     "min_lineas": 10,
     "solo_local": true,
     "_nota": "control negativo del observador con 5 sesiones reales de esta máquina (transcripts locales); las 2 alarmas esperadas son verdaderas (dos grep vacíos; un .astro editado 4 veces sin check). Solo local: en CI no hay transcripts."
+  },
+  "rompelo.instrumento-tests": {
+    "argv": [
+      "bash",
+      "tests/instrumento-test.sh"
+    ],
+    "cwd": "rompelo",
+    "min_lineas": 10,
+    "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos"
+  },
+  "rompelo.portabilidad-tests": {
+    "argv": [
+      "bash",
+      "tests/portabilidad-test.sh"
+    ],
+    "cwd": "rompelo",
+    "min_lineas": 10,
+    "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor"
   }
 }

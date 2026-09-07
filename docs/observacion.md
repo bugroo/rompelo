@@ -339,3 +339,43 @@ restauradas. Los dos checks de nivel 3 quedan en `checks/registry.local.json`.
 Pendiente de este diseño: §4 D3 más allá del perfil `exterior`. NO VERIFICADO: nada de esta
 sección; lo de ClaveON (allowlist de gitleaks, avisos de ShellCheck) es trabajo suyo.
 
+
+### 12.5 · Codex `apply_patch` medido y permisos con alcance (07-09-2026)
+
+**apply_patch.** Las sesiones reales de Codex guardadas en `state/sesiones/` tenían 64 eventos
+`apply_patch` con `ficheros` vacío: el observador no veía ninguna edición de Codex (RMP-019 de la
+auditoría). La doc oficial (developers.openai.com/codex/hooks, leída el 07-09) dice: «`Bash` and
+`apply_patch` use `tool_input.command`». Medido con **codex-cli 0.153.4** en un repo desechable con
+`.codex/hooks.json` de proyecto apuntando al binario de desarrollo (`codex exec -s workspace-write
+--dangerously-bypass-hook-trust`, sin tocar `~/.codex/`): `tool_input` solo trae `command` (el
+parche); `tool_response` es texto y su primera línea es «Exit code 0». Un `ls` fallido llegó, como
+en 12.3, como texto sin línea de código (código desconocido, firma por heurística). Ahora
+`evento_desde_hook` extrae las rutas de `*** Add|Update|Delete File:` y `*** Move to:`, las hace
+absolutas y reales respecto al `cwd` del evento, y el cuerpo del parche no entra en `riesgo_texto`
+(un parche a `docs/nota.md` que habla de `functions/api` no toca la junta). Se guarda solo la forma
+del payload, nunca el texto. NO VERIFICADO: la Parte 3 del adaptador Codex con el binario nuevo en
+la instalación real de José (`~/.codex/hooks.json` apunta a `~/rompelo`, que no cambia hasta el
+merge).
+
+**hookEventName.** La respuesta del observador lleva el evento que llegó (`PostToolUse` o
+`PostToolUseFailure`), como documenta Claude Code para la salida de `PostToolUseFailure` (RMP-011).
+NO VERIFICADO en cliente real: que Claude Code acepte la respuesta con ese nombre (antes devolvía
+`PostToolUse` a ambos y el aviso llegaba; el cambio sigue la doc, no una medición).
+
+**Permisos (RMP-009).** `state/repos/<hash>.json` guarda `permisos` como lista de
+`{patron, tarea, recordar, fecha, revocado}`. Activo = no revocado y (recordado o de la tarea
+actual). Un permiso cuyo patrón es un id de `checks_nivel3` autoriza solo ese check; un patrón
+general, todos. `permiso <x> no` marca `revocado` y el check queda **pendiente** (motivo propio en
+el gate) hasta `permiso <x> si` o una `excepciones` en el contrato. El nivel 3 ya no se guarda: se
+calcula (`nivel_efectivo`), y un `nivel: 3` de formato anterior no vale por sí solo. `nivel bajar`
+también vacía los permisos. `obligaciones_efectivas` (que escribe `close`) incluye `permisos`.
+
+### 12.6 · Ventana entre sesiones y retención (07-09-2026, RMP-013)
+
+§2 hablaba de «las últimas 24 h del repo» y el código miraba solo el libro de la sesión actual. Ahora
+`otras_sesiones()` suma los eventos de los demás libros de `state/sesiones/` con el mismo `repo` y `t` dentro
+de `ventana_horas` (config/observacion.json, 24 por defecto, 0 apaga). Un worktree es otra raíz y no se mezcla;
+otro repo tampoco. `rompelo state prune --dias N [--dry-run]` existe y borra libros y marcas por mtime; nunca
+`state/repos/` (nivel, perfiles, permisos), `forma.jsonl`, `observe.err` ni la evidencia. Batería: firma
+repartida entre Claude y Codex salta; un fallo de hace 30 h no; otro proyecto no contamina; `ventana_horas: 0`
+apaga; prune previsualiza, borra lo viejo, conserva lo reciente y rechaza `--dias 0`.

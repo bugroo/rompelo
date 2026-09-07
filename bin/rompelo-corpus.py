@@ -15,7 +15,9 @@ if not ficheros:
 
 CLAVES = ["id", "titulo", "fecha", "tipo", "evidencia_verde", "lo_que_faltaba",
           "gate", "gate_descripcion", "existe_hoy", "spike_cubre", "fuente", "clase", "senal_al_stop", "disparador"]
-inc = []
+import re
+CLASES = {"S", "T", "C", "A", "R", "I", "M"}
+inc, ids = [], set()
 for f in ficheros:
     d = yaml.safe_load(open(f))
     faltan = [k for k in CLAVES if k not in d]
@@ -26,6 +28,19 @@ for f in ficheros:
     for k in ("existe_hoy", "spike_cubre"):
         v = d[k]
         d[k] = {True: "sí", False: "no"}.get(v, str(v))
+        if d[k] not in ("sí", "no", "parcial"):
+            print(f"rompelo-corpus: {os.path.basename(f)}: {k} tiene que ser sí | no | parcial, no {d[k]!r}", file=sys.stderr)
+            sys.exit(2)
+    if not re.match(r"^INC-\d{4}-\d{4}$", str(d["id"])) or d["id"] != os.path.basename(f)[:-5]:
+        print(f"rompelo-corpus: {os.path.basename(f)}: id {d['id']!r} inválido o distinto del nombre del fichero", file=sys.stderr)
+        sys.exit(2)
+    if d["id"] in ids:
+        print(f"rompelo-corpus: id repetido {d['id']}", file=sys.stderr)
+        sys.exit(2)
+    ids.add(d["id"])
+    if d["clase"] not in CLASES:
+        print(f"rompelo-corpus: {os.path.basename(f)}: clase {d['clase']!r} no está en {sorted(CLASES)}", file=sys.stderr)
+        sys.exit(2)
     inc.append(d)
 
 por_gate = collections.Counter(d["gate"] for d in inc)
@@ -34,17 +49,22 @@ existe = collections.Counter(d["existe_hoy"] for d in inc)
 
 out = []
 out.append("# Corpus de fallos reales · tabla generada\n")
-out.append(f"Generado desde `incidents/` ({len(inc)} incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.\n")
+out.append(f"Generado desde `incidents/` ({len(inc)} incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`. "
+           "«Declarada» es una etiqueta del YAML; «demostrada» exige un campo `regresion` con la prueba que lo caza.\n")
 por_clase = collections.Counter(d["clase"] for d in inc)
 S = [d for d in inc if d["clase"] == "S"]
 recall_S = sum(1 for d in S if d["spike_cubre"] == "sí")
+# «Demostrada» solo si el incidente nombra una regresión reproducible (campo `regresion`: prueba de la
+# batería o check que lo caza). Una etiqueta YAML sola es cobertura DECLARADA, no medida (RMP-017).
+demostrada = [d for d in inc if str(d.get("regresion") or "").strip()]
 out.append("## Lo que decide\n")
 out.append("Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta (PreToolUse) · "
            "**C** contexto o ámbito · **A** auditoría/adjudicación · **R** runtime, después de desplegar · **I** instrumento: la comprobación no podía fallar · **M** mixto.\n")
 out.append("| Pregunta | Recuento |\n|---|---|")
 out.append("| Reparto por clase | " + " · ".join(f"**{c}**: {n}" for c, n in sorted(por_clase.items())) + f" (de {len(inc)}) |")
-out.append(f"| recall del Stop gate sobre la clase S | **{recall_S} de {len(S)}** |")
-out.append(f"| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: {spike['sí']} · parcial: {spike.get('parcial',0)} · no: {spike['no']} |")
+out.append(f"| Cobertura DECLARADA del Stop gate sobre la clase S (`spike_cubre: sí`, anotado a mano) | **{recall_S} de {len(S)}** |")
+out.append(f"| Cobertura declarada sobre TODOS (no es la métrica, se deja por honestidad) | sí: {spike['sí']} · parcial: {spike.get('parcial',0)} · no: {spike['no']} |")
+out.append(f"| Cobertura DEMOSTRADA (incidentes con `regresion` que nombra una prueba reproducible) | **{len(demostrada)} de {len(inc)}** |")
 out.append(f"| ¿Cuántos tienen ya un control hoy? | sí: {existe['sí']} · parcial: {existe.get('parcial',0)} · **no: {existe['no']}** |")
 out.append("")
 out.append("## Por tipo de gate que lo habría cazado\n")

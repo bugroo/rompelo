@@ -12,3 +12,4 @@ spike_cubre: "sí"
 clase: I
 senal_al_stop: "sí: salida vacía en una orden que siempre imprime"
 disparador: "min_lineas + triestado (un 0 sin salida no es verde)"
+regresion: "tests/rompelo-stop-test.sh · «check mudo con min_lineas bloquea»"

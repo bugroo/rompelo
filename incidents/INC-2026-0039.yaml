@@ -1,0 +1,27 @@
+id: INC-2026-0039
+titulo: "Comparativa de rendimiento falsa: gsap.ticker entrega segundos y requestAnimationFrame milisegundos"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/08-collisions.md § 1
+tipo: instrumento
+evidencia_verde: >
+  El banco reportó "peor fotograma 123,0 ms con dos relojes contra 0,2 ms con uno" y la
+  conclusión se escribió como la regla más valiosa del documento. Los dos números salían
+  del mismo HUD, sobre el mismo código, con la misma escena.
+lo_que_faltaba: >
+  Las dos ramas medían con el argumento del callback. La rama de un reloj lo recibía de
+  gsap.ticker, que entrega SEGUNDOS; la de dos relojes de requestAnimationFrame, que
+  entrega MILISEGUNDOS. Se comparaban unidades distintas. Remedido con performance.now()
+  en ambas ramas: 16,7 ms contra 16,7 ms, sin diferencia, en escritorio, en Pixel 7 con
+  CPU x6 y en WebKit. La regla del reloj único se mantiene por sincronización, no por
+  rendimiento.
+gate: plausibilidad-fisica
+gate_descripcion: >
+  Un delta entre fotogramas por debajo de ~16 ms a 60 fps es imposible. Una aserción
+  sobre el rango físico posible del valor habría fallado en el primer intento.
+existe_hoy: "no"
+existe_hoy_detalle: >
+  Se cazó a mano al notar que 0,2 ms es imposible. Nada lo comprobaba.
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: el número tenía buena pinta y la conclusión era coherente"
+disparador: "medición de tiempo con más de una fuente de reloj en el mismo experimento"

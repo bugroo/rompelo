@@ -47,11 +47,14 @@ def gate(tmp):
     assert antes not in aplicado and aplicado.count(despues) == 1 and aplicado != texto
     r = correr(["bash", str(RAIZ / "tests/rompelo-stop-test.sh")],
                env=dict(os.environ, ROMPELO_BIN=str(mutante)), cwd=str(RAIZ))
-    resumen = re.findall(r"^PASS=(\d+) FAIL=(\d+)$", r.stdout, re.M)
+    resumen = re.findall(r"^PASS=(\d+) FAIL=(\d+) ROTOS=(\d+)$", r.stdout, re.M)
     if len(resumen) != 1:
         print("la batería no completó su recuento; instrumento no verificado")
         return 2
-    pasa, falla = map(int, resumen[0])
+    pasa, falla, rotos = map(int, resumen[0])
+    if rotos:
+        print(f"la batería vio {rotos} invocación(es) del hook rotas (crash, timeout, stderr): instrumento no verificado")
+        return 2
     fallos = [linea.strip() for linea in r.stdout.splitlines() if linea.strip().startswith("❌")]
     esperado = "❌ fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/x.md»)"
     print(f"1 mutación de scope confirmada; batería PASS={pasa} FAIL={falla}")

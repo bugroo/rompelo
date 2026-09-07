@@ -1,0 +1,14 @@
+id: INC-2026-0048
+titulo: "Dos sesiones en el mismo repo comparten el contrato: una queda bloqueada por la tarea de la otra"
+fecha: 2026-09-07
+fuente: "relato de la sesión rootml-0e (Opus 5) el 07-09-2026, mensaje entre sesiones; reproducido aquí mismo: la sesión que insertó el corpus recibió el bloqueo del contrato ROMPELO-CODEX-03, cerrado por Codex"
+tipo: ambito
+evidencia_verde: "al revés: un rojo ajeno. El gate bloquea con motivos ciertos (huella distinta, fuera de scope) que pertenecen a la tarea de OTRA sesión; la sesión bloqueada no los puede resolver sin pisar el contrato ajeno"
+lo_que_faltaba: "que el contrato se resuelva por tarea y no solo por directorio: `.rompelo/task.json` es único por raíz del repo, así que dos sesiones (o dos agentes) sobre el mismo árbol comparten contrato, huella y evidencia. Un worktree por sesión lo evita; un contrato por sesión o por rama lo resolvería"
+gate: contrato-por-sesion
+gate_descripcion: "no existe. Hoy la salida es abrir un contrato propio (`rompelo init --force` con el scope de la tarea), que pisa el de la otra sesión. Propuesta: `.rompelo/task.<rama|sesión>.json` seleccionado por la sesión, con evidencia separada"
+existe_hoy: "no"
+spike_cubre: "no"
+clase: C
+senal_al_stop: "sí, pero de la tarea equivocada: el bloqueo es legítimo para el contrato que hay, no para el trabajo de quien lo recibe"
+disparador: "candidato: dos `session_id` distintos con Stop sobre la misma raíz y el mismo id de tarea en menos de una hora"

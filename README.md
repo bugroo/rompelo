@@ -72,8 +72,10 @@ allowlist. From then on the agent cannot end a task until:
 
 | Condition | Satisfied by |
 |---|---|
-| every check id ran on the **current** working-tree content (content fingerprint, not the commit) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
+| every check id ran on the **current** working-tree content (versioned fingerprint of every changed path: content, executable bit, symlink target, deletion; real file names via `git … -z`, so `año.py` is `año.py`; a contract `base` that is missing from the repo is an error, never a silent fallback to `HEAD`) | `rompelo check`. Ids resolve through your `checks/registry.json` (argv, no shell). Output is never stored, only exit code, duration and a hash |
 | a check that exits 0 without its declared minimum output is **not** green | `min_lineas` in the registry |
+| a check that does not finish, cannot start or floods the output is an **instrument** failure, not a finding | `timeout` in the registry (default 900 s; the whole process group is killed), 4 MiB capture cap, output read as bytes |
+| evidence never stores argv or output | only the program name, a hash of argv, exit code, timing, line/byte counts and a hash of the output; state and evidence are written atomically and updated under a lock |
 | a declared positive control detects a known bad input before the real check runs | `control_positivo` must exit 1; 0 means blind, 2 means unable to inspect; any other code blocks |
 | findings and instrument failures are reported separately | `triestado: true`: 0 clean, 1 findings, 2 unable to inspect, other codes unexpected |
 | if the task touches an integration boundary, a real crossing **after** the last change | `rompelo cruce -- <real command>` or `--id <registered check>` |
@@ -100,6 +102,31 @@ and reports the real boundary crossing as the one thing CI cannot reproduce. A r
 workflow is in [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); this repository
 runs it on itself.
 
+What CI reports (since 2026-09-07): one state per obligation, `PASS`, `FAIL`, `ERROR` (the instrument
+could not look), `SKIPPED` (a `solo_local` check or the boundary crossing, not reproducible on the
+runner) or `WAIVED` (an explicit exception written in the contract: `"excepciones": [{"que": "<check
+id>|junta", "motivo": "…", "quien": "…"}]`). The verdict distinguishes «OK: contract complete» from
+«OK PARTIAL, contract INCOMPLETE» (what ran passed, something was not checked here): a skipped
+obligation never counts as met, and CI never says "the task can be closed". With `--estricto` a
+`SKIPPED` blocks; a `WAIVED` does not. `--json` carries `ok`, `completo` and `resultados`.
+
+Where the checks come from is explicit: `ROMPELO_REGISTRO=home` (default) reads `checks/registry.json`
+and `registry.local.json` from `ROMPELO_HOME`; `ROMPELO_REGISTRO=repo` reads only `.rompelo/registry.json`
+of the repo being judged (the template sets it: the rompelo clone ships its own registry and would
+otherwise win). Without any registry it is an error, never a silent load from the repo.
+
+Obligations travel with the task: `rompelo close` writes `obligaciones_efectivas` (level, profiles,
+level-3 checks, whether the boundary was required) into the contract. A CI runner with no local state
+requires the same thing the close did, and lowering them by hand changes the contract hash and voids
+the close. `check`, `verify`, `close`, the hooks and the report all read one effective contract.
+
+## Diagnosis
+
+`rompelo doctor` prints, read-only, the binary and its revision, Python and git versions, `ROMPELO_HOME`,
+which registry is selected and how many checks it holds, the allowlist and whether the current repo is in
+it, the state directory, the effective contract, and which hooks in `~/.claude/settings.json` and
+`~/.codex/hooks.json` point at rompelo. It never writes or runs a check.
+
 ## Install
 
 ```bash
@@ -114,7 +141,7 @@ one id each, as argv:
 
 ```json
 {
-  "my-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1},
+  "my-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600},
   "my-app.smoke": {"argv": ["node", "scripts/smoke.mjs"], "cwd": "repo"}
 }
 ```
@@ -194,6 +221,13 @@ Level 3 exists: list expensive or external checks (mutation testing, a security 
 `checks_nivel3` in the contract. They are ignored until the observer has raised the repo to level
 3 through `rompelo permiso <pattern> si`; from then on `rompelo check` runs them and the gate
 requires them like any other.
+
+Permissions are scoped (since 2026-09-07): `rompelo permiso <check id> si` authorises that check
+only; a general pattern authorises every `checks_nivel3`. Without `--recordar` a permission
+belongs to the current task id and is not inherited by the next one. `rompelo permiso <x> no`
+after a `si` revokes it, and the revoked check does not vanish: it stays **pending** until a new
+permission or an explicit `excepciones` entry in the contract decides it. `rompelo nivel bajar`
+clears permissions too.
 
 ## Roadmap, in order
 

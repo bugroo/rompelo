@@ -1,14 +1,16 @@
 {
   "schema": 1,
-  "id": "ROMPELO-CODEX-02",
+  "id": "MEJORAS-AUDITORIA-2026-09-07",
   "estado": "cerrada",
-  "base": "c65243268875fbd7cf2cdfeb0ab471b403146357",
-  "descripcion": "Parte 2: triestado y control positivo por check, controles reales de scope y variable pegada, evidencia vinculada a la definición; sincronizar tres borradores de werixo-brain.",
+  "base": "8c8c6e9",
+  "descripcion": "Auditoría del 07-09: bloques A–G (RMP-001…019)",
   "scope_paths": [
     "**"
   ],
   "checks": [
     "rompelo.tests",
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests",
     "rompelo.cruce-settings-claude",
     "rompelo.sin-var-pegada",
     "rompelo.observe-tests",
@@ -18,5 +20,22 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisados orden control/real, códigos originales, fallo sin ejecución real, evidencia sin salidas, validación de argv/cwd, invalidación tras cambios de registro y cierre anterior, paridad CI e inglés. Controles de ClaveON no implementados: cobertura explícita en YAML y documentación. Sin escrituras de configuración de hooks ni hashes de confianza."
+  "segunda_pasada": "Siete bloques de la auditoría, cada uno con caso en rojo antes del cambio y control positivo (mutante de scope) después; contraejemplos de la auditoría vueltos a ejecutar contra el binario nuevo; sesión real de Codex para apply_patch. Ver docs/auditoria-2026-09-07/SEGUIMIENTO.md.",
+  "obligaciones_efectivas": {
+    "nivel": 0,
+    "perfiles": [],
+    "permisos": [],
+    "checks": [
+      "rompelo.tests",
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests",
+      "rompelo.cruce-settings-claude",
+      "rompelo.sin-var-pegada",
+      "rompelo.observe-tests",
+      "rompelo.control-negativo-sesiones"
+    ],
+    "toca_junta": true,
+    "toca_exterior": false,
+    "fecha": "2026-09-07T20:06:17+00:00"
+  }
 }

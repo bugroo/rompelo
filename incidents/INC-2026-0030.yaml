@@ -12,3 +12,4 @@ spike_cubre: "no"
 clase: I
 senal_al_stop: "sí: el contrato y la evidencia de cierre no coincidían y nadie lo comparaba"
 disparador: "batería en rojo primero (hash del contrato en el cierre)"
+regresion: "tests/rompelo-stop-test.sh · «check añadido a una tarea cerrada: bloquea»"

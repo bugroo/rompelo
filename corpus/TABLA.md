@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (38 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`.
+Generado desde `incidents/` (48 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`. «Declarada» es una etiqueta del YAML; «demostrada» exige un campo `regresion` con la prueba que lo caza.
 
 ## Lo que decide
 
@@ -8,29 +8,38 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 4 · **I**: 18 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 38) |
-| recall del Stop gate sobre la clase S | **5 de 6** |
-| Cobertura del Stop gate sobre TODOS (no es la métrica, se deja por honestidad) | sí: 11 · parcial: 8 · no: 19 |
-| ¿Cuántos tienen ya un control hoy? | sí: 15 · parcial: 11 · **no: 12** |
+| Reparto por clase | **A**: 2 · **C**: 5 · **I**: 27 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 48) |
+| Cobertura DECLARADA del Stop gate sobre la clase S (`spike_cubre: sí`, anotado a mano) | **5 de 6** |
+| Cobertura declarada sobre TODOS (no es la métrica, se deja por honestidad) | sí: 11 · parcial: 8 · no: 29 |
+| Cobertura DEMOSTRADA (incidentes con `regresion` que nombra una prueba reproducible) | **9 de 48** |
+| ¿Cuántos tienen ya un control hoy? | sí: 17 · parcial: 11 · **no: 20** |
 
 ## Por tipo de gate que lo habría cazado
 
 | Gate | Incidentes | Existe hoy |
 |---|---|---|
-| `instrumento-control-positivo` | 19 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032, 0033, 0035, 0036, 0037, 0038) | no, parcial, sí |
+| `instrumento-control-positivo` | 20 (0006, 0013, 0016, 0017, 0018, 0019, 0020, 0022, 0023, 0025, 0029, 0030, 0031, 0032, 0033, 0035, 0036, 0037, 0038, 0046) | no, parcial, sí |
 | `deriva-generada` | 4 (0002, 0003, 0012, 0026) | parcial, sí |
 | `pretooluse-destructivo` | 3 (0001, 0007, 0008) | no, sí |
 | `stop-junta` | 3 (0004, 0014, 0027) | no, parcial |
 | `stop-checks` | 3 (0005, 0021, 0028) | parcial, sí |
 | `stop-prueba-toca-diff` | 2 (0011, 0024) | no |
+| `plausibilidad-fisica` | 2 (0039, 0043) | no |
 | `stop-hallazgos` | 1 (0009) | no |
 | `alerta-operacional` | 1 (0010) | sí |
 | `ledger-auditoria` | 1 (0015) | no |
 | `stop-check-registrado` | 1 (0034) | parcial |
+| `control-obligatorio` | 1 (0040) | no |
+| `control-en-dos-direcciones` | 1 (0041) | no |
+| `verificar-la-pagina-antes-de-medirla` | 1 (0042) | no |
+| `leer-el-contenido-antes-de-medirlo` | 1 (0044) | no |
+| `correr-el-detector-sobre-codigo-real` | 1 (0045) | sí |
+| `contraste-sobre-imagen` | 1 (0047) | no |
+| `contrato-por-sesion` | 1 (0048) | no |
 
 ## Qué lo habría visto (observación + gate)
 
-Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **7 de 38** (0006, 0007, 0009, 0010, 0015, 0026, 0037): clases R, T y A, que viven fuera del cierre de una tarea.
+Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **7 de 48** (0006, 0007, 0009, 0010, 0015, 0026, 0037): clases R, T y A, que viven fuera del cierre de una tarea.
 
 | Id | Clase | Disparador |
 |---|---|---|
@@ -72,6 +81,16 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0036 | I | control negativo real por agente: contar los códigos del libro; un agente sin fallos en 200 comandos es un instrumento ciego |
 | 0037 | I | ninguno del observador; lo caza el diseño del CLI (argumento desconocido = error) y el caso en rojo |
 | 0038 | I | candidato: código distinto de 0 con la última línea de stdout coincidiendo con el resumen de verde del propio check (`todos en verde`) |
+| 0039 | I | medición de tiempo con más de una fuente de reloj en el mismo experimento |
+| 0040 | I | prueba de comportamiento dependiente de una posición de scroll |
+| 0041 | I | medir una animación escalonada o con retardo leyendo un único elemento |
+| 0042 | I | extraer datos de una URL externa sin comprobar que la página es la buena |
+| 0043 | I | medir el estado visible de una página con animación de entrada |
+| 0044 | I | extracción automatizada sobre sitios con detección de bots |
+| 0045 | I | añadir una regla de detección estática |
+| 0046 | I | medir color computado cuando la hoja usa oklch, lab, color-mix o hsl |
+| 0047 | I | texto posicionado sobre una imagen o un canvas |
+| 0048 | C | candidato: dos `session_id` distintos con Stop sobre la misma raíz y el mismo id de tarea en menos de una hora |
 
 ## Los incidentes
 
@@ -115,6 +134,16 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0036 | 2026-09-05 | I | sí: 226 comandos sin un solo fallo es una distribución imposible, pero nadie la miraba | `instrumento-control-positivo` | parcial | parcial |
 | 0037 | 2026-09-06 | I | no: el gate lee la evidencia por check y la evidencia era real; el engaño estaba en lo que el operador creía haber pedido | `instrumento-control-positivo` | sí | sí |
 | 0038 | 2026-09-06 | I | no: el gate no lee envoltorios; lee la evidencia de cada check | `instrumento-control-positivo` | no | parcial |
+| 0039 | 2026-09-07 | I | ninguna: el número tenía buena pinta y la conclusión era coherente | `plausibilidad-fisica` | no | no |
+| 0040 | 2026-09-07 | I | ninguna: cuatro fallos consistentes parecen un hallazgo sólido | `control-obligatorio` | no | no |
+| 0041 | 2026-09-07 | I | ninguna: los dos casos coincidían, que es justo lo que se quería descartar | `control-en-dos-direcciones` | no | no |
+| 0042 | 2026-09-07 | I | ninguna: todos los campos venían rellenos y con valores razonables | `verificar-la-pagina-antes-de-medirla` | no | no |
+| 0043 | 2026-09-07 | I | ninguna: siete sitios coincidían, lo que refuerza la confianza en el error | `plausibilidad-fisica` | no | no |
+| 0044 | 2026-09-07 | I | ninguna: los números eran plausibles en aislamiento | `leer-el-contenido-antes-de-medirlo` | no | no |
+| 0045 | 2026-09-07 | I | el hallazgo era correcto en forma y falso en contenido | `correr-el-detector-sobre-codigo-real` | sí | no |
+| 0046 | 2026-09-07 | I | ninguna: trece fallos coherentes parecen un diseño malo, no un medidor roto | `instrumento-control-positivo` | sí | no |
+| 0047 | 2026-09-07 | I | ninguna: el verificador ya tenía control positivo y lo pasaba | `contraste-sobre-imagen` | no | no |
+| 0048 | 2026-09-07 | C | sí, pero de la tarea equivocada: el bloqueo es legítimo para el contrato que hay, no para el trabajo de quien lo recibe | `contrato-por-sesion` | no | no |
 
 ## Títulos
 
@@ -156,3 +185,13 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 - **0036** · En Codex, tool_response de Bash es solo el texto que el modelo imprimió (text(r.output)): sin código de salida, un ls roto llegaba como verde y el observador estaba ciego a los fallos (`medido con codex exec desde esta sesión: 226 comandos Bash de cinco sesiones de Codex en el libro, todos con código 0; luego un `ls /no-existe` a propósito registrado como 0; rollout de Codex: la llamada era `tools.exec_command(...)` y `text(r.output)`, sin el código`)
 - **0037** · `rompelo check no.existe.jamas` ejecutaba los cinco checks del contrato, imprimía «todos en verde» y salía 0: el argumento se descartaba en silencio y la salida decía «hice lo que pediste» habiendo hecho otra cosa (`auditoría de rompelo desde otra sesión de Claude Code el 06-09-2026 (mensaje entre sesiones); reproducido aquí en un ROMPELO_HOME desechable: `check no.existe.jamas` tocó el canario de otro check y salió 0`)
 - **0038** · Suite de cinco checks en verde reportada como «failed with exit code 1»: el envoltorio `for … do …; [ $RC -ne 0 ] && echo …; done` terminaba con un test falso como última sentencia y el código del guion no era el del trabajo (`relato de la sesión que auditó rompelo el 06-09-2026 (mensaje entre sesiones): Claude Code notificó exit 1 con los cinco checks en verde; el `[ … ] &&` como última sentencia del bucle devolvía 1`)
+- **0039** · Comparativa de rendimiento falsa: gsap.ticker entrega segundos y requestAnimationFrame milisegundos (`~/tails/skills/tails/references/08-collisions.md § 1`)
+- **0040** · Prueba de position:sticky que nunca alcanzó el punto de pegado (`~/tails/skills/tails/references/08-collisions.md § 2`)
+- **0041** · Prueba de prefers-reduced-motion leyendo el primer elemento de un stagger (`~/tails/skills/tails/references/08-collisions.md § 5`)
+- **0042** · Tipografía de una página 404 medida como si fuera la home del estudio (`~/tails/docs/research/2026-09-07-landscape.md § 9`)
+- **0043** · Cargador medido como si fuera el diseño: contrastes tipográficos por debajo de 1:1 (`~/tails/skills/tails/references/04-typography.md § Method note`)
+- **0044** · Mensaje de navegador no soportado medido como diseño de un estudio (`~/tails/skills/tails/references/04-typography.md § Method note`)
+- **0045** · Regla de detección sin excepción documentada: #fff bajo mix-blend-mode (`~/tails/checks/slop.mjs · regla pure-black-white`)
+- **0046** · Verificador de contraste que parsea oklch() como si fuera rgb(): trece fallos imposibles (`~/tails/skills/tails/references/11-verify.md § 8`)
+- **0047** · Contraste de texto sobre fotografía medido contra el fondo CSS: verde falso en el elemento más visible (`~/tails/skills/tails/references/11-verify.md § 9`)
+- **0048** · Dos sesiones en el mismo repo comparten el contrato: una queda bloqueada por la tarea de la otra (`relato de la sesión rootml-0e (Opus 5) el 07-09-2026, mensaje entre sesiones; reproducido aquí mismo: la sesión que insertó el corpus recibió el bloqueo del contrato ROMPELO-CODEX-03, cerrado por Codex`)

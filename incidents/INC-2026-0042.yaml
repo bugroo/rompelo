@@ -1,0 +1,22 @@
+id: INC-2026-0042
+titulo: "Tipografía de una página 404 medida como si fuera la home del estudio"
+fecha: 2026-09-07
+fuente: ~/tails/docs/research/2026-09-07-landscape.md § 9
+tipo: instrumento
+evidencia_verde: >
+  La medición devolvió una ficha completa y bien formada de rhizomatiks.com: Libre
+  Baskerville, 60 px, tracking 6 px, peso 400. Todos los campos rellenos.
+lo_que_faltaba: >
+  Se pidió www.rhizomatiks.com, que sirve un 404. Se midió la tipografía de la página de
+  error. El dominio vivo es el apex. Se cazó porque el texto mayor de la página era la
+  cadena "404", que no es plausible en la home de un estudio.
+gate: verificar-la-pagina-antes-de-medirla
+gate_descripcion: >
+  Antes de extraer datos de una URL, comprobar código de estado y un marcador positivo
+  de que es la página esperada (título, un elemento que sólo exista ahí). Una medición
+  de la URL equivocada tiene el mismo aspecto que una medición correcta.
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: todos los campos venían rellenos y con valores razonables"
+disparador: "extraer datos de una URL externa sin comprobar que la página es la buena"

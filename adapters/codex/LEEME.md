@@ -42,6 +42,32 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 06-09-2026 · Parte 3 desde Codex sobre 86001d2
+
+`git pull --ff-only` ya estaba al día en `86001d2`. Antes de cualquier cambio, las baterías
+reales terminaron con `PASS=113 FAIL=0` (`rompelo-stop-test.sh`) y `PASS=75 FAIL=0`
+(`rompelo-observe-test.sh`). `rompelo check --id` es repetible y solo admite checks incluidos
+en el contrato. La suite debe ejecutarse en un proceso persistente o con timeout de al menos
+300000 ms, sin envolver `check` en bucles. El observador se comprueba entre DOS llamadas de
+herramienta; cada worktree tiene su propia raíz y su propia entrada en la allowlist.
+
+Acabo de recibir el bloqueo automático desde `codex exec` en `~/rompelo`; no procede de una
+invocación directa del adaptador. Cabecera y motivos recibidos literalmente:
+
+```text
+[rompelo] La tarea ROMPELO-CODEX-03 NO puede darse por terminada (1/3):
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.cruce-settings-claude` sin ejecutar (usa `rompelo check`)
+- check `rompelo.sin-var-pegada` sin ejecutar (usa `rompelo check`)
+- check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.control-negativo-sesiones` sin ejecutar (usa `rompelo check`)
+- toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)
+```
+
+Los hooks siguen sin cambios: `Stop` usa timeout 30 y `PostToolUse` timeout 10. No hubo
+reconfianza. Esta nota sustituye el `NO VERIFICADO` de la entrada anterior de `fa672f9`, que
+se conserva debajo como historial.
+
 ### 06-09-2026 · `check --id`, aviso de timeout, INC-0037/0038 (Claude Code, `fa672f9`)
 
 `rompelo check` rechaza argumentos sueltos y admite `--id`. Parte 3 de `PROMPT-CODEX.md` pide a

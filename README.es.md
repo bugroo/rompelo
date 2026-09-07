@@ -69,8 +69,10 @@ allowlist local. Desde entonces el agente no puede terminar una tarea hasta que:
 
 | Condición | Cómo se cumple |
 |---|---|
-| cada id de check ha corrido sobre el contenido **actual** del árbol (huella del contenido, no el commit) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
+| cada id de check ha corrido sobre el contenido **actual** del árbol (huella versionada de cada ruta cambiada: contenido, bit ejecutable, destino del enlace, borrado; nombres reales vía `git … -z`, así que `año.py` es `año.py`; una `base` del contrato que no existe en el repo es un error, nunca `HEAD` en silencio) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
 | un check que sale con 0 sin la salida mínima declarada **no** es verde | `min_lineas` en el registro |
+| un check que no termina, no arranca o inunda la salida es un fallo del **instrumento**, no un hallazgo | `timeout` en el registro (900 s por defecto; se mata el grupo de procesos entero), captura acotada a 4 MiB, salida leída como bytes |
+| la evidencia nunca guarda el argv ni la salida | solo programa, hash del argv, código, tiempo, recuentos y hash de la salida; estado y evidencia se escriben de forma atómica y se actualizan bajo cerrojo |
 | el control positivo declarado detecta el caso malo antes del check real | `control_positivo` debe salir con 1; 0 significa ciego, 2 no pudo mirar y cualquier otro código bloquea |
 | los hallazgos se distinguen del fallo del instrumento | `triestado: true`: 0 limpio, 1 hallazgos, 2 no pudo mirar, otros códigos inesperados |
 | si la tarea toca una junta con otro sistema, un cruce real **después** del último cambio | `rompelo cruce -- <comando real>` o `--id <check del registro>` |
@@ -96,6 +98,31 @@ ejecutar cada check en un runner donde el agente no ha escrito nada, ignora la e
 y deja el cruce real como lo único que CI no puede reproducir. Hay un workflow listo en
 [`adapters/ci/rompelo-gate.yml`](adapters/ci/rompelo-gate.yml); este repositorio lo corre sobre sí mismo.
 
+Qué informa CI (desde el 07-09-2026): un estado por obligación, `PASS`, `FAIL`, `ERROR` (el instrumento no
+pudo mirar), `SKIPPED` (un check `solo_local` o el cruce de la junta, que el runner no puede reproducir) o
+`WAIVED` (una excepción explícita escrita en el contrato: `"excepciones": [{"que": "<id de check>|junta",
+"motivo": "…", "quien": "…"}]`). El veredicto distingue «OK: contrato completo» de «OK PARCIAL, contrato
+INCOMPLETO» (lo ejecutado pasa, algo no se comprobó aquí): una obligación omitida nunca cuenta como
+cumplida y CI nunca dice «la tarea puede cerrarse». Con `--estricto` un `SKIPPED` bloquea; un `WAIVED` no.
+`--json` lleva `ok`, `completo` y `resultados`.
+
+De dónde salen los checks es explícito: `ROMPELO_REGISTRO=home` (defecto) lee `checks/registry.json` y
+`registry.local.json` de `ROMPELO_HOME`; `ROMPELO_REGISTRO=repo` lee solo `.rompelo/registry.json` del repo
+juzgado (la plantilla lo pone: el clon de rompelo trae su propio registro y sin la variable mandaría ese).
+Sin ningún registro es un error, nunca una carga silenciosa desde el repo.
+
+Las obligaciones viajan con la tarea: `rompelo close` escribe `obligaciones_efectivas` (nivel, perfiles,
+checks de nivel 3, si se exigió la junta) en el contrato. Un runner de CI sin estado local exige lo mismo
+que había al cerrar, y rebajarlas a mano cambia el hash del contrato e invalida el cierre. `check`,
+`verify`, `close`, los hooks y el informe leen un único contrato efectivo.
+
+## Diagnóstico
+
+`rompelo doctor` imprime, sin escribir nada, el binario y su revisión, versiones de Python y git,
+`ROMPELO_HOME`, qué registro se ha elegido y cuántos checks tiene, la allowlist y si el repo actual está en
+ella, el directorio de estado, el contrato efectivo y qué hooks de `~/.claude/settings.json` y
+`~/.codex/hooks.json` apuntan a rompelo. Nunca ejecuta un check.
+
 ## Instalar
 
 ```bash
@@ -110,7 +137,7 @@ viven tus comandos, un id cada uno, como argv:
 
 ```json
 {
-  "mi-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1},
+  "mi-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600},
   "mi-app.humo": {"argv": ["node", "scripts/humo.mjs"], "cwd": "repo"}
 }
 ```
@@ -190,6 +217,12 @@ El nivel 3 existe: los checks caros o externos (mutation testing, un escáner de
 en `checks_nivel3` del contrato. No se exigen hasta que el observador haya subido el repo a nivel
 3 con `rompelo permiso <patron> si`; desde entonces `rompelo check` los ejecuta y la puerta los
 exige como a cualquier otro.
+
+Los permisos tienen alcance (desde el 07-09-2026): `rompelo permiso <id de check> si` autoriza solo
+ese check; un patrón general autoriza todos los `checks_nivel3`. Sin `--recordar` el permiso es de la
+tarea actual (por id) y la siguiente no lo hereda. `rompelo permiso <x> no` después de un `si` lo
+revoca, y el check revocado no desaparece: queda **pendiente** hasta un permiso nuevo o una entrada
+explícita en `excepciones` del contrato. `rompelo nivel bajar` también borra los permisos.
 
 ## Hoja de ruta, en orden
 

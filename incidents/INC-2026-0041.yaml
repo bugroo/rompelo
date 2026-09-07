@@ -1,0 +1,23 @@
+id: INC-2026-0041
+titulo: "Prueba de prefers-reduced-motion leyendo el primer elemento de un stagger"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/08-collisions.md § 5
+tipo: prueba-ciega
+evidencia_verde: >
+  A los 400 ms la opacidad del carácter medido era 1,00 con reduce Y con
+  no-preference. Se leyó como "la animación no ocurre en ninguno de los dos casos".
+lo_que_faltaba: >
+  Se leía el PRIMER carácter de una animación escalonada, que con stagger 0,03 ya había
+  terminado. Corregido leyendo el conjunto entero: con reduce todos a 1,00; sin
+  preferencia mínimo 0,00 y máximo 0,83 a los 250 ms. La ruta de reduced-motion
+  funcionaba; la prueba no la veía.
+gate: control-en-dos-direcciones
+gate_descripcion: >
+  Una prueba de preferencia necesita las dos direcciones: un caso donde el movimiento
+  debe estar AUSENTE y otro donde debe estar PRESENTE. Con una sola, un instrumento
+  ciego pasa por resultado.
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: los dos casos coincidían, que es justo lo que se quería descartar"
+disparador: "medir una animación escalonada o con retardo leyendo un único elemento"

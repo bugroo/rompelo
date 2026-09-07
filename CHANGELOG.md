@@ -5,6 +5,59 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Instrumento de prueba (auditoría 07-09, RMP-004).** Las baterías ya no dan por «silencio» un hook
+  que muere: cada invocación pasa por `tests/invocar.py` (código de salida, stderr, plazo) y una
+  aserción de bloqueo exige que TODA la salida sea el JSON. `tests/instrumento-test.sh` ejercita las
+  aserciones contra hooks falsos en las dos direcciones. El binario que prueban las baterías es el que
+  está junto a ellas (`ROMPELO_BIN` para otro), no `~/rompelo`. Recuento nuevo: `PASS= FAIL= ROTOS=`.
+- **Huella v2 (RMP-001/002/015).** El sujeto de cada ruta cambiada es contenido + bit ejecutable + destino
+  del enlace + borrado, con el nombre real (`git … -z`): `año.py`, tabuladores y espacios ya no se firman como
+  borrados ni salen «fuera de scope». Una `base` que no existe en el repo es un error con instrucción, no
+  `HEAD` en silencio; un repo sin commits mide contra el árbol vacío; un fallo de git bloquea. La evidencia con
+  huella sin versión queda obsoleta y pide `rompelo check` de nuevo (no se migra). Borrar el único test ya no
+  cuenta como «prueba en el diff». La CI propia hace `fetch-depth: 0`.
+- **Errores propios, runner y privacidad (RMP-003/007/010).** Una allowlist corrupta bloquea diciéndolo (antes
+  el hook moría sin JSON); un estado de repo o `permisos.json` corrupto es un error y no se pisa (antes se leía
+  como `{}` y el nivel 3 desaparecía). Estado, permisos, allowlist y evidencia se escriben de forma atómica;
+  el observador actualiza el estado bajo cerrojo (`flock`), así dos sesiones sobre el mismo repo no se pierden
+  actualizaciones. El runner tiene plazo por check (`timeout`, 900 s), mata el grupo de procesos, acota la
+  captura a 4 MiB y lee bytes (un `0xff` ya no tumba la evaluación); «no arrancó» y «no terminó» son
+  instrumento, no «FALLÓ con código». La evidencia guarda programa y hash del argv, no el argv: una cabecera
+  o una URL con credencial ya no llega a `.rompelo/evidence/` ni al informe. `ROMPELO_DEBUG_FORMA` guarda
+  la longitud del texto, no su cabeza.
+- **Contrato efectivo único y CI sin falsos completos (RMP-005/006/008/014).** `contrato_efectivo()` es lo
+  que leen `check`, `verify`, `close`, hook e informe: `close` firma el contrato escrito y `verify` compara
+  lo mismo (antes un perfil `junta` hacía que verify dijera «el contrato cambió» nada más cerrar).
+  `checks: []` ya no apaga los `checks_nivel3`. `close` escribe `obligaciones_efectivas` en el contrato y
+  CI las exige sin estado local. `verify --ci` informa `PASS/FAIL/ERROR/SKIPPED/WAIVED` por obligación,
+  distingue «contrato completo» de «OK PARCIAL, INCOMPLETO» y nunca dice «puede cerrarse» con algo
+  omitido; `excepciones: [{que, motivo, quien}]` en el contrato es la única forma de un `WAIVED`.
+  `ROMPELO_REGISTRO=repo` elige el registro del consumidor a propósito (la plantilla lo pone; sin
+  registro es error, no carga implícita). El tope de 3 bloqueos deja `SIN-VERIFICAR.json` en la evidencia,
+  `status` lo dice y solo un `close` real lo quita. Plantilla de CI con `permissions: contents: read` y
+  revisión de rompelo fijable (`ROMPELO_REV`).
+- **Permisos con alcance, eventos correctos y `apply_patch` de Codex (RMP-009/011/019).** `permiso <x> no`
+  revoca de verdad y el check queda pendiente (no cumplido) hasta un permiso nuevo o una excepción en el
+  contrato; un permiso para un check autoriza solo ese; sin `--recordar` no se hereda en otra tarea; el
+  nivel 3 se calcula, no se guarda. El observador responde con el `hookEventName` del evento recibido.
+  Las ediciones de Codex por `apply_patch` (64 eventos reales sin fichero hasta hoy) quedan anotadas con
+  sus rutas: forma medida con codex-cli 0.153.4 en una sesión desechable (docs/observacion.md §12.5).
+- **Hallazgos, ventana entre sesiones, retención y corpus honesto (RMP-012/013/015/017).** Un hallazgo se
+  adjudica con `confirmado` (+ `regresion`: check del registro o prueba de este diff), `rechazado` (+ `motivo`)
+  o `aceptado` (+ `nota`); «pendiente» o cualquier otra cadena ya no desbloquea. El observador mira también
+  los libros de otras sesiones del mismo repo en las últimas `ventana_horas` (24; 0 apaga): el mismo error
+  una vez en Claude y otra en Codex es «el mismo error 2 veces»; otro repo no contamina. `rompelo state prune
+  --dias N [--dry-run]` borra libros y marcas viejos y nunca el estado del repo ni la evidencia. Borrar el
+  único test ya no cubre `exige_prueba_en_diff`. El corpus valida ids, clases y valores, distingue cobertura
+  DECLARADA (etiqueta) de DEMOSTRADA (campo `regresion` con la prueba que lo caza; 9 de 48 hoy) y CI comprueba
+  que `corpus/TABLA.md` coincide con lo generado. INC-2026-0048: dos sesiones en el mismo repo comparten
+  contrato (relato de la sesión rootml-0e; reproducido aquí mismo).
+- **Portabilidad y publicación preparada (RMP-016/018).** `rompelo doctor` (diagnóstico de solo lectura).
+  El fragmento de settings de Claude lleva la ruta entre comillas, como el de Codex: con un HOME con espacios
+  la línea sin comillas daba «command not found» (batería `tests/portabilidad-test.sh`: HOME con espacio,
+  dos carpetas con el mismo nombre, ROMPELO_HOME alternativo). `actions/checkout` fijado por SHA y PyYAML
+  por versión en los dos workflows, `permissions: contents: read`. La protección de `main` queda preparada
+  en `docs/PROTECCION-MAIN.md` y NO activada: la decide José.
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.
@@ -14,6 +67,12 @@ no verificado de cada versión está en el relevo enlazado.
   `--id`.
 - Corpus 38 (I=18): INC-0037 y INC-0038 (código de salida del envoltorio que no es el del
   trabajo: cinco checks en verde reportados como exit 1).
+- Corpus 47 (I=27): INC-0039 a INC-0047, nueve fallos de instrumento de una sola sesión de medición
+  (07-09-2026) que dieron un número con buena pinta y se cazaron solo porque el resultado era
+  imposible: unidades distintas en dos ramas del mismo reloj, la página 404 medida como home,
+  un contraste sobre fotografía en verde con el control positivo pasando. Gates nuevos propuestos,
+  ninguno construido; el más barato es `plausibilidad-fisica` (declarar el rango antes de creerse
+  el número).
 - `docs/observacion.md` §9: el control positivo del observador abarca dos llamadas de
   herramienta separadas; solo repos git quedan cubiertos.
 - Control positivo opcional por check: debe detectar un caso malo con código 1 antes de

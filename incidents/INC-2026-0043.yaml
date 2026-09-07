@@ -1,0 +1,25 @@
+id: INC-2026-0043
+titulo: "Cargador medido como si fuera el diseño: contrastes tipográficos por debajo de 1:1"
+fecha: 2026-09-07
+fuente: ~/tails/skills/tails/references/04-typography.md § Method note
+tipo: instrumento
+evidencia_verde: >
+  Siete sitios de estudios premiados devolvieron titulares de 10 a 18 px y contrastes
+  titular/cuerpo de 0,6:1, 0,7:1 y 1,0:1.
+lo_que_faltaba: >
+  Se medía a los 4 segundos en sitios con animación de entrada larga. El titular grande
+  aún no existía o estaba a opacidad 0, así que el "texto más grande visible" resultaba
+  ser un enlace de navegación. Un contraste por debajo de 1:1 significa titular más
+  pequeño que el cuerpo, que es imposible en una web de agencia. Corregido esperando 9 s,
+  scrolleando para disparar los reveals y leyendo el tamaño DECLARADO en todo el
+  documento en vez de sólo lo visible.
+gate: plausibilidad-fisica
+gate_descripcion: >
+  Declarar el rango esperado antes de medir y fallar fuera de él. Un contraste
+  tipográfico por debajo de 2:1 en una web de agencia es una señal de instrumento, no un
+  dato de diseño.
+existe_hoy: "no"
+spike_cubre: "no"
+clase: I
+senal_al_stop: "ninguna: siete sitios coincidían, lo que refuerza la confianza en el error"
+disparador: "medir el estado visible de una página con animación de entrada"
