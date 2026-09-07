@@ -5,6 +5,11 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Instrumento de prueba (auditoría 07-09, RMP-004).** Las baterías ya no dan por «silencio» un hook
+  que muere: cada invocación pasa por `tests/invocar.py` (código de salida, stderr, plazo) y una
+  aserción de bloqueo exige que TODA la salida sea el JSON. `tests/instrumento-test.sh` ejercita las
+  aserciones contra hooks falsos en las dos direcciones. El binario que prueban las baterías es el que
+  está junto a ellas (`ROMPELO_BIN` para otro), no `~/rompelo`. Recuento nuevo: `PASS= FAIL= ROTOS=`.
 - `rompelo check` ya no descarta argumentos en silencio: `check no.existe` ejecutaba todo y
   decía «todos en verde» (INC-0037). Ahora solo admite `--id ID` (repetible, acotado a los
   checks exigidos por el contrato) y cualquier otro argumento es error sin ejecutar nada.

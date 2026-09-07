@@ -17,6 +17,8 @@ jobs:
           bash "$HOME/rompelo/tests/rompelo-stop-test.sh"
       - name: Observation layer battery (every trigger seen firing and not firing)
         run: bash "$HOME/rompelo/tests/rompelo-observe-test.sh"
+      - name: Test instrument control (assertions reject a dead, missing, garbled or hung hook)
+        run: bash "$HOME/rompelo/tests/instrumento-test.sh"
       - name: Tri-state check sees its own positive control
         # Con `bash -e` un comando que sale con 1 aborta el paso antes del test: se captura el código.
         run: |

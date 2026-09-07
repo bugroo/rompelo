@@ -3,11 +3,9 @@
 # FALLAR (bloquea con el motivo correcto) y PASAR (verde de partida y vuelta a verde).
 # Usa un ROMPELO_HOME desechable: registro y allowlist propios, nunca los reales.
 # Exit 0 = todo OK · 1 = hay fallos · 2 = no se pudo ejecutar.
-ASSURE="${ROMPELO_BIN:-$HOME/rompelo/bin/rompelo}"
+. "$(dirname "$0")/lib.sh"   # ROMPELO (binario junto a los tests), ok/bad, hook_stop, espera_*, resumen
+ASSURE="$ROMPELO"
 [ -x "$ASSURE" ] || { echo "no existe $ASSURE"; exit 2; }
-PASS=0; FAIL=0
-ok()   { PASS=$((PASS+1)); echo "  ✅ $1"; }
-bad()  { FAIL=$((FAIL+1)); echo "  ❌ $1"; [ -n "$2" ] && echo "     salida: $2"; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
 CANARY="$T/canario"
@@ -19,10 +17,7 @@ J
 R="$T/repo"; mkdir -p "$R"; cd "$R" || exit 2
 git init -q && git config user.email t@t && git config user.name t
 mkdir -p src tests && echo a > src/a.txt && echo t > tests/a.test.txt && git add -A && git commit -qm base
-hook() { printf '{"session_id":"%s","cwd":"%s","stop_hook_active":false,"hook_event_name":"Stop"}' "$2" "$3" | "$ASSURE" hook "$1"; }
-espera_bloqueo() { local out; out="$(hook claude "$2" "$R")"
-  if printf '%s' "$out" | grep -q '"decision": *"block"' && printf '%s' "$out" | grep -qF -- "$3"; then ok "$1"; else bad "$1 (esperaba bloqueo con «$3»)" "$out"; fi; }
-espera_paso() { local out; out="$(hook claude "$2" "$R")"; [ -z "$out" ] && ok "$1" || bad "$1 (esperaba silencio)" "$out"; }
+hook() { hook_stop "$1" "$2" "$3"; }   # <agente> <sid> <cwd>; la aserción de código/stderr/plazo vive en lib.sh
 contrato() { python3 - "$@" <<'PY'
 import json,sys;f='.rompelo/task.json';c=json.load(open(f))
 for kv in sys.argv[1:]:
@@ -341,7 +336,5 @@ registro_positivo control_positivo '{"argv":"touch canario","cwd":"repo"}'
 [ "$rc" -ne 0 ] && [ ! -s "$ROMPELO_HOME/orden" ] && ok "control malformado se rechaza antes de ejecutar" || bad "control malformado ejecutó el real"
 espera_bloqueo "control malformado bloquea el cierre" cpinvalido "no pudo evaluar"
 
-echo
-echo "PASS=$PASS FAIL=$FAIL"
 rm -rf "$T"
-[ "$FAIL" -eq 0 ]
+resumen

@@ -2,10 +2,8 @@
 # Batería de la capa de observación (docs/observacion.md). Cada disparador se ve SALTAR con un
 # flujo de eventos sintético y NO SALTAR con una sesión sana. ROMPELO_HOME desechable.
 # Exit 0 = todo OK · 1 = hay fallos · 2 = no se pudo ejecutar.
-ROMPELO="$HOME/rompelo/bin/rompelo"; [ -x "$ROMPELO" ] || { echo "no existe $ROMPELO"; exit 2; }
-PASS=0; FAIL=0
-ok()  { PASS=$((PASS+1)); echo "  ✅ $1"; }
-bad() { FAIL=$((FAIL+1)); echo "  ❌ $1"; [ -n "$2" ] && echo "     salida: $2"; }
+. "$(dirname "$0")/lib.sh"   # ROMPELO (binario junto a los tests), ok/bad, observar, hook_stop, resumen
+[ -x "$ROMPELO" ] || { echo "no existe $ROMPELO"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
 printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
@@ -15,40 +13,36 @@ git init -q && git config user.email t@t && git config user.name t && echo a > s
 SES=0
 nueva_sesion() { SES=$((SES+1)); SID="s$SES"; }
 # bash <sid> <comando> <codigo> <stdout> <stderr>  → salida del hook
-bash_ev() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" "$4" "$5" "${AGENTE:-claude}" <<'PY'
-import json,subprocess,sys
-r,sid,cwd,cmd,code,out,err,ag=sys.argv[1:9]
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"exit_code":int(code)}}
-p=subprocess.run([r,"observe",ag],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+bash_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" "$3" "$4" "$5" <<'PY'
+import json,sys
+sid,cwd,cmd,code,out,err=sys.argv[1:7]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"exit_code":int(code)}}))
 PY
-}
-edit_ev() { python3 - "$ROMPELO" "$1" "$R" "$2" "${AGENTE:-claude}" <<'PY'
-import json,subprocess,sys
-r,sid,cwd,path,ag=sys.argv[1:6]
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":path,"old_string":"a","new_string":"b"},"tool_response":{"ok":True}}
-p=subprocess.run([r,"observe",ag],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+)"; }
+edit_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" <<'PY'
+import json,sys
+sid,cwd,path=sys.argv[1:4]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":path,"old_string":"a","new_string":"b"},"tool_response":{"ok":True}}))
 PY
-}
+)"; }
 # Claude Code real: PostToolUse solo llega en éxito y tool_response es {stdout, stderr, interrupted, isImage}, SIN código.
-claude_ok_ev() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" "$4" <<'PY'
-import json,subprocess,sys
-r,sid,cwd,cmd,out,err=sys.argv[1:7]
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"interrupted":False,"isImage":False}}
-p=subprocess.run([r,"observe","claude"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+claude_ok_ev() { observar claude "$(python3 - "$1" "$R" "$2" "$3" "$4" <<'PY'
+import json,sys
+sid,cwd,cmd,out,err=sys.argv[1:6]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"interrupted":False,"isImage":False}}))
 PY
-}
+)"; }
 # Claude Code real: un comando que sale con != 0 llega por PostToolUseFailure con `error` = "Exit code N\n<salida>".
-fail_ev() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" "${4:-false}" <<'PY'
-import json,subprocess,sys
-r,sid,cwd,cmd,err,intr=sys.argv[1:7]
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":cmd},"error":err,"is_interrupt":intr=="true"}
-p=subprocess.run([r,"observe","claude"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+fail_ev() { observar claude "$(python3 - "$1" "$R" "$2" "$3" "${4:-false}" <<'PY'
+import json,sys
+sid,cwd,cmd,err,intr=sys.argv[1:6]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":cmd},"error":err,"is_interrupt":intr=="true"}))
 PY
-}
+)"; }
 ultimo_codigo() { tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" | python3 -c "import json,sys;print(json.load(sys.stdin).get('codigo'))"; }
 nivel() { python3 -c "import json,glob;d=[json.load(open(f)) for f in glob.glob('$ROMPELO_HOME/state/repos/*.json')];print(d[0].get('nivel',0) if d else 0)"; }
 reset_estado() { rm -rf "$ROMPELO_HOME/state"; }
-hook() { printf '{"session_id":"%s","cwd":"%s","stop_hook_active":false}' "$1" "$R" | "$ROMPELO" hook claude; }
+hook() { hook_stop claude "$1" "$R"; }
 
 echo "── control negativo: sesión sana no dispara nada"
 nueva_sesion; out=""
@@ -186,32 +180,31 @@ rm "$ROMPELO_HOME/config/observacion.json"
 
 echo "── Codex: si tool_response fuera una cadena JSON {output, metadata:{exit_code}}, se abre (forma admitida, no la medida)"
 reset_estado; nueva_sesion
-python3 - "$ROMPELO" $SID "$R" <<'PY'
-import json,subprocess,sys
-r,sid,cwd=sys.argv[1:4]
+observar codex "$(python3 - $SID "$R" <<'PY'
+import json,sys
+sid,cwd=sys.argv[1:3]
 resp=json.dumps({"output":"ls: /no-existe: No such file or directory","metadata":{"exit_code":1,"duration_seconds":0.01}})
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls /no-existe"},"tool_response":resp}
-subprocess.run([r,"observe","codex"],input=json.dumps(ev),capture_output=True,text=True)
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls /no-existe"},"tool_response":resp}))
 PY
+)" >/dev/null
 tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 1' && ok "el código sale de metadata.exit_code dentro de la cadena JSON" || bad "codex str json" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
-python3 - "$ROMPELO" $SID "$R" <<'PY'
-import json,subprocess,sys
-r,sid,cwd=sys.argv[1:4]
+observar codex "$(python3 - $SID "$R" <<'PY'
+import json,sys
+sid,cwd=sys.argv[1:3]
 resp=json.dumps({"output":"hola\n","metadata":{"exit_code":0,"duration_seconds":0.01}})
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo hola"},"tool_response":resp}
-subprocess.run([r,"observe","codex"],input=json.dumps(ev),capture_output=True,text=True)
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo hola"},"tool_response":resp}))
 PY
+)" >/dev/null
 tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 0' && tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"stdout_vacio": false' && ok "y con 0 la salida cuenta como salida (no como cadena opaca)" || bad "codex str json 0" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
 
 echo "── Codex de verdad (medido con codex exec, 05-09): tool_response es SOLO el texto que el modelo imprimió, sin código de salida"
 reset_estado; nueva_sesion
-codex_txt() { python3 - "$ROMPELO" "$1" "$R" "$2" "$3" <<'PY'
-import json,subprocess,sys
-r,sid,cwd,cmd,txt=sys.argv[1:6]
-ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":txt}
-p=subprocess.run([r,"observe","codex"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
+codex_txt() { observar codex "$(python3 - "$1" "$R" "$2" "$3" <<'PY'
+import json,sys
+sid,cwd,cmd,txt=sys.argv[1:5]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":txt}))
 PY
-}
+)"; }
 codex_txt $SID 'ls /no-existe' $'ls: /no-existe: No such file or directory\n' >/dev/null
 tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": null' && ok "sin código en el payload: código desconocido (null), no 0" || bad "codex sin código" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
 tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"firma": "' && ok "la última línea parece un error: lleva firma (heurística, documentada)" || bad "firma heurística" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
@@ -302,16 +295,9 @@ git checkout -q src/a.txt
 
 echo "── repo fuera de la allowlist: se observa pero no se escala"
 reset_estado; nueva_sesion; R2="$T/ajeno"; mkdir -p "$R2"; git -C "$R2" init -q
-o="$(python3 - "$ROMPELO" $SID "$R2" <<'PY'
-import json,subprocess,sys
-r,sid,cwd=sys.argv[1:4]
-for i in (1,2):
-    ev={"session_id":sid,"cwd":cwd,"tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stderr":"Error: y","exit_code":1}}
-    p=subprocess.run([r,"observe","claude"],input=json.dumps(ev),capture_output=True,text=True); sys.stdout.write(p.stdout)
-PY
-)"; [ -z "$o" ] && [ ! -d "$ROMPELO_HOME/state/repos" ] && ok "sin aviso ni estado para un repo no alistado" || bad "ajeno" "$o"
+o=""; for i in 1 2; do o+="$(observar claude "$(python3 -c 'import json,sys;print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stderr":"Error: y","exit_code":1}}))' $SID "$R2")")"; done; [ -z "$o" ] && [ ! -d "$ROMPELO_HOME/state/repos" ] && ok "sin aviso ni estado para un repo no alistado" || bad "ajeno" "$o"
 
 echo "── entrada malformada: silencio y rastro en observe.err"
 printf 'basura' | "$ROMPELO" observe claude; rc=$?; [ $rc -eq 0 ] && [ -f "$ROMPELO_HOME/state/observe.err" ] && ok "no rompe la sesión y deja rastro" || bad "malformado" "rc=$rc"
 
-echo; echo "PASS=$PASS FAIL=$FAIL"; rm -rf "$T"; [ "$FAIL" -eq 0 ]
+rm -rf "$T"; resumen

@@ -1,0 +1,425 @@
+{
+  "repository": "bugroo/rompelo",
+  "commit": "86001d25aa08703e85f1d7636b1a1336babe988e",
+  "audited_on": "2026-09-07",
+  "source_blob": "cf989515a8981b4a2c92e1b4a5e9f7f9b55c9cf5",
+  "scope": "Revisión estática del núcleo y rutas de integración, fuentes de pruebas y documentación seleccionadas, lectura de CI existente y pruebas locales focalizadas de funciones extraídas.",
+  "limitations": [
+    "No checkout completo descargado al contenedor; no baterías originales completas ejecutadas localmente.",
+    "No ejecución independiente del cliente Claude/Codex ni inspección de los alias/configuración del Mac.",
+    "No se afirma exhaustividad ni ausencia de defectos no encontrados.",
+    "Prioridad operacional P1/P2/P3, no calificación CVSS ni 19 vulnerabilidades."
+  ],
+  "ci_evidence": {
+    "run_id": 34044787351,
+    "job_id": 101517800803,
+    "commit": "86001d25aa08703e85f1d7636b1a1336babe988e",
+    "observed_conclusion": "success",
+    "reported_gate_pass": 113,
+    "reported_gate_fail": 0,
+    "reported_observer_pass": 75,
+    "reported_observer_fail": 0,
+    "observed_skips": [
+      "rompelo.cruce-settings-claude",
+      "rompelo.control-negativo-sesiones",
+      "cruce real de toca_junta"
+    ],
+    "source": "GitHub.fetch_workflow_job_logs; registro remoto leído, no ejecución local propia"
+  },
+  "findings": [
+    {
+      "id": "RMP-001",
+      "priority": "P1",
+      "status": "REPRODUCIDO_FUNCION",
+      "confidence": "ALTA",
+      "title": "La huella no identifica de forma suficiente el estado inspeccionado",
+      "locations": [
+        "bin/rompelo :: ficheros_cambiados, huella_arbol"
+      ],
+      "evidence": "En las funciones extraídas, año.py, nombres con tabulador/salto de línea, cambios de ejecutabilidad, cambio de destino de symlink con bytes iguales y archivo staged en repo sin HEAD conservan la huella pese a cambiar el sujeto. ASCII normal cambia la huella: control positivo.",
+      "impact": "Una comprobación anterior puede seguir pareciendo vigente; también puede clasificarse mal el scope. No es una colisión criptográfica de SHA: se está representando mal la entrada.",
+      "proposed_fix": "Usar salidas Git delimitadas por NUL y comprobar returncode. Representar tipo, modo, contenido, destino de enlace y estado inicial sin HEAD. Especificar el tratamiento de submódulos, archivos ignorados y exclusiones. Conservar la propiedad deseada: staging/commit de idéntico contenido no debe invalidar por sí solo.",
+      "acceptance": "Cambiar contenido de rutas Unicode/control, tipo o modo invalida evidencia; add/commit de idéntico contenido no la invalida; repo inicial y errores Git tienen resultado explícito.",
+      "local_probes": [
+        "evidence/git-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-002",
+      "priority": "P1",
+      "status": "REPRODUCIDO_FUNCION",
+      "confidence": "ALTA",
+      "title": "Una base inexistente se sustituye por HEAD silenciosamente",
+      "locations": [
+        "bin/rompelo :: ref_base",
+        ".github/workflows/ci.yml",
+        ".rompelo/task.json"
+      ],
+      "evidence": "ref_base devuelve HEAD si cat-file no encuentra una base explícita. Dos commits limpios distintos producen la misma huella vacía con missing-ref. La CI propia hace checkout superficial; el contrato cita una base anterior distinta del HEAD auditado.",
+      "impact": "La CI puede ejecutar tests pero no comprobar el diff que cree estar examinando. La pérdida del historial no debe convertirse en ausencia de cambios.",
+      "proposed_fix": "Rechazar una base explícita ausente. Resolver y conservar la identidad de la base; recuperar historial o base necesaria en CI; separar la base de una tarea del rango del PR.",
+      "acceptance": "Clone superficial sin base: ERROR/NO_VERIFICADO, nunca comparar silenciosamente con HEAD. Con base disponible, el scope contiene todos los cambios previstos.",
+      "local_probes": [
+        "evidence/git-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/.github/workflows/ci.yml",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/.rompelo/task.json"
+      ]
+    },
+    {
+      "id": "RMP-003",
+      "priority": "P1",
+      "status": "REPRODUCIDO_FUNCION",
+      "confidence": "ALTA",
+      "title": "Errores de configuración y estado pueden desactivar la garantía",
+      "locations": [
+        "bin/rompelo :: repos_permitidos, cmd_hook, leer_json_o, estado_repo, guardar_estado_repo",
+        "adapters/claude/rompelo-stop.sh"
+      ],
+      "evidence": "Un repos.json truncado lanza JSONDecodeError antes del try que convierte errores a bloqueo. En la reproducción el hook no emite JSON. Un archivo de estado truncado se transforma en {}, perdiendo nivel y perfiles. El adaptador hace exec directo.",
+      "impact": "El controlador puede no bloquear cuando no pudo evaluar; perder el estado puede omitir controles reforzados. Las escrituras directas sin transacción hacen pertinente ensayar concurrencia/interrupciones; la carrera completa no se ha reproducido aquí.",
+      "proposed_fix": "Distinguir ausencia inicial legítima, corrupción y fallo de E/S. Emitir un veredicto de instrumento indisponible, conservar el último estado válido y usar escritura atómica más exclusión/transacción para actualizaciones concurrentes.",
+      "acceptance": "Allowlist o estado truncado, permisos denegados y dos procesos concurrentes no producen un PASS ni una degradación silenciosa.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/claude/rompelo-stop.sh"
+      ]
+    },
+    {
+      "id": "RMP-004",
+      "priority": "P1",
+      "status": "REPRODUCIDO_ASERCION",
+      "confidence": "ALTA",
+      "title": "Una aserción de paso acepta un hook averiado",
+      "locations": [
+        "tests/rompelo-stop-test.sh :: espera_paso",
+        "tests/rompelo-observe-test.sh :: bash_ev, edit_ev, fail_ev"
+      ],
+      "evidence": "espera_paso solo comprueba stdout vacío. Un hook de control que escribe un error en stderr y retorna 1 da PASS=1 FAIL=0. Los helpers Python del observador imprimen p.stdout sin propagar p.returncode.",
+      "impact": "Parte de la batería confunde no bloquear con no haberse ejecutado correctamente. Esto no demuestra que toda la batería esté inválida; sí invalida esa aserción como prueba suficiente de paso.",
+      "proposed_fix": "Comprobar returncode y esquema de salida, no solo texto o silencio; propagar errores en helpers. Añadir un control del instrumento: crash, binario ausente, timeout, JSON inválido y salida extra.",
+      "acceptance": "El mismo crash controlado debe fallar la aserción de paso; el gate sano sin motivos sí pasa. Un fallo de infraestructura no cuenta como mutación detectada.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/tests/rompelo-stop-test.sh",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/tests/rompelo-observe-test.sh"
+      ]
+    },
+    {
+      "id": "RMP-005",
+      "priority": "P1",
+      "status": "REPRODUCIDO_FUNCION",
+      "confidence": "ALTA",
+      "title": "La plantilla CI no carga el registro del consumidor como promete",
+      "locations": [
+        "adapters/ci/rompelo-gate.yml",
+        "bin/rompelo :: registro"
+      ],
+      "evidence": "La plantilla clona Rómpelo y usa ese clon como ROMPELO_HOME. El clon contiene checks/registry.json. registro solo recurre a .rompelo/registry.json cuando no existe ningún registro global. Reproducción: con global solo aparece rompelo.tests; sin global sí aparece consumer.test.",
+      "impact": "El consumidor no obtiene los checks documentados; IDs propios resultan desconocidos o se usa un registro ajeno. La suite prueba HOME vacío, no la topología real de la plantilla.",
+      "proposed_fix": "Separar instalación del ejecutable, directorio de estado y origen del registro. Hacer explícito el registro aprobado para CI y su precedencia; no cargar registro del repo de forma implícita en sesiones locales no confiables.",
+      "acceptance": "Un proyecto consumidor temporal con check exclusivo funciona ejecutando literalmente la plantilla corregida y evidencia que el check real de ese proyecto corrió.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/ci/rompelo-gate.yml",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-006",
+      "priority": "P1",
+      "status": "OBSERVADO_CI_Y_CODIGO",
+      "confidence": "ALTA",
+      "title": "El resultado global de CI puede ser OK con obligaciones sin comprobar",
+      "locations": [
+        "bin/rompelo :: cmd_verify, motivos_bloqueo, checks_exigidos",
+        ".github/workflows/ci.yml"
+      ],
+      "evidence": "El job auditado omite dos checks solo_local y el cruce real, imprime advertencias y termina OK. --estricto bloquea junta, pero no elimina la omisión de solo_local. Los checks de nivel3 dependen de estado local ausente en un runner nuevo.",
+      "impact": "Un éxito de CI no equivale a contrato íntegramente satisfecho. La omisión local está documentada; el problema es usar el mismo veredicto afirmativo y presentarlo como juez completo.",
+      "proposed_fix": "Separar PASS, FAIL, ERROR, SKIPPED y WAIVED. Un check obligatorio no verificable deja contrato incompleto salvo excepción explícita autorizada. Congelar obligaciones efectivas de tarea de forma portable, no depender del estado local para reconstruirlas en CI.",
+      "acceptance": "Cualquier check requerido omitido deja can_close=false o una excepción trazable. El mismo contrato efectivo impone las mismas obligaciones localmente y en CI; ambas pueden diferir en capacidad pero no ocultarlo.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/.github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "RMP-007",
+      "priority": "P1",
+      "status": "REPRODUCIDO_FUNCION",
+      "confidence": "ALTA",
+      "title": "La evidencia puede persistir secretos presentes en argv",
+      "locations": [
+        "bin/rompelo :: ejecutar, cmd_cruce, informe_llano, cmd_observe"
+      ],
+      "evidence": "ejecutar incluye argv íntegro en el objeto de evidencia. Un canario ficticio aparece conservado. cruce imprime el comando y, si falla, salida final; el modo ROMPELO_DEBUG_FORMA añade cabeza=resp[:120] pese al comentario de solo forma.",
+      "impact": "Riesgo condicionado a que argumentos o salidas contengan datos sensibles. No se identificó una credencial real expuesta en esta prueba ni se inspeccionó el vault del usuario. No almacenar stdout completo no basta para afirmar ausencia de secretos.",
+      "proposed_fix": "Usar identificadores y argumentos redactados; suministrar secretos por referencias o entorno sin persistir valores; sanitizar errores y modos debug, aplicar permisos restrictivos y retención real. No presentar un hash de un secreto de baja entropía como protección suficiente.",
+      "acceptance": "Canarios en cabeceras, URL, argumentos, stdout, stderr y debug no aparecen en evidencia, informes ni logs persistidos.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-008",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO_MAS_PRUEBA_DE_HASH",
+      "confidence": "ALTA",
+      "title": "close y verify pueden juzgar contratos distintos",
+      "locations": [
+        "bin/rompelo :: motivos_bloqueo, hash_contrato, cmd_close, informe_llano"
+      ],
+      "evidence": "motivos_bloqueo crea una copia efectiva con toca_junta=True cuando lo fuerza el perfil; close firma el contrato original. La comparación focalizada produce hashes distintos sin una edición de usuario. No se ejecutó el ciclo completo de CLI aquí.",
+      "impact": "Tras cerrar correctamente puede aparecer de nuevo contrato cambiado, reproduciendo una contradicción operacional. El informe también puede omitir un cruce impuesto solo por perfil.",
+      "proposed_fix": "Una función común debe resolver y versionar contrato efectivo + políticas; cierre, verificador e informe consumen exactamente ese objeto.",
+      "acceptance": "Perfil junta con toca_junta:false: ejecutar evidencias, close y verify sin cambios debe mantenerse válido e informar el cruce exigido.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-009",
+      "priority": "P2",
+      "status": "REPRODUCIDO_FUNCION",
+      "confidence": "ALTA",
+      "title": "Registrar no después de sí no revoca la elevación",
+      "locations": [
+        "bin/rompelo :: cmd_permiso, checks_exigidos",
+        "docs/observacion.md :: permisos"
+      ],
+      "evidence": "permiso security si seguido de permiso security no deja nivel3 y permiso previo. recordar se persiste, pero no define por sí solo una caducidad de tarea; todos los checks_nivel3 se exigen por nivel global del repo.",
+      "impact": "Ambigüedad de consentimiento y alcance, especialmente con herramientas externas de coste. El proyecto reconoce que el agente registra el permiso: no se presenta aquí como control de identidad resistente a engaño.",
+      "proposed_fix": "Separar nivel de rigor de autorizaciones efectivas. Autorizar por acción/check, tarea, perfil y vigencia; última decisión negativa revoca el permiso correspondiente. Hacer explícita la semántica de recordar.",
+      "acceptance": "Sí→no revoca; sí sin recordar no se traslada a otra tarea; permiso de A no habilita B.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/docs/observacion.md"
+      ]
+    },
+    {
+      "id": "RMP-010",
+      "priority": "P2",
+      "status": "REPRODUCIDO_FUNCION_Y_REVISION",
+      "confidence": "ALTA",
+      "title": "El runner carece de límites y salida binaria rompe la evaluación",
+      "locations": [
+        "bin/rompelo :: ejecutar",
+        "docs/control-positivo.md"
+      ],
+      "evidence": "subprocess.run no recibe timeout y captura salida completa en memoria. Un proceso inocuo que emite byte 0xff produce UnicodeDecodeError no capturado. La documentación ya reconoce ausencia de control específico del runner con timeout.",
+      "impact": "Una herramienta colgada, verbosa o con salida no UTF-8 puede impedir completar el gate. No se hicieron pruebas de agotamiento de memoria ni se dejó un proceso infinito.",
+      "proposed_fix": "Plazo por check, cancelación de grupo de procesos, captura en bytes y decodificación explícita, límite de salida/recursos y resultado ERROR diferenciado.",
+      "acceptance": "Proceso dormido, hijo persistente, salida excesiva y bytes inválidos terminan de forma acotada y nunca se confunden con hallazgo del objetivo.",
+      "local_probes": [
+        "evidence/runtime-probes.json"
+      ],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/docs/control-positivo.md"
+      ]
+    },
+    {
+      "id": "RMP-011",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO_Y_PROTOCOLO",
+      "confidence": "ALTA",
+      "title": "El observador responde PostToolUse a eventos PostToolUseFailure",
+      "locations": [
+        "bin/rompelo :: cmd_observe",
+        "adapters/claude/settings-fragment.json",
+        "adapters/claude/rompelo-observe.sh"
+      ],
+      "evidence": "El mismo adaptador recibe ambos eventos; la salida fija hookEventName=\"PostToolUse\". La documentación oficial de Claude muestra PostToolUseFailure en la respuesta de fallo. No se ejecutó aquí el cliente real para medir la consecuencia de ese desajuste.",
+      "impact": "El aviso al agente tras un fallo no cumple el contrato documentado y puede perderse o tratarse como error, aunque el estado local ya se haya actualizado.",
+      "proposed_fix": "Validar el evento de entrada y emitir el evento correcto; pruebas de esquema específicas de cada agente y payloads reales sanitizados.",
+      "acceptance": "Un segundo PostToolUseFailure produce salida con hookEventName=PostToolUseFailure aceptada por un cliente real de versión registrada.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/claude/settings-fragment.json",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/claude/rompelo-observe.sh"
+      ]
+    },
+    {
+      "id": "RMP-012",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO",
+      "confidence": "ALTA",
+      "title": "Disposición escrita y segunda pasada no constituyen adjudicación",
+      "locations": [
+        "bin/rompelo :: motivos_bloqueo, leer_contrato, informe_llano"
+      ],
+      "evidence": "Un hallazgo supera el control si disposicion es cualquier cadena no vacía. segunda_pasada y las fuentes de afirmaciones se comprueban como campos, no como pruebas. El flujo es estructural: no existe una verificación semántica automática de la fuente.",
+      "impact": "Escribir pendiente puede eliminar el bloqueo sin resolver el hallazgo. Los contadores o prosa de revisión no estabilizan auditorías. No es un fallo por permitir que un agente deshonesto edite archivos: incluso un estado razonable puede interpretarse mal.",
+      "proposed_fix": "Enums validados, severidad/bloqueante, estados y transiciones; rechazado requiere motivo; corregido requiere regresión; aceptado requiere excepción. Mantener ID estable y evidencia asociada. Etiquetar afirmación como declarada, no verificada por máquina, cuando corresponda.",
+      "acceptance": "Estado desconocido o pendiente no desbloquea; una segunda auditoría actualiza el mismo ID y conserva motivos, pruebas y retractaciones.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-013",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO_FRENTE_A_DISENO",
+      "confidence": "ALTA",
+      "title": "Historia entre sesiones y retención no coinciden con lo descrito",
+      "locations": [
+        "bin/rompelo :: cmd_observe, main",
+        "docs/observacion.md :: secciones 2, 4"
+      ],
+      "evidence": "El diseño habla de últimas24h del repo y state prune/retención30d. cmd_observe lee únicamente el JSONL de agente-sesión actual. No existe subcomando state en main. Los niveles persistentes no equivalen a comparar errores de sesiones distintas.",
+      "impact": "Un error una vez en Claude y otra en Codex puede no activar firma repetida. La retención anunciada no es una garantía ejecutable. La documentación es de diseño y necesita distinguir implementado de previsto.",
+      "proposed_fix": "Agregar ventana por repo y fingerprints deduplicados con aislamiento de worktree/tarea; implementar limpieza/retención o retirar esa promesa; exportación redaccionada.",
+      "acceptance": "Repetición distribuida en dos sesiones dispara dentro de la ventana y no fuera. Limpieza tiene prueba con reloj controlado y no elimina evidencias aún necesarias.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/docs/observacion.md"
+      ]
+    },
+    {
+      "id": "RMP-014",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO",
+      "confidence": "ALTA",
+      "title": "checks vacío impide ejecutar checks_nivel3 aunque se exijan",
+      "locations": [
+        "bin/rompelo :: cmd_check, checks_exigidos"
+      ],
+      "evidence": "cmd_check retorna0 inmediatamente si c[\"checks\"] está vacío, antes de calcular checks_exigidos. A nivel3 estos últimos pueden contener checks_nivel3.",
+      "impact": "La CLI dice que no hay checks y no ejecuta obligaciones que el gate sigue exigiendo: tarea atrapada.",
+      "proposed_fix": "Calcular primero el conjunto efectivo y decidir si está vacío después.",
+      "acceptance": "Contrato con checks=[] y checks_nivel3=[externo] a nivel3 ejecuta externo, guarda evidencia y retorna su resultado.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-015",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO",
+      "confidence": "ALTA",
+      "title": "Eliminar una prueba satisface prueba presente en diff",
+      "locations": [
+        "bin/rompelo :: motivos_bloqueo, ficheros_cambiados"
+      ],
+      "evidence": "exige_prueba_en_diff considera el nombre de cualquier archivo cambiado que case con un glob; no usa estado añadido/modificado/eliminado ni comprueba test ejecutado.",
+      "impact": "Borrar un test puede satisfacer el requisito de haber cambiado una prueba; no acredita protección nueva contra el fallo.",
+      "proposed_fix": "Distinguir tipos de cambio y ligar aceptación/regresión a test_id ejecutado. Una baja de pruebas requiere justificación expresa.",
+      "acceptance": "Cambio de código + eliminación del único test no cuenta como regresión protegida; añadir una prueba que falla antes y pasa después sí.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo"
+      ]
+    },
+    {
+      "id": "RMP-016",
+      "priority": "P2",
+      "status": "CONFIRMADO_CONFIGURACION",
+      "confidence": "ALTA",
+      "title": "CI no está aún consolidada como autoridad de merge reproducible",
+      "locations": [
+        ".github/workflows/ci.yml",
+        "adapters/ci/rompelo-gate.yml"
+      ],
+      "evidence": "Plantilla consume main de Rómpelo sin SHA fijo, actions usa tag y PyYAML se instala sin fijación en CI propia. API de main informa protected:false y consulta rulesets devolvió[] en la revisión. El token observado en el job sí era de lectura: no se afirma acceso de escritura.",
+      "impact": "Un nuevo commit remoto puede cambiar el juez sin cambiar el consumidor. Tener workflow verde no impone por sí solo un control obligatorio de merge.",
+      "proposed_fix": "Fijar revisiones verificadas, permisos explícitos mínimos, revisión de cambios al juez/políticas y check obligatorio con ruleset. Separar testear Rómpelo de usar una versión aprobada de Rómpelo para juzgar otro proyecto.",
+      "acceptance": "Mismo consumidor + misma revisión fijada reproducen el juez; un PR con gate fallido no puede integrarse por el flujo protegido normal.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/.github/workflows/ci.yml",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/ci/rompelo-gate.yml"
+      ]
+    },
+    {
+      "id": "RMP-017",
+      "priority": "P2",
+      "status": "CONFIRMADO_CODIGO",
+      "confidence": "ALTA",
+      "title": "El recall del corpus es una anotación, no una medida ejecutada",
+      "locations": [
+        "bin/rompelo-corpus.py",
+        ".github/workflows/ci.yml"
+      ],
+      "evidence": "El numerador se calcula contando spike_cubre==sí en YAML. El generador no reproduce incidentes ni calcula resultados de detectores. La CI genera TABLA.md, pero ese paso no comprueba que el archivo versionado no haya quedado desactualizado.",
+      "impact": "La tabla es útil como cobertura prevista, pero no prueba sensibilidad real ni generalización a incidentes nuevos.",
+      "proposed_fix": "Renombrar a cobertura declarada mientras no haya runner de incidentes. Añadir IDs únicos/enums, fixtures ejecutables, controles negativos, separación entre corpus de diseño y holdout, comparación de tabla regenerada.",
+      "acceptance": "Cada cobertura demostrada referencia ejecución roja/verde y prueba reproducible; cambiar una etiqueta YAML no mejora la métrica medida.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo-corpus.py",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/.github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "RMP-018",
+      "priority": "P3",
+      "status": "PROPUESTA",
+      "confidence": "ALTA",
+      "title": "Portabilidad: separar núcleo, instalación, configuración y datos",
+      "locations": [
+        "bin/rompelo",
+        "adapters/claude/rompelo-stop.sh",
+        "adapters/claude/settings-fragment.json",
+        "adapters/codex/hooks.json"
+      ],
+      "evidence": "El núcleo, observador, runner, idiomas y CLI conviven en un archivo; adaptadores apuntan a ~/rompelo; la ruta del comando en settings-fragment de Claude no está entrecomillada como la de Codex.",
+      "impact": "Dificulta pruebas unitarias, instalación en otra ruta, Windows y coexistencia de versiones/perfiles. No se ha validado Windows ni los alias del Mac del usuario.",
+      "proposed_fix": "Mantener Python; extraer pocos módulos, empaquetar CLI, añadir doctor e instalación idempotente con copia y diff de configuración. Mantener adaptadores delgados y matriz de versiones/entornos. Nuevos comandos son propuestas, no capacidades existentes.",
+      "acceptance": "Instalación en HOME con espacios, directorio alternativo y dos proyectos con igual basename no mezclan estado ni checks; Linux/macOS y versiones de Python declaradas pasan la matriz.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/claude/rompelo-stop.sh",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/claude/settings-fragment.json",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/codex/hooks.json"
+      ]
+    },
+    {
+      "id": "RMP-019",
+      "priority": "P2",
+      "status": "PENDIENTE_RUNTIME",
+      "confidence": "MEDIA",
+      "title": "Verificar edición nativa apply_patch de Codex",
+      "locations": [
+        "bin/rompelo :: evento_desde_hook, patrones_de",
+        "adapters/codex/hooks.json"
+      ],
+      "evidence": "El código extrae parches de cmd, pero cmd se forma solo para herramientas shell. Puede haber rutas explícitas normalizadas por el harness que eviten el problema. Falta capturar el payload real de apply_patch de la versión exacta de Codex para decidir.",
+      "impact": "Posible pérdida de señales de edición/riesgo. No se presenta como fallo de integración confirmado.",
+      "proposed_fix": "Capturar esquema sanitizado real para Write/Edit/apply_patch y probar normalización de rutas relativas contra el repo, con veredicto desconocido para formas no soportadas.",
+      "acceptance": "Fixture real de parche con varios archivos registra todos los destinos y produce las mismas señales que Edit equivalente.",
+      "local_probes": [],
+      "source_urls": [
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/bin/rompelo",
+        "https://github.com/bugroo/rompelo/blob/86001d25aa08703e85f1d7636b1a1336babe988e/adapters/codex/hooks.json"
+      ]
+    }
+  ]
+}
