@@ -116,6 +116,14 @@ checks de nivel 3, si se exigió la junta) en el contrato. Un runner de CI sin e
 que había al cerrar, y rebajarlas a mano cambia el hash del contrato e invalida el cierre. `check`,
 `verify`, `close`, los hooks y el informe leen un único contrato efectivo.
 
+## La skill: `/rompelo` en Claude Code, `$rompelo` en Codex
+
+`adapters/skill/SKILL.md` le dice al agente cómo se trabaja una tarea con la puerta puesta: abrir su
+contrato (scope, checks del registro, `--junta`, `--prueba`), trabajar, y luego `check` → `cruce` →
+`close`, y qué declarar como NO VERIFICADO en vez de forzar el verde. Instalar: copiarla a
+`~/.claude/skills/rompelo/SKILL.md` (Claude Code) y a `~/.codex/skills/rompelo/SKILL.md` (Codex, desde
+el lado de Codex). Después, `/rompelo <tarea>` o `$rompelo <tarea>`.
+
 ## Diagnóstico
 
 `rompelo doctor` imprime, sin escribir nada, el binario y su revisión, versiones de Python y git,

@@ -120,6 +120,14 @@ level-3 checks, whether the boundary was required) into the contract. A CI runne
 requires the same thing the close did, and lowering them by hand changes the contract hash and voids
 the close. `check`, `verify`, `close`, the hooks and the report all read one effective contract.
 
+## The skill: `/rompelo` in Claude Code, `$rompelo` in Codex
+
+`adapters/skill/SKILL.md` tells the agent how to work a task behind the gate: open its own contract
+(scope, registry checks, `--junta`, `--prueba`), work, then `check` → `cruce` → `close`, and what to
+declare as NOT VERIFIED instead of faking green. Install: copy it to `~/.claude/skills/rompelo/SKILL.md`
+(Claude Code) and to `~/.codex/skills/rompelo/SKILL.md` (Codex; do it from Codex's side). Then
+`/rompelo <task>` or `$rompelo <task>`.
+
 ## Diagnosis
 
 `rompelo doctor` prints, read-only, the binary and its revision, Python and git versions, `ROMPELO_HOME`,
