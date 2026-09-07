@@ -161,6 +161,33 @@ Después, el hook:
 
 ## Usar
 
+### Cómo decirle al agente que use la puerta
+
+Tres maneras, de más a menos cómoda:
+
+1. **La skill.** En Claude Code, `/rompelo <la tarea>`; en Codex, `$rompelo <la tarea>` o «usa la skill
+   rompelo». El agente lee `adapters/skill/SKILL.md` y sabe qué hacer: abrir su contrato con scope,
+   checks, `--junta` y `--prueba`, trabajar, y cerrar con `check` → `cruce` → `close`. Requiere tener
+   la skill copiada (sección anterior).
+2. **Sin skill, dos frases al principio del encargo:**
+
+   ```
+   Esta tarea va con rompelo. Antes de tocar nada: `rompelo init --force --id <ID> --desc "<qué>"
+   --scope '<rutas>' --check <ids del registro> [--junta] [--prueba]`. No des la tarea por
+   terminada hasta que `rompelo close` cierre en verde; lo que no puedas cumplir, escríbelo en el
+   contrato como NO VERIFICADO.
+   ```
+
+3. **Sin decir nada.** Si el repo está alistado y hay un contrato abierto, el hook Stop actúa igual:
+   al intentar terminar, el agente recibe el bloqueo con los motivos y las órdenes exactas
+   (`rompelo check`, `rompelo cruce`, disposición del hallazgo). No hace falta que sepa nada de
+   antemano; sí conviene, porque un contrato bien abierto (scope estrecho, checks reales) es lo que
+   hace que el bloqueo diga algo útil.
+
+`rompelo doctor` dice si el repo está alistado, qué contrato hay abierto y qué ids de check existen.
+
+### A mano
+
 ```bash
 cd tu-repo
 ~/rompelo/bin/rompelo init --id T-42 --scope 'src/**' --check mi-app.test --junta

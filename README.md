@@ -165,6 +165,33 @@ Then connect the hook:
 
 ## Use
 
+### How to tell the agent to work behind the gate
+
+Three ways, most to least convenient:
+
+1. **The skill.** In Claude Code, `/rompelo <the task>`; in Codex, `$rompelo <the task>` or "use the
+   rompelo skill". The agent reads `adapters/skill/SKILL.md` and knows what to do: open its own
+   contract with scope, checks, `--junta` and `--prueba`, work, and close with `check` → `cruce` →
+   `close`. Needs the skill copied (previous section).
+2. **Without the skill, two sentences at the top of the task:**
+
+   ```
+   This task runs behind rompelo. Before touching anything: `rompelo init --force --id <ID>
+   --desc "<what>" --scope '<paths>' --check <registry ids> [--junta] [--prueba]`. Do not call the
+   task done until `rompelo close` closes green; whatever you cannot meet, write it in the contract
+   as NOT VERIFIED.
+   ```
+
+3. **Saying nothing.** If the repo is enrolled and a contract is open, the Stop hook acts anyway: when
+   the agent tries to finish it gets the block with the reasons and the exact commands (`rompelo
+   check`, `rompelo cruce`, finding disposition). It does not need to know anything up front; it
+   helps, because a well-opened contract (narrow scope, real checks) is what makes the block say
+   something useful.
+
+`rompelo doctor` tells whether the repo is enrolled, which contract is open and which check ids exist.
+
+### By hand
+
 ```bash
 cd your-repo
 ~/rompelo/bin/rompelo init --id T-42 --scope 'src/**' --check my-app.test --junta
