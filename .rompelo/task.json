@@ -3,7 +3,7 @@
   "id": "MEJORAS-2026-09-11",
   "estado": "cerrada",
   "base": "c251d38a4c83f2629aa93959f93a4185a1b0ce0c",
-  "descripcion": "Revisión de los 7 commits tras el PR #1 y mejoras: ruta caliente sin git, no_afecta por check, línea Siguiente, aviso de árbol cambiado, detección multiecosistema",
+  "descripcion": "Revisión de los 7 commits tras el PR #1 y mejoras: ruta caliente sin git, no_afecta por check, línea Siguiente, aviso de árbol cambiado, detección multiecosistema; segunda tanda: informe Parte 4 de Codex, permisos.json fuera del control de versiones, handoff Parte 5",
   "scope_paths": [
     "bin/**",
     "tests/**",
@@ -11,7 +11,9 @@
     "docs/**",
     "adapters/**",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    ".gitignore",
+    "config/**"
   ],
   "checks": [
     "rompelo.tests",
@@ -41,6 +43,6 @@
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-11T06:27:45+00:00"
+    "fecha": "2026-09-11T06:39:26+00:00"
   }
 }

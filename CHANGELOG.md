@@ -29,6 +29,13 @@ no verificado de cada versión está en el relevo enlazado.
   `mypy` solo si están configurados, `go vet`, `mix test`, `rspec`/`rake test`, Gradle, Maven, .NET, Swift,
   `justfile` y `Taskfile`. El observador reconoce como check verde `uv run pytest`, `deno task check`,
   `just test`, `mix test`, `rspec`, `dotnet test`, `ruff check` y otros.
+- **`config/permisos.json` deja de estar versionado** (como `repos.json` y `state/`): es estado de la máquina
+  y lo escribe `rompelo permiso`. Al ejecutarlo dentro del propio repo de rompelo aparecía como «fuera de
+  scope_paths» (visto por Codex en la Parte 4, 07-09). La entrada que había versionada era un ensayo del 05-09.
+- **Parte 4 de Codex incorporada** (`adapters/codex/LEEME.md`, 07-09-2026, codex-cli 0.153.4): el binario del
+  PR #1 cruzado desde un cliente Codex real (Stop nativo, `apply_patch` con rutas, permiso revocado). Su
+  contrato cerrado queda en `docs/auditoria-2026-09-07/contrato-ROMPELO-CODEX-04.json`. Parte 5 del encargo
+  en `adapters/codex/PROMPT-CODEX.md`: cruzar desde Codex lo de esta versión.
 - **Instrumento de prueba (auditoría 07-09, RMP-004).** Las baterías ya no dan por «silencio» un hook
   que muere: cada invocación pasa por `tests/invocar.py` (código de salida, stderr, plazo) y una
   aserción de bloqueo exige que TODA la salida sea el JSON. `tests/instrumento-test.sh` ejercita las

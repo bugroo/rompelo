@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "id": "ROMPELO-CODEX-04",
+  "estado": "cerrada",
+  "base": "5047df482ae72e1e7cdd1b62492098439524c889",
+  "descripcion": "Parte 4: cruce del binario auditado; base de documentación actualizada tras commits concurrentes",
+  "segunda_pasada": "Revisado: bloqueo inicial del Stop A; observación del uso nativo de apply_patch con ruta absoluta /Users/rootml/rompelo/adapters/codex/LEEME.md; evidencia de rompelo.sin-var-pegada invalidada por el cambio posterior de estímulo A a estímulo B; concesión temporal y revocación de rompelo.tests, con nivel real 2 y permisos activos vacíos tras revocar. Discrepancias observadas: el segundo hook señaló config/permisos.json fuera de scope_paths por el estímulo autorizado de permiso; mantuvo rompelo.tests pendiente por permiso revocado mientras existía checks_nivel3 temporal; señaló rompelo.sin-var-pegada obsoleto y cruce real anterior al último cambio. No se añadieron excepciones ni se forzó el nivel. Revisada la concurrencia: commits ajenos solo de documentación, binario/tests con SHA-256 original; nueva base del contrato propio, sin ampliar scope ni quitar checks.",
+  "scope_paths": [
+    "adapters/codex/LEEME.md"
+  ],
+  "checks": [
+    "rompelo.tests",
+    "rompelo.observe-tests",
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests",
+    "rompelo.sin-var-pegada",
+    "rompelo.cruce-settings-claude",
+    "rompelo.control-negativo-sesiones"
+  ],
+  "toca_junta": true,
+  "exige_prueba_en_diff": false,
+  "hallazgos": [],
+  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "obligaciones_efectivas": {
+    "nivel": 2,
+    "perfiles": [
+      "auth",
+      "junta"
+    ],
+    "permisos": [],
+    "checks": [
+      "rompelo.tests",
+      "rompelo.observe-tests",
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests",
+      "rompelo.sin-var-pegada",
+      "rompelo.cruce-settings-claude",
+      "rompelo.control-negativo-sesiones"
+    ],
+    "toca_junta": true,
+    "toca_exterior": false,
+    "fecha": "2026-09-07T20:44:16+00:00"
+  }
+}

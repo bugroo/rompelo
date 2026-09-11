@@ -42,6 +42,149 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 07-09-2026 · Parte 4: binario del PR #1 cruzado en vivo
+
+Cliente: `codex-cli 0.153.4` (`codex --version`). Precondición comprobada contra la API de
+GitHub: PR [#1](https://github.com/bugroo/rompelo/pull/1) fusionado; al iniciar, `HEAD` en
+`main` coincidía con su merge commit `35c02955d677e9279a8de003ba5c612df7e034be`.
+`git pull --ff-only` respondió `Already up to date.` Se abrió el contrato propio
+`ROMPELO-CODEX-04`, con los siete checks de la Parte 4 y junta, sin cambiar de rama.
+
+**Resultado en el cliente real:** sesión `01a07d8b-5bef-77b0-ad0a-66274cc8bcce`,
+lanzada con `codex exec --json --sandbox workspace-write -C /Users/rootml/rompelo`,
+sin bypass ni cambios de confianza. El transcript contiene dos `HookPrompt` nativos de
+`Stop` procedentes de la definición global. Tras `check`, `cruce`, `close` y
+`verify --json` ejecutados dentro de esa sesión (todos con código 0; verify:
+`{"ok": true, "motivos": []}`), el cliente terminó con código 0 sin otro bloqueo.
+La marca quedó en 2 y no existe `SIN-VERIFICAR.json`: el silencio no fue por alcanzar el tope.
+
+Durante la verificación de esta nota, otra sesión añadió commits de documentación hasta
+`855bfcc`. El cierre detectó esos archivos fuera de scope y evidencia obsoleta (`close` 1;
+los siete checks habían devuelto 0). Se conservó ese intento en la evidencia y se reabrió
+el contrato propio con `init --force` sobre la nueva base, manteniendo el scope y los siete
+checks. No se tocaron los cambios ajenos; binario y tests conservaron sus SHA-256 originales.
+La validación posterior se ejecuta completa sobre esta base, sin reutilizar las evidencias
+del intento invalidado. Véanse `base-tras-concurrencia.json` y `comandos-finales.json`.
+
+| Comando real de batería | Antes del cruce | Después de los estímulos |
+|---|---|---|
+| `bash tests/rompelo-stop-test.sh` | PASS=193 FAIL=0 ROTOS=0 | PASS=193 FAIL=0 ROTOS=0 |
+| `bash tests/rompelo-observe-test.sh` | PASS=100 FAIL=0 ROTOS=0 | PASS=100 FAIL=0 ROTOS=0 |
+| `bash tests/instrumento-test.sh` | 26 de 26 distinciones correctas, rc 0 | 26 de 26 distinciones correctas, rc 0 |
+| `bash tests/portabilidad-test.sh` | PASS=18 FAIL=0 ROTOS=0 | PASS=18 FAIL=0 ROTOS=0 |
+
+`bin/rompelo check --id rompelo.sin-var-pegada` pasó con código 0 y control positivo 1.
+El siguiente `apply_patch` invalidó esa evidencia, y el segundo Stop lo detectó.
+`bin/rompelo check` completo pasó los siete checks, con controles positivos 1 para
+`rompelo.tests` y `rompelo.sin-var-pegada`. Se esperó el proceso persistente hasta su
+fin; después se ejecutó `bin/rompelo cruce --id rompelo.cruce-settings-claude`.
+
+**Observador:** la primera herramienta fue `apply_patch`; la primera lectura tras el
+bloqueo encontró en la última línea del libro de esa misma sesión:
+
+```json
+{"tool":"apply_patch","evento":"PostToolUse","ficheros":["/Users/rootml/rompelo/adapters/codex/LEEME.md"]}
+```
+
+Es un extracto de campos del evento real, no un payload sintético. No fue necesario activar
+`ROMPELO_DEBUG_FORMA`. La segunda edición del LEEME también dejó la ruta correcta.
+
+**Permisos:** con `checks_nivel3: ["rompelo.tests"]` temporal, `permiso rompelo.tests si`
+subió de 2 a 3; `permiso rompelo.tests no` volvió a 2, con permisos activos vacíos.
+El siguiente Stop dijo literalmente «permiso revocado; queda pendiente». Se retiró el
+`checks_nivel3` temporal, manteniendo los siete checks ordinarios. No se usó
+`--recordar`, `nivel bajar` ni una excepción. Las dos entradas temporales añadidas por
+el comando a `config/permisos.json` se conservaron en la evidencia del ensayo y se
+restauró la configuración previa byte a byte; el estado revocado se conservó.
+
+**Diferencias respecto al guion:** el registro efectivo contiene 19 checks (7 del registro
+versionado y 12 locales); el nivel previo era 2 por observación, por lo que revocar no lo
+llevó a 0. El primer Stop no contenía la palabra «huella»: los checks estaban sin ejecutar.
+El segundo sí detectó evidencia obsoleta con el texto «se ejecutó sobre otro árbol».
+También detectó `config/permisos.json` fuera de scope durante el estímulo de permiso;
+la restauración indicada eliminó ese cambio antes del check completo.
+
+**Ruta:** Stop sigue en `"$HOME/rompelo/bin/rompelo" hook codex`, timeout 30;
+PostToolUse en `"$HOME/rompelo/bin/rompelo" observe codex`, timeout 10.
+**Confianza efectiva:** confirmada por la ejecución de las definiciones globales sin bypass;
+no se modificaron `hooks.json` ni hashes de confianza, ni se realizó una nueva revisión en
+`/hooks`. **Ejecución automática:** confirmada por los dos HookPrompt y el cierre posterior;
+una invocación directa del adaptador no se ha usado como prueba de ese resultado.
+Binario, `tests/` y shim de compatibilidad conservan sus SHA-256. No se escribió en
+`~/.claude/`; los dos checks locales prescritos solo consumen settings/transcripts.
+
+**NO VERIFICADO:** transición a nivel 0 tras revocar en esta instalación (se observó 2,
+su nivel previo); una nueva aprobación visual en `/hooks` (no era necesaria porque las
+definiciones no cambiaron). Estas pruebas no acreditan los cruces de otros clientes ni
+las limitaciones de la auditoría ajenas a esta Parte 4.
+
+Evidencia local ignorada por Git: `.rompelo/evidence/ROMPELO-CODEX-04/`
+(`antes.json`, `baseline.json`, `baterias-despues.json`, `cruce-automatico.json`,
+`apply-patch-observado.json`, `permisos-observados.json` y salidas del cliente).
+
+<details>
+<summary>Salida literal de doctor antes de abrir el contrato propio</summary>
+
+```text
+rompelo: /Users/rootml/rompelo/bin/rompelo
+revisión de rompelo: 35c0295
+python: 3.9.6 (/Library/Developer/CommandLineTools/usr/bin/python3)
+git: git version 2.50.1 (Apple Git-155)
+ROMPELO_HOME: /Users/rootml/rompelo (existe)
+ROMPELO_REGISTRO: home
+registro: /Users/rootml/rompelo/checks/registry.json + /Users/rootml/rompelo/checks/registry.local.json → 19 check(s): claveon.build, claveon.comprobar-deriva, claveon.comprobar-newsletter, claveon.gitleaks, claveon.humo-navegador, claveon.shellcheck, claveon.test, claveon.typecheck, claveon.typecheck-functions, claveon_b2c-rediseno.build, claveon_b2c-rediseno.test, claveon_b2c-rediseno.typecheck …
+allowlist: /Users/rootml/rompelo/config/repos.json → 3 repo(s); este repo SÍ está alistado
+estado: /Users/rootml/rompelo/state (existe)
+repo: /Users/rootml/rompelo
+contrato: MEJORAS-AUDITORIA-2026-09-07 · estado cerrada · nivel efectivo 2 · checks exigidos ['rompelo.tests', 'rompelo.instrumento-tests', 'rompelo.portabilidad-tests', 'rompelo.cruce-settings-claude', 'rompelo.sin-var-pegada', 'rompelo.observe-tests', 'rompelo.control-negativo-sesiones']
+hooks Claude Code: /Users/rootml/.claude/settings.json → Stop, PostToolUse, PostToolUseFailure
+hooks Codex: /Users/rootml/.codex/hooks.json → Stop, PostToolUse
+cliente claude: /Users/rootml/.local/bin/claude
+cliente codex: /opt/homebrew/bin/codex
+```
+
+</details>
+
+<details>
+<summary>Primer bloqueo automático: checks sin ejecutar</summary>
+
+```text
+[rompelo] La tarea ROMPELO-CODEX-04 NO puede darse por terminada (1/3):
+- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.portabilidad-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.sin-var-pegada` sin ejecutar (usa `rompelo check`)
+- check `rompelo.cruce-settings-claude` sin ejecutar (usa `rompelo check`)
+- check `rompelo.control-negativo-sesiones` sin ejecutar (usa `rompelo check`)
+- toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)
+No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.
+```
+
+</details>
+
+<details>
+<summary>Segundo bloqueo automático: evidencia obsoleta y permiso revocado</summary>
+
+```text
+[rompelo] La tarea ROMPELO-CODEX-04 NO puede darse por terminada (2/3):
+- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- fuera de scope_paths: config/permisos.json
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.portabilidad-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.sin-var-pegada` se ejecutó sobre otro árbol (hay cambios posteriores)
+- check `rompelo.cruce-settings-claude` sin ejecutar (usa `rompelo check`)
+- check `rompelo.control-negativo-sesiones` sin ejecutar (usa `rompelo check`)
+- nivel 3: check `rompelo.tests`: permiso revocado; queda pendiente. Vuelve a concederlo (`rompelo permiso rompelo.tests si`) o escribe una excepción en el contrato
+- el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio
+No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.
+```
+
+</details>
+
 ### 06-09-2026 · Parte 3 desde Codex sobre 86001d2
 
 `git pull --ff-only` ya estaba al día en `86001d2`. Antes de cualquier cambio, las baterías
