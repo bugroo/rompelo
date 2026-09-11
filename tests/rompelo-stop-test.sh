@@ -292,6 +292,40 @@ PY2
 [ $? -eq 0 ] && ok "detecta test y typecheck con pnpm, ignora dev, no duplica make test" || bad "detección"
 rm -f "$ROMPELO_HOME/checks/registry.local.json"
 (cd "$R2" && rm -rf .rompelo && "$ASSURE" init --id D2 --sin-detectar > /dev/null 2>&1 && python3 -c 'import json;assert json.load(open(".rompelo/task.json"))["checks"]==[]') && ok "--sin-detectar deja los checks vacíos" || bad "--sin-detectar"
+# Varios ecosistemas a la vez: solo lo declarado, y con el comando que ejecuta el script (bun run test, no bun test).
+R7="$T/repo7"; mkdir -p "$R7/spec"; (cd "$R7" && git init -q && git config user.email t@t && git config user.name t \
+  && printf '{"name":"demo3","scripts":{"test":"vitest run","typecheck:functions":"tsc -p functions","lint:css":"stylelint","dev":"vite"}}' > package.json && : > bun.lock \
+  && printf '{"tasks":{"check":"deno check main.ts","start":"deno run main.ts"}}' > deno.json \
+  && printf 'set shell := ["bash", "-c"]\n\ntest:\n\tbats tests\nlint arg:\n\techo {{arg}}\n' > justfile \
+  && printf '[project]\nname="x"\n' > pyproject.toml \
+  && printf 'source "https://rubygems.org"\n' > Gemfile && printf 'defmodule X do end\n' > mix.exs \
+  && git add -A && git commit -qm base)
+(cd "$R7" && "$ASSURE" init --id D7 > "$T/init7.txt" 2>&1) && ok "init detecta sobre varios ecosistemas sin fallar" || bad "init D3" "$(cat "$T/init7.txt")"
+python3 - "$R7/.rompelo/task.json" "$ROMPELO_HOME/checks/registry.local.json" <<'PY7'
+import json,sys
+c=json.load(open(sys.argv[1])); r=json.load(open(sys.argv[2]))
+def argv(k): return r[k]["argv"]
+assert argv("repo7.test")==["bun","run","test"], argv("repo7.test")          # `bun test` sería el runner propio de bun, no el script
+assert argv("repo7.typecheck-functions")==["bun","run","typecheck:functions"], sorted(r)
+assert argv("repo7.lint-css")==["bun","run","lint:css"]
+assert "repo7.dev" not in r and "repo7.start" not in r                       # scripts que no juzgan
+assert argv("repo7.check")==["deno","task","check"]
+assert "repo7.pytest" not in r                                               # ya hay un .test declarado: no se duplica la suite
+assert argv("repo7.rspec")==["bundle","exec","rspec"] and argv("repo7.mix-test")==["mix","test"]
+assert "repo7.just-test" not in r and argv("repo7.just-lint")==["just","lint"]  # test ya existe; lint solo lo declara el justfile
+assert c["checks"]==sorted(k for k in r if k.startswith("repo7.")), c["checks"]
+PY7
+[ $? -eq 0 ] && ok "bun run test, scripts con prefijo, deno task, rspec, mix, just; sin dev/start ni suite duplicada" || bad "detección multiecosistema" "$(cat "$ROMPELO_HOME/checks/registry.local.json")"
+R8="$T/repo8"; mkdir -p "$R8/tests"; (cd "$R8" && git init -q && git config user.email t@t && git config user.name t \
+  && printf '[project]\nname="y"\n[tool.ruff]\nline-length=100\n[tool.mypy]\nstrict=true\n' > pyproject.toml && : > uv.lock && : > tests/test_x.py \
+  && git add -A && git commit -qm base && "$ASSURE" init --id D8 > /dev/null 2>&1)
+python3 - "$ROMPELO_HOME/checks/registry.local.json" <<'PY8'
+import json,sys; r=json.load(open(sys.argv[1]))
+assert r["repo8.pytest"]["argv"]==["uv","run","pytest","-q"], r.get("repo8.pytest")
+assert r["repo8.ruff"]["argv"]==["uv","run","ruff","check","."] and r["repo8.mypy"]["argv"]==["uv","run","mypy","."], sorted(r)
+PY8
+[ $? -eq 0 ] && ok "python con uv.lock: pytest, ruff y mypy por «uv run», solo los configurados" || bad "detección uv" "$(cat "$ROMPELO_HOME/checks/registry.local.json")"
+rm -f "$ROMPELO_HOME/checks/registry.local.json"
 
 echo "── informe en llano al cerrar"
 contrato 'checks=["hay-a","ok"]' 'afirmaciones=[{"texto":"x","estado":"no_verificado","falta":"acceso al panel"}]' 'hallazgos=[{"id":"H9","texto":"borde","disposicion":"aceptado","nota":"no bloquea"}]'
@@ -560,6 +594,64 @@ out="$(hook claude pr1 "$R")"; printf '%s' "$out" | grep -q 'CANARIO_' && bad "c
 grep -q 'CANARIO_' "$T/close.txt" .rompelo/evidence/E1/INFORME.md && bad "canario en el informe" || ok "el informe de cierre tampoco lleva argumentos"
 grep -q 'cruce real de la junta: sh' .rompelo/evidence/E1/INFORME.md && ok "el informe sí dice el programa y la nota" || bad "informe sin programa" "$(grep cruce .rompelo/evidence/E1/INFORME.md)"
 contrato 'checks=["ok"]' 'toca_junta=false'
+
+echo "── no_afecta (registro, 11-09): lo que un check declara ajeno no invalida su evidencia; lo demás sí"
+python3 - "$ROMPELO_HOME/checks/registry.json" <<'PY'
+import json,sys;f=sys.argv[1];r=json.load(open(f))
+r['docsajeno']={'argv':['true'],'no_afecta':['docs/**','*.md']}
+r['naroto']={'argv':['true'],'no_afecta':'docs/**'}
+r['nasube']={'argv':['true'],'no_afecta':['../fuera/**']}
+r['escribe']={'argv':['bash','-c','echo x >> src/a.txt']}
+json.dump(r,open(f,'w'))
+PY
+razon() { printf '%s' "$1" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("reason") or "")
+except ValueError: print("")'; }
+git add -A >/dev/null && git commit -qm "antes de no_afecta" >/dev/null
+"$ASSURE" init --force --id N1 --check docsajeno --check ok >/dev/null || exit 2
+"$ASSURE" check >/dev/null; espera_paso "partida: los dos checks en verde" n0
+mkdir -p docs; echo d > docs/x.md
+espera_bloqueo "docs/x.md cambia: el check SIN no_afecta queda sobre otro árbol" n1 'check `ok` se ejecutó sobre otro árbol'
+r="$(razon "$(hook claude n1b "$R")")"
+printf '%s' "$r" | grep -q 'docsajeno' && bad "docsajeno también invalidado por un cambio en docs/" "$r" || ok "el check con no_afecta docs/** sigue valiendo"
+printf '%s' "$r" | grep -q '^Siguiente: rompelo check --id ok$' && ok "y la línea Siguiente pide solo el check caducado, por --id" || bad "Siguiente parcial" "$r"
+echo b > src/a.txt
+espera_bloqueo "src/a.txt cambia: también docsajeno caduca" n2 'check `docsajeno` se ejecutó sobre otro árbol'
+r="$(razon "$(hook claude n2b "$R")")"; printf '%s' "$r" | grep -q '^Siguiente: rompelo check$' && ok "los dos caducados: Siguiente pide el check entero, sin --id" || bad "Siguiente entero" "$r"
+"$ASSURE" check >/dev/null; espera_paso "reejecutados: silencio" n3
+python3 - "$ROMPELO_HOME/checks/registry.json" <<'PY'
+import json,sys;f=sys.argv[1];r=json.load(open(f)); r['docsajeno']['no_afecta'].append('img/**'); json.dump(r,open(f,'w'))
+PY
+espera_bloqueo "cambiar no_afecta en el registro invalida la evidencia: va en la definición del check" n4 'cambió en el registro'
+"$ASSURE" check >/dev/null; espera_paso "reejecutado con la definición nueva: silencio" n5
+contrato 'checks=["naroto"]';  espera_bloqueo "no_afecta que no es lista: se rechaza sin ejecutar" n6 'no_afecta'
+contrato 'checks=["nasube"]';  espera_bloqueo "no_afecta con ../: se rechaza" n7 'no_afecta'
+
+echo "── la línea «Siguiente:» del bloqueo (11-09): los comandos exactos, en orden, y solo los que resuelven algo"
+"$ASSURE" init --force --id N2 --check ok --check hay-a --junta >/dev/null || exit 2
+r="$(razon "$(hook claude n8 "$R")")"; printf '%s' "$r" | grep -q "^Siguiente: rompelo check && rompelo cruce --nota '<qué cruzas>' -- <comando real>$" && ok "nada hecho: check entero y luego el cruce" || bad "Siguiente completo" "$r"
+"$ASSURE" check --id ok >/dev/null
+r="$(razon "$(hook claude n9 "$R")")"; printf '%s' "$r" | grep -q '^Siguiente: rompelo check --id hay-a && rompelo cruce' && ok "un check hecho: solo el otro, por --id, y el cruce" || bad "Siguiente con --id" "$r"
+"$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+espera_paso "todo hecho y cerrado: silencio" n10
+echo c > src/a.txt
+r="$(razon "$(hook claude n11 "$R")")"; printf '%s' "$r" | grep -q '^Siguiente: rompelo check && rompelo cruce .* && rompelo close$' && ok "cerrada y cambiada después: check, cruce y close, en ese orden" || bad "Siguiente tras cierre" "$r"
+"$ASSURE" verify > "$T/ver.txt" 2>&1; grep -q '^  Siguiente: rompelo check && rompelo cruce' "$T/ver.txt" && ok "verify imprime la misma línea" || bad "verify sin Siguiente" "$(cat "$T/ver.txt")"
+"$ASSURE" verify --json 2>/dev/null | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["siguiente"].startswith("Siguiente: rompelo check"),d' && ok "verify --json la lleva en «siguiente»" || bad "verify --json siguiente"
+"$ASSURE" close > "$T/cl.txt" 2>&1; grep -q '^  Siguiente: rompelo check' "$T/cl.txt" && ok "close también" || bad "close sin Siguiente" "$(cat "$T/cl.txt")"
+"$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+contrato 'estado="abierta"' 'hallazgos=[{"id":"H1","texto":"x"}]'
+r="$(razon "$(hook claude n12 "$R")")"; printf '%s' "$r" | grep -q 'hallazgo sin disposición' && ! printf '%s' "$r" | grep -q 'Siguiente' && ok "solo un hallazgo sin disposición: bloquea SIN línea Siguiente (ningún comando lo resuelve)" || bad "Siguiente de más" "$r"
+contrato 'hallazgos=[]'; echo d > src/a.txt
+r="$(razon "$(ROMPELO_LANG=en hook claude n13 "$R")")"; printf '%s' "$r" | grep -q "^Next: rompelo check && rompelo cruce --nota '<what you cross>' -- <real command>$" && ! printf '%s' "$r" | grep -q 'Siguiente\|qué cruzas' && ok "en inglés: Next, sin restos" || bad "Next" "$r"
+"$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null; "$ASSURE" close >/dev/null
+
+echo "── rompelo check avisa cuando el propio check cambia el árbol (11-09)"
+contrato 'estado="abierta"' 'checks=["escribe"]' 'toca_junta=false'
+"$ASSURE" check > "$T/esc.txt" 2>&1; grep -q 'el check cambió el árbol (1 ruta(s): src/a.txt)' "$T/esc.txt" && ok "el check que escribe en src/a.txt: aviso con la ruta" || bad "aviso árbol" "$(cat "$T/esc.txt")"
+espera_bloqueo "y el Stop lo ve sobre otro árbol: la evidencia es de ANTES del check" n14 'sobre otro árbol'
+contrato 'checks=["ok"]'
+"$ASSURE" check > "$T/esc.txt" 2>&1; grep -q 'cambió el árbol' "$T/esc.txt" && bad "aviso sin motivo" "$(cat "$T/esc.txt")" || ok "un check que no toca nada: sin aviso"
 
 rm -rf "$T"
 resumen

@@ -18,7 +18,10 @@ Decide código normal. El modelo pide; esto concede. Fail-closed: un repo alista
 contrato ilegible bloquea. Repos fuera de la allowlist: silencio, y no se ejecuta nada.
 Tope de 3 bloqueos por sesión y tarea.
 """
-import collections, contextlib, datetime, fcntl, fnmatch, hashlib, json, os, re, signal, stat, subprocess, sys, tempfile, threading, time
+import collections, contextlib, datetime, fcntl, fnmatch, hashlib, json, os, re, signal, stat, sys, threading, time
+# `subprocess` se importa donde se usa (`_sp()`): el observador corre tras CADA herramienta y ya no lanza ningún
+# proceso, e importarlo de más costaba ~2,5 ms por invocación (medido el 11-09-2026, python 3.9; `tempfile`, que
+# ya no se usa, otros 3,5 ms).
 
 TOPE_BLOQUEOS = 3
 # Idioma de los mensajes del gate y del observador: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json.
@@ -88,17 +91,24 @@ EN = {
         "[rompelo · observation] I recognised {que}. Raising this repo's rigor to level 2. Before going on, tell the user in two lines which pattern I saw and that from now on the task requires: {exige}.",
     " Para nivel 3 hay checks registrados en el contrato ({lista}): se exigen solo con permiso.": " For level 3 the contract registers checks ({lista}): they are required only with permission.",
     " Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.": " For internet searches or external tools (level 3) ask for permission and record it with `rompelo permiso <patron> si|no [--recordar]`.",
+    "Siguiente: {cmd}": "Next: {cmd}",
+    "rompelo cruce --nota '<qué cruzas>' -- <comando real>": "rompelo cruce --nota '<what you cross>' -- <real command>",
 }
+_IDIOMA = None
 
 
 def idioma():
-    lang = os.environ.get("ROMPELO_LANG")
-    if not lang:
-        try:
-            lang = leer_json(OBS_CONF).get("idioma")
-        except Exception:
-            lang = None
-    return "en" if str(lang or "").lower().startswith("en") else "es"
+    """Se decide una vez por proceso: cada `_()` lo consultaba y releía config/observacion.json."""
+    global _IDIOMA
+    if _IDIOMA is None:
+        lang = os.environ.get("ROMPELO_LANG")
+        if not lang:
+            try:
+                lang = leer_json(OBS_CONF).get("idioma")
+            except Exception:
+                lang = None
+        _IDIOMA = "en" if str(lang or "").lower().startswith("en") else "es"
+    return _IDIOMA
 
 
 def _(plantilla, **kw):
@@ -120,13 +130,18 @@ class GitError(ValueError):
     """git no pudo mirar. Es un error del instrumento y en el hook acaba en fail-closed, no en silencio."""
 
 
+def _sp():
+    import subprocess
+    return subprocess
+
+
 def git(root, *args):
-    return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
+    return _sp().run(["git", "-C", root, *args], capture_output=True, text=True)
 
 
 def git_ok(root, *args):
     """git que tiene que salir con 0. Devuelve stdout en bytes (los nombres van con -z, sin decodificar)."""
-    r = subprocess.run(["git", "-C", root, *args], capture_output=True)
+    r = _sp().run(["git", "-C", root, *args], capture_output=True)
     if r.returncode != 0:
         err = r.stderr.decode("utf-8", "replace").strip().splitlines()
         raise GitError(f"git {' '.join(args[:2])} falló ({r.returncode}): {err[-1] if err else 'sin mensaje'}")
@@ -134,8 +149,25 @@ def git_ok(root, *args):
 
 
 def raiz_repo(cwd):
-    r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    """Raíz del árbol de trabajo según git. La usan el hook Stop y los subcomandos, que deciden."""
+    r = _sp().run(["git", "-C", cwd, "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     return os.path.realpath(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
+
+
+def raiz_repo_rapida(cwd):
+    """Raíz del árbol de trabajo sin lanzar git: sube desde cwd hasta el primer directorio con `.git` (directorio,
+    o fichero en un worktree o un submódulo). Es lo mismo que responde `git rev-parse --show-toplevel` en todos los
+    casos corrientes (GIT_DIR en el entorno o un cwd dentro de `.git` son los que no cubre). La usa el observador,
+    que corre tras CADA herramienta y nunca bloquea: un proceso git costaba 13 ms (57 con un shim de git en el
+    PATH), más de la mitad de la invocación (medido el 11-09-2026)."""
+    d = os.path.realpath(cwd)
+    while True:
+        if os.path.lexists(os.path.join(d, ".git")):
+            return d
+        padre = os.path.dirname(d)
+        if padre == d:
+            return None
+        d = padre
 
 
 SIN_HEAD = "sin-head"  # `base` que escribe init en un repo sin commits: la tarea empezó desde el árbol vacío
@@ -152,16 +184,15 @@ def arbol_vacio(root):
 
 def ref_base(root, base):
     """Commit contra el que se mide la tarea. Sin `base` en el contrato: HEAD (o el árbol vacío si no hay
-    commits). `sin-head`: el árbol vacío. Una base explícita que no existe es un ERROR y nunca HEAD en
-    silencio (RMP-002: un checkout superficial en CI comparaba contra otro conjunto de cambios sin decirlo)."""
+    commits). `sin-head`: el árbol vacío. Una base explícita se usa tal cual; si no existe, `ficheros_cambiados`
+    lo dice con instrucción y nunca cae a HEAD en silencio (RMP-002: un checkout superficial en CI comparaba
+    contra otro conjunto de cambios sin decirlo). Antes se comprobaba aquí con `git cat-file` en cada llamada:
+    un proceso git más por hook que solo servía en el caso raro."""
     if not base:
         h = head(root)
         return h if h != SIN_HEAD else arbol_vacio(root)
     if base == SIN_HEAD:
         return arbol_vacio(root)
-    if git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode != 0:
-        raise ValueError(f"la base del contrato ({base}) no existe en este repo: trae ese commit (git fetch) "
-                         "o corrige `base` en .rompelo/task.json")
     return str(base)
 
 
@@ -174,7 +205,13 @@ def ficheros_cambiados(root, base):
     las no rastreadas. Sin `.rompelo/`. Un renombrado son dos rutas (--no-renames): la vieja borrada y la
     nueva. Ignorados por .gitignore: no cuentan. Submódulos: cuentan como ruta (ver `sujeto`)."""
     ref = ref_base(root, base)
-    out = set(_nul(git_ok(root, "diff", "--name-only", "-z", "--no-renames", ref, "--", *EXCL)))
+    try:
+        out = set(_nul(git_ok(root, "diff", "--name-only", "-z", "--no-renames", ref, "--", *EXCL)))
+    except GitError:
+        if base and base != SIN_HEAD and git(root, "cat-file", "-e", f"{base}^{{commit}}").returncode != 0:
+            raise ValueError(f"la base del contrato ({base}) no existe en este repo: trae ese commit (git fetch) "
+                             "o corrige `base` en .rompelo/task.json")
+        raise
     out |= set(_nul(git_ok(root, "ls-files", "--others", "--exclude-standard", "-z", "--", *EXCL)))
     return sorted(out)
 
@@ -209,15 +246,31 @@ def sujeto(root, p):
 HUELLA_VERSION = "v2"
 
 
-def huella_arbol(root, base=None):
+def sujetos(root, base=None, cambiados=None):
+    """{ruta: sujeto} de todo lo que difiere de la base. Se calcula UNA vez por invocación (dos comandos git y un
+    hash por fichero) y de ahí salen la huella global y las huellas por check (`no_afecta`)."""
+    if cambiados is None:
+        cambiados = ficheros_cambiados(root, base)
+    return {p: sujeto(root, p) for p in cambiados}
+
+
+def huella_de(suj, excluir=()):
     """Huella versionada del SUJETO de la tarea: para cada ruta que difiere de la base (rastreada o no), su
     nombre real y su `sujeto`. No depende de HEAD ni del índice: preparar o commitear el mismo contenido no la
     cambia; cambiar contenido, modo, destino de enlace, borrar o añadir sí. Una evidencia con huella de otra
-    versión (o sin versión: v1, hasta 07-09-2026) no vale y hay que volver a ejecutar; no se migra."""
+    versión (o sin versión: v1, hasta 07-09-2026) no vale y hay que volver a ejecutar; no se migra.
+    `excluir`: patrones (`no_afecta` de un check en el registro) cuyas rutas no entran en la huella de ESE check:
+    editar el README después de la suite no obliga a repetirla. Sin exclusiones la huella es la de siempre."""
     h = hashlib.sha256()
-    for p in ficheros_cambiados(root, base):
-        h.update(p.encode("utf-8", "surrogateescape") + b"\0" + sujeto(root, p).encode() + b"\n")
+    for p in sorted(suj):
+        if excluir and any(casa(p, g) for g in excluir):
+            continue
+        h.update(p.encode("utf-8", "surrogateescape") + b"\0" + suj[p].encode() + b"\n")
     return f"{HUELLA_VERSION}:{h.hexdigest()[:16]}"
+
+
+def huella_arbol(root, base=None, cambiados=None, excluir=()):
+    return huella_de(sujetos(root, base, cambiados), excluir)
 
 
 def huella_vigente(guardada):
@@ -225,9 +278,22 @@ def huella_vigente(guardada):
 
 
 # ── configuración de confianza (fuera del repo) ─────────────────────────────
+_JSON = {}  # ruta → ((inode, mtime_ns, tamaño), datos): caché de lectura dentro del proceso
+
+
 def leer_json(f):
+    """Con caché por (inode, mtime, tamaño): el registro y la configuración se leían hasta ocho veces por
+    invocación. Un fichero reescrito (los nuestros se reemplazan de forma atómica: inode nuevo) se vuelve a
+    leer; el objeto devuelto es compartido, así que quien lo modifique tiene que escribirlo, no guardarlo."""
+    st = os.stat(f)
+    clave = (st.st_ino, st.st_mtime_ns, st.st_size)
+    hit = _JSON.get(f)
+    if hit is not None and hit[0] == clave:
+        return hit[1]
     with open(f) as fh:
-        return json.load(fh)
+        datos = json.load(fh)
+    _JSON[f] = (clave, datos)
+    return datos
 
 
 def leer_json_estricto(f, defecto):
@@ -235,8 +301,7 @@ def leer_json_estricto(f, defecto):
     estado que no se puede leer no es un estado vacío: convertirlo en {} borraba el nivel y los perfiles que
     imponían comprobaciones (RMP-003)."""
     try:
-        with open(f) as fh:
-            return json.load(fh)
+        return leer_json(f)
     except FileNotFoundError:
         return defecto
     except (OSError, ValueError) as exc:
@@ -244,9 +309,11 @@ def leer_json_estricto(f, defecto):
 
 
 def escribir_json_atomico(f, datos):
-    """Fichero temporal en el mismo directorio + fsync + os.replace: nunca queda un JSON a medias."""
+    """Fichero temporal en el mismo directorio + fsync + os.replace: nunca queda un JSON a medias.
+    Nombre propio con O_EXCL en vez de `tempfile.mkstemp`: mismo efecto sin importar `tempfile` (3,5 ms)."""
     os.makedirs(os.path.dirname(f), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(f) + ".", suffix=".tmp", dir=os.path.dirname(f))
+    tmp = f"{f}.{os.getpid()}.{time.monotonic_ns()}.tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         with os.fdopen(fd, "w") as fh:
             json.dump(datos, fh, indent=2, ensure_ascii=False)
@@ -344,6 +411,9 @@ def resolver_check(cid, root):
         raise ValueError(f"registro: {cid}.timeout tiene que ser un entero de segundos > 0")
     if "control_positivo" in e:
         resolver_argv(e["control_positivo"], cid + ".control_positivo", root)
+    na = e.get("no_afecta", [])
+    if not isinstance(na, list) or not all(ruta_limpia(g) for g in na):
+        raise ValueError(f"registro: {cid}.no_afecta tiene que ser una lista de patrones relativos (sin '..' ni absolutos)")
     return argv, cwd
 
 
@@ -363,6 +433,8 @@ def hash_check(e):
     """Vincula la evidencia al instrumento y sus reglas, no a su descripción editorial."""
     d = {k: e.get(k, v) for k, v in (("argv", None), ("cwd", "repo"),
          ("min_lineas", 0), ("triestado", False), ("control_positivo", None))}
+    if e.get("no_afecta"):
+        d["no_afecta"] = e["no_afecta"]  # solo cuando existe: los hashes de los checks sin él siguen valiendo
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -523,14 +595,20 @@ def casa(path, patron):
 
 
 # ── veredicto ───────────────────────────────────────────────────────────────
-def motivos_bloqueo(root, para_cerrar=False, ci=None):
+def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     """ci: {"evidencias": {id: evidencia recién producida}, "estricto": bool, "advertencias": []}.
     En CI no se cree ninguna evidencia guardada (la pudo escribir el agente): los checks se
     ejecutan de nuevo allí. El cruce real no se puede reproducir en CI: queda como advertencia,
-    o como bloqueo con --estricto."""
+    o como bloqueo con --estricto.
+    acciones: dict que se rellena con lo que un comando desbloquea ({"check": [ids], "cruce": bool,
+    "close": bool}); de ahí sale la línea «Siguiente:» (`siguiente_paso`). Lo que no resuelve un comando
+    (un hallazgo sin disposición, una ruta fuera de scope) no entra."""
     c, info = contrato_efectivo(root, ci=bool(ci))
     ev = dir_evidencia(root, c)
-    hu = huella_arbol(root, c.get("base"))
+    acc = acciones if acciones is not None else {}
+    cambiados = ficheros_cambiados(root, c.get("base"))  # una vez: dos procesos git y un hash por fichero
+    suj = sujetos(root, cambiados=cambiados)
+    hu = huella_de(suj)
     m = []
     junta_por_perfil = info["junta_por_perfil"]
     exc = {str(x.get("que")): x for x in (c.get("excepciones") or [])}
@@ -544,6 +622,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
                           and cerr.get("registro") == hash_registro(root, info["checks"]))
         # Un cierre no borra un check que se volvió a ejecutar y ahora falla.
         if not cierre_vigente and not para_cerrar:
+            acc["close"] = True
             if cerr and cerr.get("huella") == hu and cerr.get("contrato") == info["hash"]:
                 m.append(_("estado: cerrada, pero cambió en el registro la definición de un check. Vuelve a `rompelo check` y `rompelo close`."))
             elif cerr and cerr.get("huella") == hu:
@@ -553,7 +632,6 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             else:
                 m.append(_("estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`."))
 
-    cambiados = ficheros_cambiados(root, c.get("base"))
     fuera = [p for p in cambiados if not any(casa(p, s) for s in c["scope_paths"])]
     if fuera:
         m.append(_("fuera de scope_paths: {lista}", lista=", ".join(fuera[:8]) + (" …" if len(fuera) > 8 else "")))
@@ -579,6 +657,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             continue
         if ci:
             ci["resultados"][cid] = "PASS"  # se corrige abajo si hay motivo
+        hu_c = huella_de(suj, reg[cid]["no_afecta"]) if reg[cid].get("no_afecta") else hu
+        n_m = len(m)
         if e is None:
             m.append(pre + _("check `{cid}` sin ejecutar (usa `rompelo check`)", cid=cid))
             if ci:
@@ -595,8 +675,10 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
                     ci["resultados"][cid] = "ERROR" if e.get("instrumento") not in (None, "operativo") else "FAIL"
             elif not huella_vigente(e.get("huella")):
                 m.append(pre + _("check `{cid}`: evidencia con formato de huella antiguo; vuelve a ejecutar `rompelo check` (no se migra)", cid=cid))
-            elif e.get("huella") != hu:
+            elif e.get("huella") != hu_c:
                 m.append(pre + _("check `{cid}` se ejecutó sobre otro árbol (hay cambios posteriores)", cid=cid))
+        if len(m) > n_m:
+            acc.setdefault("check", []).append(cid)  # todo motivo de un check del registro se resuelve (re)ejecutándolo
 
     for cid in info.get("pendientes") or []:
         if cid in exc:
@@ -626,6 +708,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             mc.append(_("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio"))
         if mc and junta_por_perfil:
             m.append(_("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false"))
+        if mc:
+            acc["cruce"] = True
         m += mc
 
     # Un hallazgo se adjudica con un estado y su respaldo, no con una cadena no vacía (RMP-012): «pendiente»
@@ -648,7 +732,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
             r = str(h.get("regresion") or "").strip()
             if not r:
                 m.append(_("hallazgo {h} confirmado sin regresión (un check del registro o una prueba de este diff)", h=hid))
-            elif not (r in reg or (r in cambiados and any(casa(r, g) for g in globs_prueba) and sujeto(root, r) != "D")):
+            elif not (r in reg or (r in suj and any(casa(r, g) for g in globs_prueba) and suj[r] != "D")):
                 m.append(_("hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff", h=hid, r=r))
 
     # Afirmaciones materiales sobre el mundo exterior (criterio de rootml-de, 04-09-2026):
@@ -674,7 +758,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None):
 
     if c.get("exige_prueba_en_diff"):
         globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
-        prueba = [p for p in cambiados if any(casa(p, g) for g in globs) and sujeto(root, p) != "D"]  # borrar un test no es cubrir
+        prueba = [p for p in cambiados if any(casa(p, g) for g in globs) and suj[p] != "D"]  # borrar un test no es cubrir
         if [p for p in cambiados if p not in prueba] and not prueba:
             m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto."))
     return m
@@ -694,7 +778,7 @@ def matar_grupo(p):
         try:
             p.wait(timeout=1)
             return
-        except subprocess.TimeoutExpired:
+        except _sp().TimeoutExpired:
             continue
 
 
@@ -707,9 +791,9 @@ def ejecutar(argv, cwd, timeout=TIMEOUT_DEFECTO):
     ev = {"programa": os.path.basename(argv[0]), "argv_sha": hashlib.sha256(json.dumps(argv).encode()).hexdigest()[:12],
           "n_args": len(argv) - 1, "cwd": cwd, "codigo": None, "segundos": 0.0, "lineas_salida": 0, "bytes_salida": 0,
           "salida_truncada": False, "sha_salida": None, "fecha": ahora()}
+    sp = _sp()
     try:
-        p = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             start_new_session=True)
+        p = sp.Popen(argv, cwd=cwd, stdin=sp.DEVNULL, stdout=sp.PIPE, stderr=sp.STDOUT, start_new_session=True)
     except OSError as exc:
         ev.update(codigo=127, instrumento="no_arranco", error=f"{exc.__class__.__name__}: {exc.strerror or exc}")
         return ev, ""
@@ -729,7 +813,7 @@ def ejecutar(argv, cwd, timeout=TIMEOUT_DEFECTO):
     hilo.start()
     try:
         p.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except sp.TimeoutExpired:
         matar_grupo(p)
         ev.update(instrumento="sin_respuesta", timeout=timeout)
     except KeyboardInterrupt:
@@ -812,45 +896,106 @@ def valores(args, k):
     return [args[i + 1] for i, a in enumerate(args) if a == k and i + 1 < len(args)]
 
 
+NOMBRES_CHECK = ("test", "typecheck", "lint", "build", "check")
+
+
+def es_nombre_de_check(sc):
+    """`test`, `typecheck:functions`, `lint:css`… : un script declarado cuyo nombre dice que juzga el código."""
+    return sc in NOMBRES_CHECK or any(sc.startswith(n + ":") for n in NOMBRES_CHECK)
+
+
 def detectar_checks(root):
-    """Checks que el repo ya trae, leídos de sus ficheros, no adivinados. Devuelve
-    {id: {argv, cwd, min_lineas, descripcion}} con ids `<repo>.<nombre>`."""
+    """Checks que el repo ya trae, leídos de sus ficheros, no adivinados: scripts declarados (package.json,
+    deno.json, composer.json), objetivos declarados (Makefile, justfile, Taskfile) y la suite propia de cada
+    ecosistema cuando el fichero que la declara está (pytest, ruff, mypy, cargo, go, mix, rspec, gradle, maven,
+    dotnet, swift). Devuelve {id: {argv, cwd, min_lineas, descripcion}} con ids `<repo>.<nombre>`."""
     nombre = re.sub(r"[^a-z0-9._-]", "-", os.path.basename(root).lower()) or "repo"
     out = {}
-    pj = os.path.join(root, "package.json")
-    if os.path.exists(pj):
+
+    def existe(*p):
+        return os.path.exists(os.path.join(root, *p))
+
+    def anade(sufijo, argv, desc):
+        out.setdefault(f"{nombre}.{sufijo}", {"argv": argv, "cwd": "repo", "min_lineas": 1, "descripcion": desc})
+
+    def texto(*p):
         try:
-            scripts = (leer_json(pj).get("scripts") or {})
-        except (ValueError, OSError):
-            scripts = {}
-        gestor = "pnpm" if os.path.exists(os.path.join(root, "pnpm-lock.yaml")) else \
-                 "yarn" if os.path.exists(os.path.join(root, "yarn.lock")) else \
-                 "bun" if os.path.exists(os.path.join(root, "bun.lockb")) else "npm"
-        for sc in ("test", "typecheck", "lint", "build", "check"):
-            if sc in scripts:
-                argv = [gestor, sc] if sc in ("test",) and gestor != "npm" else [gestor, "run", sc]
-                if gestor == "npm" and sc == "test":
-                    argv = ["npm", "test"]
-                out[f"{nombre}.{sc}"] = {"argv": argv, "cwd": "repo", "min_lineas": 1,
-                                        "descripcion": f"package.json scripts.{sc}: {scripts[sc][:60]}"}
-    if os.path.exists(os.path.join(root, "pyproject.toml")) or os.path.exists(os.path.join(root, "pytest.ini")) \
-            or os.path.isdir(os.path.join(root, "tests")) and any(f.startswith("test_") for f in os.listdir(os.path.join(root, "tests"))):
-        if not any(k.endswith(".test") for k in out):
-            out[f"{nombre}.pytest"] = {"argv": ["python3", "-m", "pytest", "-q"], "cwd": "repo", "min_lineas": 1,
-                                       "descripcion": "pytest (pyproject.toml / pytest.ini / tests/test_*)"}
-    if os.path.exists(os.path.join(root, "Cargo.toml")):
-        out[f"{nombre}.cargo-test"] = {"argv": ["cargo", "test"], "cwd": "repo", "min_lineas": 1, "descripcion": "Cargo.toml"}
-    if os.path.exists(os.path.join(root, "go.mod")):
-        out[f"{nombre}.go-test"] = {"argv": ["go", "test", "./..."], "cwd": "repo", "min_lineas": 1, "descripcion": "go.mod"}
-    mk = os.path.join(root, "Makefile")
-    if os.path.exists(mk):
-        try:
-            objetivos = set(re.findall(r"^([A-Za-z0-9_-]+):", open(mk, encoding="utf-8", errors="replace").read(), re.M))
+            return open(os.path.join(root, *p), encoding="utf-8", errors="replace").read()
         except OSError:
-            objetivos = set()
-        for t in ("test", "check", "lint"):
-            if t in objetivos and not any(k.endswith("." + t) for k in out):
-                out[f"{nombre}.make-{t}"] = {"argv": ["make", t], "cwd": "repo", "min_lineas": 1, "descripcion": f"Makefile: {t}"}
+            return ""
+
+    def scripts_de(fichero, clave):
+        try:
+            d = leer_json(os.path.join(root, fichero)).get(clave) or {}
+        except (ValueError, OSError):
+            d = {}
+        return d if isinstance(d, dict) else {}
+
+    if existe("package.json"):
+        scripts = scripts_de("package.json", "scripts")
+        gestor = "pnpm" if existe("pnpm-lock.yaml") else "yarn" if existe("yarn.lock") else \
+                 "bun" if (existe("bun.lockb") or existe("bun.lock")) else "npm"
+        for sc in scripts:
+            if es_nombre_de_check(sc):
+                # `pnpm|yarn|npm test` ejecuta el script; `bun test` es el runner propio de bun, el script es `bun run test`
+                argv = [gestor, "test"] if sc == "test" and gestor != "bun" else [gestor, "run", sc]
+                anade(sc.replace(":", "-"), argv, f"package.json scripts.{sc}: {str(scripts[sc])[:60]}")
+    if existe("deno.json"):  # deno.jsonc lleva comentarios y json no lo abre: no se adivina
+        for sc in scripts_de("deno.json", "tasks"):
+            if es_nombre_de_check(sc):
+                anade(sc.replace(":", "-"), ["deno", "task", sc], f"deno.json tasks.{sc}")
+    if existe("composer.json"):
+        for sc in scripts_de("composer.json", "scripts"):
+            if es_nombre_de_check(sc):
+                anade(sc.replace(":", "-"), ["composer", "run-script", sc], f"composer.json scripts.{sc}")
+    pyproject = texto("pyproject.toml")
+    hay_tests_py = os.path.isdir(os.path.join(root, "tests")) and any(f.startswith("test_") for f in os.listdir(os.path.join(root, "tests")))
+    if pyproject or existe("pytest.ini") or hay_tests_py:
+        if not any(k.endswith(".test") for k in out):
+            corredor = ["uv", "run", "pytest", "-q"] if existe("uv.lock") else ["python3", "-m", "pytest", "-q"]
+            anade("pytest", corredor, "pytest (pyproject.toml / pytest.ini / tests/test_*)" + (" con uv" if existe("uv.lock") else ""))
+    if re.search(r"^\[tool\.ruff", pyproject, re.M) or existe("ruff.toml") or existe(".ruff.toml"):
+        anade("ruff", ["uv", "run", "ruff", "check", "."] if existe("uv.lock") else ["ruff", "check", "."], "ruff configurado (pyproject [tool.ruff] / ruff.toml)")
+    if re.search(r"^\[tool\.mypy\]", pyproject, re.M) or existe("mypy.ini"):
+        anade("mypy", ["uv", "run", "mypy", "."] if existe("uv.lock") else ["python3", "-m", "mypy", "."], "mypy configurado (pyproject [tool.mypy] / mypy.ini)")
+    if existe("Cargo.toml"):
+        anade("cargo-test", ["cargo", "test"], "Cargo.toml")
+    if existe("go.mod"):
+        anade("go-test", ["go", "test", "./..."], "go.mod")
+        anade("go-vet", ["go", "vet", "./..."], "go.mod (vet es parte de la toolchain)")
+    if existe("mix.exs"):
+        anade("mix-test", ["mix", "test"], "mix.exs")
+    if existe("Gemfile"):
+        if os.path.isdir(os.path.join(root, "spec")):
+            anade("rspec", ["bundle", "exec", "rspec"], "Gemfile + spec/")
+        elif os.path.isdir(os.path.join(root, "test")) and existe("Rakefile"):
+            anade("rake-test", ["bundle", "exec", "rake", "test"], "Gemfile + Rakefile + test/")
+    if existe("gradlew"):
+        anade("gradle-test", ["./gradlew", "test"], "gradlew")
+    elif existe("build.gradle") or existe("build.gradle.kts"):
+        anade("gradle-test", ["gradle", "test"], "build.gradle")
+    if existe("pom.xml"):
+        anade("mvn-test", ["mvn", "-q", "test"], "pom.xml")
+    if any(f.endswith((".sln", ".csproj", ".fsproj")) for f in os.listdir(root)):
+        anade("dotnet-test", ["dotnet", "test"], ".sln / .csproj")
+    if existe("Package.swift"):
+        anade("swift-test", ["swift", "test"], "Package.swift")
+    # Objetivos declarados: Makefile, justfile y Taskfile. Solo los que juzgan (test/check/lint); un `build` de
+    # make suele tener efectos que no se quieren en cada Stop.
+    objetivos_make = set(re.findall(r"^([A-Za-z0-9_-]+):(?!=)", texto("Makefile"), re.M))
+    just = texto("justfile") or texto("Justfile") or texto(".justfile")
+    recetas_just = set(re.findall(r"^([A-Za-z0-9_-]+)(?:\s+[^:\n=]*)?:(?!=)", just, re.M)) if just else set()
+    taskfile = texto("Taskfile.yml") or texto("Taskfile.yaml") or texto("taskfile.yml")
+    tareas_task = set(re.findall(r"^  ([A-Za-z0-9_:-]+):", taskfile.split("\ntasks:", 1)[1], re.M)) if "\ntasks:" in taskfile else set()
+    for t in ("test", "check", "lint"):
+        if any(k.endswith("." + t) for k in out):
+            continue
+        if t in objetivos_make:
+            anade(f"make-{t}", ["make", t], f"Makefile: {t}")
+        elif t in recetas_just:
+            anade(f"just-{t}", ["just", t], f"justfile: {t}")
+        elif t in tareas_task:
+            anade(f"task-{t}", ["task", t], f"Taskfile: {t}")
     return out
 
 
@@ -938,17 +1083,25 @@ def cmd_check(root, args):
         exigidos = [(cid, n3) for cid, n3 in exigidos if cid in pedidos]
     for i, (cid, n3) in enumerate(exigidos, 1):
         argv, cwd = resolver_check(cid, root)
-        print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}: {' '.join(argv)}")
-        hu = huella_arbol(root, c.get("base"))
-        e = ejecutar_check(cid, root)
-        e["huella"] = hu
-        escribir_evidencia(ev, f"check-{cid}.json", e)
         reg = registro(root)[cid]
+        print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}: {' '.join(argv)}")
+        antes = sujetos(root, c.get("base"))
+        e = ejecutar_check(cid, root)
+        e["huella"] = huella_de(antes, reg.get("no_afecta") or ())  # la huella de ANTES: lo que el check miró
+        escribir_evidencia(ev, f"check-{cid}.json", e)
         motivo = motivo_check(cid, reg, e)
         if motivo:
             fallos += 1
             print("    " + motivo)
         print("    → " + resumen_check(reg, e))
+        despues = sujetos(root, c.get("base"))
+        tocados = sorted(p for p in set(antes) | set(despues) if antes.get(p) != despues.get(p))
+        if tocados:
+            # Sin este aviso el agente solo veía, en el Stop siguiente, «se ejecutó sobre otro árbol», sin saber
+            # que el propio check lo cambió (un formateador, un build que escribe un fichero rastreado).
+            print(f"    ⚠ el check cambió el árbol ({len(tocados)} ruta(s): {', '.join(tocados[:6])}{' …' if len(tocados) > 6 else ''}). "
+                  "La evidencia vale para el árbol de ANTES: si es un artefacto que se regenera, ignóralo en git o "
+                  "decláralo en `no_afecta` en el registro; si no, vuelve a ejecutar el check.")
     print("todos en verde" if not fallos else f"{fallos} check(s) en rojo")
     return 1 if fallos else 0
 
@@ -977,7 +1130,7 @@ def cmd_verify(root, args):
     if "--ci" in args:
         c, info = contrato_efectivo(root, ci=True)
         ci = {"evidencias": {}, "estricto": "--estricto" in args, "advertencias": [], "resultados": {}}
-        hu = huella_arbol(root, c.get("base"))
+        suj = sujetos(root, c.get("base"))
         if "--json" not in args:
             print("registro: " + " + ".join(os.path.relpath(f, root) if f.startswith(root + os.sep) else f for f in fuentes_registro(root)))
         for cid, _n3 in info["checks"]:
@@ -991,11 +1144,13 @@ def cmd_verify(root, args):
                     ci["advertencias"].append(f"check `{cid}` es solo_local: no se ejecuta en CI (necesita algo de la máquina de quien lo cruza)")
                 continue
             e = ejecutar_check(cid, root)
-            e["huella"] = hu
+            e["huella"] = huella_de(suj, registro(root)[cid].get("no_afecta") or ())
             ci["evidencias"][cid] = e
             if "--json" not in args:
                 print(f"[ci] {cid}: " + resumen_check(registro(root)[cid], e))
-    m = motivos_bloqueo(root, ci=ci)
+    acc = {}
+    m = motivos_bloqueo(root, ci=ci, acciones=acc)
+    sig = siguiente_paso(acc, checks_exigidos(root)) if not ci else ""  # en CI nadie va a teclear el comando
     if ci:
         # ok = lo ejecutado pasa · completo = no queda nada sin comprobar (SKIPPED). WAIVED es una excepción
         # explícita del contrato (que, motivo, quien): cuenta como completo y queda a la vista (RMP-006).
@@ -1018,22 +1173,44 @@ def cmd_verify(root, args):
             print("OK: contrato completo en CI (" + ", ".join(f"{k}={v}" for k, v in sorted(ci["resultados"].items())) + ")")
         return 0 if not m else 1
     if "--json" in args:
-        print(json.dumps({"ok": not m, "motivos": m}, ensure_ascii=False))
+        print(json.dumps({"ok": not m, "motivos": m, "siguiente": sig}, ensure_ascii=False))
     elif m:
         print("BLOQUEADO:")
         for x in m:
             print("  - " + x)
+        if sig:
+            print("  " + sig)
     else:
         print("OK: la tarea puede cerrarse")
     return 0 if not m else 1
 
 
+def siguiente_paso(acciones, exigidos):
+    """La línea «Siguiente:» con los comandos exactos que desbloquean, en el orden en que hay que darlos:
+    checks pendientes (todos, o `--id` por cada uno), el cruce si la junta lo pide y `close` si el cierre caducó.
+    Sin nada que un comando resuelva, cadena vacía. Ahorra vueltas contra el tope de bloqueos."""
+    partes = []
+    pend = acciones.get("check") or []
+    if pend:
+        todos = sorted(cid for cid, _n3 in exigidos)
+        partes.append("rompelo check" + ("" if sorted(pend) == todos else "".join(f" --id {cid}" for cid in pend)))
+    if acciones.get("cruce"):
+        partes.append(_("rompelo cruce --nota '<qué cruzas>' -- <comando real>"))
+    if acciones.get("close"):
+        partes.append("rompelo close")
+    return _("Siguiente: {cmd}", cmd=" && ".join(partes)) if partes else ""
+
+
 def cmd_close(root, args):
-    m = motivos_bloqueo(root, para_cerrar=True)
+    acc = {}
+    m = motivos_bloqueo(root, para_cerrar=True, acciones=acc)
     if m:
         print("no se puede cerrar:")
         for x in m:
             print("  - " + x)
+        sig = siguiente_paso(acc, checks_exigidos(root))
+        if sig:
+            print("  " + sig)
         return 1
     ef, info = contrato_efectivo(root)
     c = leer_contrato(root)
@@ -1126,10 +1303,11 @@ def cmd_status(root, args):
     c = leer_contrato(root)
     est = estado_repo(root)
     sv = leer_evidencia(dir_evidencia(root, c), "SIN-VERIFICAR.json")
+    cambiados = ficheros_cambiados(root, c.get("base"))
     print(f"tarea {c['id']} · estado {c['estado']}" + (f" · SIN VERIFICAR desde {sv.get('fecha', '')[:16]} (tope de bloqueos alcanzado)" if sv else "")
-          + f" · huella {huella_arbol(root, c.get('base'))} · nivel {nivel_efectivo(est, str(c['id']))} {est.get('perfiles', [])} {est.get('patrones', [])}")
+          + f" · huella {huella_arbol(root, c.get('base'), cambiados)} · nivel {nivel_efectivo(est, str(c['id']))} {est.get('perfiles', [])} {est.get('patrones', [])}")
     print(f"scope: {c['scope_paths']}  checks: {c['checks']}")
-    print(f"cambiados: {ficheros_cambiados(root, c.get('base'))}")
+    print(f"cambiados: {cambiados}")
     return cmd_verify(root, args)
 
 
@@ -1149,16 +1327,21 @@ RIESGO = {
 }
 # Un «check verde» es un comando que existe para juzgar el código (D2 reinicia el contador de ediciones con él).
 CHECKS_VERDES = [
-    r"\b(pnpm|npm|yarn|bun)(\s+run)?\s+(test|check|typecheck|lint|build|verify|e2e|smoke|humo|comprobar)\b",
-    r"\bpytest\b", r"\bpython3?\s+-m\s+pytest\b", r"\bcargo\s+(test|check|clippy)\b", r"\bgo\s+(test|vet)\b",
-    r"\bmake\s+(test|check|lint)\b", r"\brompelo\s+(check|verify)\b",
-    r"\b(vitest|jest|tsc|eslint|ruff|mypy|playwright test|astro check)\b", r"scripts?/comprobar-", r"\btests?/[^\s]+\.(sh|py)\b",
+    r"\b(pnpm|npm|yarn|bun|deno)(\s+run|\s+task)?\s+(test|check|typecheck|lint|build|verify|e2e|smoke|humo|comprobar)\b",
+    r"\bpytest\b", r"\bpython3?\s+-m\s+(pytest|mypy|ruff|unittest|pyright)\b", r"\buv\s+run\s+(pytest|ruff|mypy|pyright)\b",
+    r"\bcargo\s+(test|check|clippy|nextest)\b", r"\bgo\s+(test|vet)\b", r"\bgolangci-lint\b",
+    r"\b(make|just|task)\s+(test|check|lint|typecheck)\b", r"\brompelo\s+(check|verify)\b",
+    r"\b(vitest|jest|tsc|eslint|ruff|mypy|pyright|biome|playwright test|astro check|shellcheck|bats)\b", r"\bprettier\s+--check\b",
+    r"\bmix\s+test\b", r"\b(rspec|phpunit|pest)\b", r"\bbundle\s+exec\s+(rspec|rake\s+test)\b", r"\bdotnet\s+test\b",
+    r"\b(gradle|gradlew)\s+(test|check)\b", r"\bmvn\s+(test|verify)\b", r"\bswift\s+test\b", r"\bcomposer\s+(test|run-script\s+test)\b",
+    r"scripts?/comprobar-", r"\btests?/[^\s]+\.(sh|py)\b",
 ]
 # Programas cuyo silencio significa «no encontré nada» (D2 verde ambiguo). Un `git add` callado es normal.
-BUSCADORES = {"grep", "rg", "ag", "ack", "find", "fd", "git grep", "git diff", "git log", "curl", "wget", "diff", "ls", "jq", "dig", "nslookup", "host", "ss", "netstat", "lsof", "ps", "test"}
+BUSCADORES = {"grep", "rg", "ag", "ack", "find", "fd", "git grep", "git diff", "git log", "git ls-files", "curl", "wget", "diff", "comm", "ls", "jq", "dig", "nslookup", "host", "ss", "netstat", "lsof", "ps", "test"}
 # Programas que solo leen: buscar la palabra «token» no es tocar auth (D1). Con redirección, -i, tee o xargs dejan de contar como lectura.
-LECTURAS = {"grep", "rg", "ag", "cat", "ls", "find", "fd", "head", "tail", "wc", "stat", "file", "diff", "jq", "less", "tree", "du", "df",
-            "which", "type", "echo", "printf", "git log", "git diff", "git status", "git show", "git grep", "git branch", "git rev-parse", "shasum", "md5", "sort", "uniq", "cut", "column"}
+LECTURAS = {"grep", "rg", "ag", "cat", "bat", "ls", "find", "fd", "head", "tail", "wc", "stat", "file", "diff", "comm", "jq", "less", "tree", "du", "df",
+            "which", "type", "echo", "printf", "pwd", "date", "uname", "readlink", "realpath", "basename", "dirname", "awk", "xxd", "hexdump", "strings",
+            "git log", "git diff", "git status", "git show", "git grep", "git branch", "git rev-parse", "git ls-files", "shasum", "md5", "sort", "uniq", "cut", "column"}
 # Ficheros cuya edición repetida no pide un check verde (D2 ediciones sin verde): documentación e imágenes.
 SIN_CHECK = (".md", ".mdx", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf", ".ico")
 
@@ -1313,7 +1496,8 @@ def programa(cmd):
     if prog in ("sudo", "env", "time", "nice"):
         return programa(" ".join(partes[1:]))
     if len(partes) > 1 and not partes[1].startswith("-") and prog in (
-            "git", "pnpm", "npm", "yarn", "bun", "docker", "cargo", "go", "make", "python3", "python", "node", "bash", "sh", "rompelo", "gh", "kubectl", "terraform", "wrangler", "pip", "pip3"):
+            "git", "pnpm", "npm", "yarn", "bun", "deno", "docker", "cargo", "go", "make", "just", "task", "python3", "python", "node", "bash", "sh",
+            "rompelo", "gh", "kubectl", "terraform", "wrangler", "pip", "pip3", "uv", "mix", "bundle", "dotnet", "gradle", "gradlew", "mvn", "composer", "swift", "ruff", "biome"):
         return f"{prog} {os.path.basename(partes[1])}"
     return prog
 
@@ -1504,7 +1688,7 @@ def cmd_observe(agente, args):
             return 0
         sid = re.sub(r"[^A-Za-z0-9._-]", "_", str(ent.get("session_id") or "nosession"))
         cwd = ent.get("cwd") or os.getcwd()
-        root = raiz_repo(cwd)
+        root = raiz_repo_rapida(cwd)  # sin proceso git: el observador corre tras cada herramienta
         ev = evento_desde_hook(ent)
         ev["repo"] = root
         if os.environ.get("ROMPELO_DEBUG_FORMA"):
@@ -1752,6 +1936,7 @@ def cmd_hook(agente, args):
         return 0  # cwd sin git: no hay tarea que juzgar
     tid = "sin-id"
     m = None
+    sig = ""
     try:
         permitidos = repos_permitidos()
     except ValueError as exc:
@@ -1765,7 +1950,9 @@ def cmd_hook(agente, args):
                 tid = re.sub(r"[^A-Za-z0-9._-]", "_", str(leer_contrato(root)["id"]))
             except Exception:
                 pass
-            m = motivos_bloqueo(root)
+            acc = {}
+            m = motivos_bloqueo(root, acciones=acc)
+            sig = siguiente_paso(acc, checks_exigidos(root))
         except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
             m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
     if not m:
@@ -1794,9 +1981,11 @@ def cmd_hook(agente, args):
                                {"fecha": ahora(), "agente": agente, "sesion": sid, "motivos": m})
         except Exception:
             pass
-        print(json.dumps({"systemMessage": _("[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ", tope=TOPE_BLOQUEOS, tid=tid) + " | ".join(m)}, ensure_ascii=False))
+        print(json.dumps({"systemMessage": _("[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ", tope=TOPE_BLOQUEOS, tid=tid) + " | ".join(m + ([sig] if sig else []))}, ensure_ascii=False))
         return 0
     texto = _("[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n", tid=tid, n=n, tope=TOPE_BLOQUEOS) + "\n".join("- " + x for x in m)
+    if sig:
+        texto += "\n" + sig
     print(json.dumps({"decision": "block", "reason": texto + _("\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.")}, ensure_ascii=False))
     return 0
 
@@ -1817,6 +2006,9 @@ uso:
   rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (nunca estado ni evidencia)
   rompelo doctor                 diagnóstico de solo lectura: versiones, rutas, registro elegido, allowlist, hooks conectados
 contrato: `checks_nivel3` lista checks que solo se exigen a nivel 3 (tras `rompelo permiso … si`)
+registro: por check, `no_afecta: [globs]` = rutas cuyo cambio NO invalida su evidencia (docs, imágenes…): editar el
+          README después de la suite no obliga a repetirla. `rompelo check` avisa si un check cambia el árbol.
+bloqueo:  la última línea «Siguiente:» trae los comandos exactos que desbloquean, en orden
 idioma de los mensajes: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json
 registro de checks: {REGISTRO}   allowlist: {ALLOWLIST}
 """

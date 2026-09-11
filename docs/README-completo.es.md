@@ -71,6 +71,7 @@ allowlist local. Desde entonces el agente no puede terminar una tarea hasta que:
 |---|---|
 | cada id de check ha corrido sobre el contenido **actual** del árbol (huella versionada de cada ruta cambiada: contenido, bit ejecutable, destino del enlace, borrado; nombres reales vía `git … -z`, así que `año.py` es `año.py`; una `base` del contrato que no existe en el repo es un error, nunca `HEAD` en silencio) | `rompelo check`. Los ids se resuelven en tu `checks/registry.json` (argv, sin shell). La salida no se guarda nunca: solo código, duración y hash |
 | un check que sale con 0 sin la salida mínima declarada **no** es verde | `min_lineas` en el registro |
+| un cambio en una ruta que el check declara ajena (docs, imágenes) no invalida su evidencia; cualquier otro sí | `no_afecta: [globs]` en el registro, por check; forma parte de la definición del check, así que cambiarlo invalida la evidencia anterior. `rompelo check` avisa cuando el propio check cambió el árbol |
 | un check que no termina, no arranca o inunda la salida es un fallo del **instrumento**, no un hallazgo | `timeout` en el registro (900 s por defecto; se mata el grupo de procesos entero), captura acotada a 4 MiB, salida leída como bytes |
 | la evidencia nunca guarda el argv ni la salida | solo programa, hash del argv, código, tiempo, recuentos y hash de la salida; estado y evidencia se escriben de forma atómica y se actualizan bajo cerrojo |
 | el control positivo declarado detecta el caso malo antes del check real | `control_positivo` debe salir con 1; 0 significa ciego, 2 no pudo mirar y cualquier otro código bloquea |
@@ -138,17 +139,24 @@ git clone https://github.com/bugroo/rompelo ~/rompelo
 cp ~/rompelo/checks/registry.example.json ~/rompelo/checks/registry.local.json   # tus checks
 ```
 
-O deja que `rompelo init` los encuentre: sin `--check`, lee los scripts de `package.json`,
-`pyproject.toml`, `Cargo.toml`, `go.mod` y el `Makefile`, registra lo que encuentra en
-`registry.local.json` como `<repo>.<nombre>` y lo mete en el contrato. En `registry.local.json`
+O deja que `rompelo init` los encuentre: sin `--check`, lee lo que el repo declara (scripts de
+`package.json`, `deno.json` y `composer.json` llamados `test`, `typecheck`, `lint`, `build`, `check` o
+`test:*`; `pyproject.toml` con sus `[tool.ruff]` / `[tool.mypy]`, `uv.lock`; `Cargo.toml`, `go.mod`,
+`mix.exs`, `Gemfile`, Gradle, Maven, .NET, `Package.swift`; `Makefile`, `justfile`, `Taskfile`),
+registra lo que encuentra en `registry.local.json` como `<repo>.<nombre>` y lo mete en el contrato.
+Nada se adivina: un check `mypy` solo aparece si mypy está configurado. En `registry.local.json`
 viven tus comandos, un id cada uno, como argv:
 
 ```json
 {
-  "mi-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600},
+  "mi-app.test": {"argv": ["pnpm", "test"], "cwd": "repo", "min_lineas": 1, "timeout": 600, "no_afecta": ["docs/**", "*.md"]},
   "mi-app.humo": {"argv": ["node", "scripts/humo.mjs"], "cwd": "repo"}
 }
 ```
+
+Cada bloqueo (hook Stop, `verify`, `close`) termina con una línea «Siguiente:» («Next:» en inglés): los
+comandos exactos que desbloquean, en orden, y solo los que un comando resuelve (un hallazgo sin
+disposición no tiene comando).
 
 Después, el hook:
 
