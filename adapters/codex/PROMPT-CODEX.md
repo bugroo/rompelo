@@ -190,6 +190,63 @@ No toques `bin/rompelo` ni `tests/`: si algo falla, es un hallazgo para José, n
 No toques `~/.claude/`. Tu `~/.codex/hooks.json` no debería necesitar cambios (la confianza va sobre
 `hooks.json`, no sobre el binario).
 
+## Parte 5 · Cruzar desde Codex lo del 11-09-2026 (PR #2) y medir lo que solo Codex sabe
+
+Tu Parte 4 está incorporada (`LEEME.md`, contrato en `docs/auditoria-2026-09-07/contrato-ROMPELO-CODEX-04.json`)
+y motivó dos cambios: `config/permisos.json` ya no está versionado (aparecía «fuera de scope_paths» al pedir
+permiso dentro de este repo) y un check puede declarar en el registro las rutas que no lo invalidan
+(`no_afecta`): tu segundo bloqueo decía «`rompelo.sin-var-pegada` se ejecutó sobre otro árbol» por editar
+`LEEME.md`, y eso ya no pasa. Lo que trae esta versión, con detalle en `CHANGELOG.md` («Sin publicar»):
+
+- Cada bloqueo termina con una línea **«Siguiente: …»** (`Next:` en inglés) con los comandos exactos, en
+  orden: `rompelo check` (o `--id` por cada check caducado), `rompelo cruce …`, `rompelo close`.
+- El observador **no lanza ningún proceso**: halla la raíz subiendo hasta `.git` (también en un worktree,
+  donde `.git` es un fichero). El Stop lanza 3 procesos git en vez de 7.
+- **`no_afecta`** por check en el registro; los siete `rompelo.*` llevan `docs/**`, `*.md`, `corpus/**`,
+  `incidents/**`.
+- `rompelo check` **avisa cuando el propio check cambia el árbol**, con las rutas.
+- `rompelo init` sin `--check` detecta más ecosistemas (`bun run test`, `test:*`, deno, composer, uv, ruff y
+  mypy solo si están configurados, mix, rspec, Gradle, Maven, .NET, Swift, justfile, Taskfile).
+
+**Precondición:** José ha fusionado el PR #2. Si `git -C ~/rompelo log --oneline -1 origin/main` no muestra
+«contrato MEJORAS-2026-09-11 cerrado» o posterior, para y dilo. No cambies de rama en `~/rompelo`.
+
+1. `git -C ~/rompelo pull --ff-only`; `rompelo doctor` en `~/rompelo` tiene que decir «revisión de rompelo»
+   con el commit nuevo y «hooks Codex: … → Stop, PostToolUse». Copia esa salida a tu nota.
+2. Abre tu contrato: `rompelo init --force --id ROMPELO-CODEX-05 --scope adapters/codex/LEEME.md
+   --check rompelo.tests --check rompelo.observe-tests --check rompelo.instrumento-tests
+   --check rompelo.portabilidad-tests --check rompelo.sin-var-pegada --check rompelo.cruce-settings-claude
+   --check rompelo.control-negativo-sesiones --junta`.
+3. Cruces que solo tú puedes hacer, en este orden, anotando la salida literal de cada bloqueo:
+   a. **Siguiente, entero.** Edita `adapters/codex/LEEME.md` con `apply_patch` (una línea) y termina el turno
+      sin `rompelo check`. El bloqueo tiene que acabar en `Siguiente: rompelo check && rompelo cruce --nota
+      '<qué cruzas>' -- <comando real>` seguido del párrafo «No declares la tarea terminada». Si en tu cliente
+      la razón llega recortada o sin saltos de línea, anótalo con el texto tal cual: es el hallazgo principal.
+   b. **no_afecta y Siguiente con `--id`.** `rompelo check --id rompelo.sin-var-pegada` (un segundo). Edita
+      `LEEME.md` otra vez con `apply_patch` y termina el turno. El bloqueo NO puede decir que
+      `rompelo.sin-var-pegada` «se ejecutó sobre otro árbol» (LEEME.md es `*.md`), los otros seis siguen «sin
+      ejecutar», y la línea Siguiente tiene que llevar `--id` por cada uno de esos seis, no `rompelo check` a
+      secas. Si sale «sobre otro árbol», anótalo: sería un fallo de `no_afecta` desde Codex.
+   c. **Raíz sin git.** Desde un subdirectorio: `cd adapters/codex && ls`. La última línea de
+      `~/rompelo/state/sesiones/codex-<tu session_id>.jsonl` tiene que llevar `"repo": "/Users/rootml/rompelo"`.
+      Luego `git -C ~/rompelo worktree add /tmp/rompelo-wt-codex` y `ls /tmp/rompelo-wt-codex`: esa línea
+      tiene que llevar `"repo": "/private/tmp/rompelo-wt-codex"` (ruta real, con `/private`). Quita el
+      worktree al terminar (`git -C ~/rompelo worktree remove /tmp/rompelo-wt-codex`).
+   d. **Lo que solo Codex sabe: el código de salida.** El observador deja `"codigo": null` en Codex porque
+      el 05-09 `tool_response` de Bash era solo texto (INC-0036); por eso «check en rojo» y «verde ambiguo»
+      no saltan en Codex. Mide si sigue así: ejecuta `false` y `ls /no/existe` en tu sesión y mira las dos
+      últimas líneas del libro. Si `"codigo"` es un número, tu cliente ya manda el código: anota la versión
+      y captura la FORMA del payload (solo claves, nunca texto) con un `hooks.json` de PROYECTO desechable
+      cuyo PostToolUse sea `ROMPELO_DEBUG_FORMA=1 "$HOME/rompelo/bin/rompelo" observe codex`, y pega la
+      última línea de `~/rompelo/state/forma.jsonl`. Si sigue siendo `null`, di «sigue sin código con
+      codex X.Y.Z» y no busques más: el arreglo, si hay forma, es de José en `evento_desde_hook`.
+   e. **Cierre.** `rompelo check` (unos 5 min), `rompelo cruce --id rompelo.cruce-settings-claude`,
+      `rompelo close`. El Stop siguiente tiene que callar.
+4. Anota en `adapters/codex/LEEME.md`, sección «Estado», con fecha y `codex --version`: los tres bloqueos
+   literales (a, b y, si hubo, el de c), los recuentos de las baterías, el resultado de d y lo NO VERIFICADO.
+
+Los mismos límites de la Parte 4: ni `bin/rompelo`, ni `tests/`, ni `~/.claude/`, ni el `hooks.json` global.
+
 ## Entrega
 
 Tres bloques, en este orden: qué queda hecho, qué falta, qué problemas tiene el trabajo.

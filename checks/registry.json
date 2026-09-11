@@ -16,7 +16,13 @@
         "gate"
       ],
       "cwd": "rompelo"
-    }
+    },
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   },
   "rompelo.cruce-settings-claude": {
     "argv": [
@@ -26,7 +32,13 @@
     "cwd": "rompelo",
     "descripcion": "ejecuta la línea Stop tal cual está en settings.json",
     "min_lineas": 1,
-    "solo_local": true
+    "solo_local": true,
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   },
   "rompelo.sin-var-pegada": {
     "argv": [
@@ -44,7 +56,13 @@
       ],
       "cwd": "rompelo"
     },
-    "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)"
+    "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   },
   "rompelo.observe-tests": {
     "argv": [
@@ -53,7 +71,13 @@
     ],
     "cwd": "rompelo",
     "min_lineas": 10,
-    "descripcion": "batería de la capa de observación"
+    "descripcion": "batería de la capa de observación",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   },
   "rompelo.control-negativo-sesiones": {
     "argv": [
@@ -71,7 +95,13 @@
     "cwd": "rompelo",
     "min_lineas": 10,
     "solo_local": true,
-    "_nota": "control negativo del observador con 5 sesiones reales de esta máquina (transcripts locales); las 2 alarmas esperadas son verdaderas (dos grep vacíos; un .astro editado 4 veces sin check). Solo local: en CI no hay transcripts."
+    "_nota": "control negativo del observador con 5 sesiones reales de esta máquina (transcripts locales); las 2 alarmas esperadas son verdaderas (dos grep vacíos; un .astro editado 4 veces sin check). Solo local: en CI no hay transcripts.",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   },
   "rompelo.instrumento-tests": {
     "argv": [
@@ -80,7 +110,13 @@
     ],
     "cwd": "rompelo",
     "min_lineas": 10,
-    "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos"
+    "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   },
   "rompelo.portabilidad-tests": {
     "argv": [
@@ -89,6 +125,12 @@
     ],
     "cwd": "rompelo",
     "min_lineas": 10,
-    "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor"
+    "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   }
 }

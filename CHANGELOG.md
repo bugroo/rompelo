@@ -5,6 +5,37 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Más rápido en la ruta caliente (11-09).** El observador (`PostToolUse`, tras CADA herramienta) ya no lanza
+  ningún proceso: la raíz del repo se halla subiendo hasta `.git` (igual que `git rev-parse --show-toplevel`
+  en los casos corrientes, worktrees incluidos), y `subprocess` y `tempfile` no se importan. El hook Stop
+  lanza 3 procesos git en vez de 7: los ficheros cambiados y sus hashes se calculan una vez por invocación y
+  la base del contrato solo se comprueba con `cat-file` cuando el diff falla. El registro y la configuración
+  se leen una vez por proceso (caché por inode, mtime y tamaño). Medido el 11-09-2026 (Mac, python 3.9 de
+  Apple, libro de 1.775 eventos, 9 sesiones vecinas, media de 10 llamadas): observador 109 → 49 ms con un
+  shim de git en el PATH y 62 → 49 sin él; Stop sobre este repo 374 → 168 ms con shim y 102 → 66 sin él.
+  Las baterías, que invocan el binario cientos de veces, pasan de 101 a 72 s y de 28 a 20 s.
+- **`no_afecta` por check en el registro (11-09).** Lista de globs cuyas rutas no entran en la huella de ESE
+  check: editar el README o una imagen después de la suite no obliga a repetirla; cualquier otra ruta sí.
+  Forma parte de la definición del check (cambiarla invalida la evidencia). Las de rompelo llevan `docs/**`,
+  `*.md`, `corpus/**`, `incidents/**`.
+- **La línea «Siguiente:»** en cada bloqueo (Stop, `verify`, `close`; `Next:` en inglés): los comandos exactos
+  que desbloquean, en orden (`rompelo check` o `--id` por cada check caducado, `rompelo cruce …`,
+  `rompelo close`), y solo los que un comando resuelve. `verify --json` la lleva en `siguiente`.
+- **`rompelo check` avisa cuando el propio check cambia el árbol** (un formateador, un build que escribe un
+  fichero rastreado), con las rutas: antes solo se veía «se ejecutó sobre otro árbol» en el Stop siguiente.
+- **Detección de checks en más ecosistemas.** Scripts `test:*`/`typecheck:*`/`lint:*` de `package.json`
+  (`typecheck:functions` → `<repo>.typecheck-functions`), `bun run test` (antes `bun test`, que es el runner
+  de bun y no el script), `deno.json` tasks, `composer.json` scripts, `uv run pytest` con `uv.lock`, `ruff` y
+  `mypy` solo si están configurados, `go vet`, `mix test`, `rspec`/`rake test`, Gradle, Maven, .NET, Swift,
+  `justfile` y `Taskfile`. El observador reconoce como check verde `uv run pytest`, `deno task check`,
+  `just test`, `mix test`, `rspec`, `dotnet test`, `ruff check` y otros.
+- **`config/permisos.json` deja de estar versionado** (como `repos.json` y `state/`): es estado de la máquina
+  y lo escribe `rompelo permiso`. Al ejecutarlo dentro del propio repo de rompelo aparecía como «fuera de
+  scope_paths» (visto por Codex en la Parte 4, 07-09). La entrada que había versionada era un ensayo del 05-09.
+- **Parte 4 de Codex incorporada** (`adapters/codex/LEEME.md`, 07-09-2026, codex-cli 0.153.4): el binario del
+  PR #1 cruzado desde un cliente Codex real (Stop nativo, `apply_patch` con rutas, permiso revocado). Su
+  contrato cerrado queda en `docs/auditoria-2026-09-07/contrato-ROMPELO-CODEX-04.json`. Parte 5 del encargo
+  en `adapters/codex/PROMPT-CODEX.md`: cruzar desde Codex lo de esta versión.
 - **Instrumento de prueba (auditoría 07-09, RMP-004).** Las baterías ya no dan por «silencio» un hook
   que muere: cada invocación pasa por `tests/invocar.py` (código de salida, stderr, plazo) y una
   aserción de bloqueo exige que TODA la salida sea el JSON. `tests/instrumento-test.sh` ejercita las

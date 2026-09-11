@@ -37,7 +37,9 @@ Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar c
      Una petición real por el camino real, no un mock.
    - `rompelo close`. Imprime el informe: qué se comprobó, qué no se pudo, qué queda a cargo del usuario.
 6. **Si el Stop bloquea**, lee los motivos y resuélvelos con lo que piden (`check`, `cruce`,
-   disposición del hallazgo, `segunda_pasada`). Lo que no puedas cumplir se declara, no se maquilla:
+   disposición del hallazgo, `segunda_pasada`). La última línea, «Siguiente:», trae los comandos exactos
+   en orden; lo que no lleva comando (un hallazgo, una ruta fuera de scope) se resuelve en el contrato o
+   en el código. Lo que no puedas cumplir se declara, no se maquilla:
    - una afirmación sobre el mundo exterior va en `afirmaciones` con estado `verificado` (fuente +
      cita), `derivado` (de qué) o `no_verificado` (qué falta);
    - un hallazgo se cierra con `confirmado` (+ `regresion`), `rechazado` (+ `motivo`) o `aceptado`

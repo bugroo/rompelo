@@ -1,12 +1,16 @@
 {
-  "_ayuda": "Copia a registry.local.json y adapta. Un id por check; argv sin shell; min_lineas si el comando siempre imprime.",
+  "_ayuda": "Copia a registry.local.json y adapta. Un id por check; argv sin shell; min_lineas si el comando siempre imprime; no_afecta: rutas cuyo cambio no invalida la evidencia de ese check.",
   "mi-proyecto.test": {
     "argv": [
       "pnpm",
       "test"
     ],
     "cwd": "repo",
-    "min_lineas": 1
+    "min_lineas": 1,
+    "no_afecta": [
+      "docs/**",
+      "*.md"
+    ]
   },
   "mi-proyecto.typecheck": {
     "argv": [

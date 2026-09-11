@@ -412,4 +412,37 @@ rm -f "$EST"
 echo "── entrada malformada: silencio y rastro en observe.err"
 printf 'basura' | "$ROMPELO" observe claude; rc=$?; [ $rc -eq 0 ] && [ -f "$ROMPELO_HOME/state/observe.err" ] && ok "no rompe la sesión y deja rastro" || bad "malformado" "rc=$rc"
 
+echo "── raíz sin proceso git (11-09): el observador halla la misma raíz que git, también en un worktree y un subdirectorio"
+reset_estado; nueva_sesion
+repo_del_libro() { tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" | python3 -c "import json,sys;print(json.load(sys.stdin).get('repo'))"; }
+real() { python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$1"; }
+# cwd_ev <sid> <cwd>: un `ls` sano desde ese cwd (heredoc, no `-c`: bash 3.2 rompe las llaves dentro de "$(… "…")")
+cwd_ev() { observar claude "$(python3 - "$1" "$2" <<'PY'
+import json,sys
+sid,cwd=sys.argv[1:3]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":{"stdout":"x","stderr":"","exit_code":0}}))
+PY
+)"; }
+mkdir -p "$R/src/hondo/mas"; cwd_ev $SID "$R/src/hondo/mas" >/dev/null
+g="$(git -C "$R/src/hondo/mas" rev-parse --show-toplevel)"; g="$(real "$g")"; l="$(repo_del_libro)"
+[ -n "$g" ] && [ "$l" = "$g" ] && ok "desde un subdirectorio: la raíz del repo, igual que git" || bad "raíz desde subdirectorio" "libro=$l git=$g"
+W="$T/worktree"; git -C "$R" worktree add -q "$W" -b wt >/dev/null 2>&1
+nueva_sesion; cwd_ev $SID "$W" >/dev/null; w="$(real "$W")"; l="$(repo_del_libro)"
+[ -f "$W/.git" ] && [ "$l" = "$w" ] && ok "en un worktree (.git es un fichero): la raíz es el worktree, no el repo principal (§9)" || bad "raíz en worktree" "libro=$l worktree=$w"
+nueva_sesion; cwd_ev $SID "$T" >/dev/null; l="$(repo_del_libro)"
+[ "$l" = "None" ] && ok "cwd sin .git por encima: sin repo, como git" || bad "sin repo" "$l"
+git -C "$R" worktree remove --force "$W" >/dev/null 2>&1
+
+echo "── checks verdes de más ecosistemas (11-09): uv run pytest, deno task, just, mix reinician el contador de ediciones"
+for verde in 'uv run pytest -q' 'deno task check' 'just test' 'mix test' 'bundle exec rspec' 'dotnet test' 'ruff check .'; do
+  reset_estado; nueva_sesion
+  for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+  bash_ev $SID "$verde" 0 'ok' '' >/dev/null
+  o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && ok "«${verde}» cuenta como check verde" || bad "«${verde}» no reinicia" "$o"
+done
+reset_estado; nueva_sesion
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+bash_ev $SID 'uv pip list' 0 'ok' '' >/dev/null
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "control: «uv pip list» no es un check y el aviso salta" || bad "uv pip list contó como check" "$o"
+
 rm -rf "$T"; resumen

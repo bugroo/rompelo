@@ -5,7 +5,7 @@
 A closing gate for Claude Code and Codex. It hooks into `Stop`, reads a small per-task contract and
 does not let the task end until the evidence exists: checks run on the current tree, a real crossing
 when two systems must agree, findings with a decision. Plain code decides, outside the model.
-Python 3.9 and git, no dependencies.
+Python 3.9 and git on macOS or Linux, no dependencies.
 
 ![The agent says done, the Stop hook calls rompelo, rompelo compares contract and evidence; if something is missing it blocks with reasons, if everything holds there is silence](docs/img/en/como-funciona.png)
 
@@ -55,13 +55,18 @@ rompelo cruce --nota "real request" -- curl -sf https://…   # the real crossin
 rompelo close                                  # refuses if anything is missing; prints the report
 ```
 
-Two sessions on the same root share the contract: each opens its own (`--force`) or works in a worktree.
+Every block ends with a `Next:` line carrying the exact commands that unblock, in order
+(`rompelo check --id …`, `rompelo cruce …`, `rompelo close`); `rompelo check` warns when a check itself
+changed the tree. Two sessions on the same root share one `.rompelo/task.json`: `init --force` replaces
+the other session's contract, so give each session its own worktree.
 
 ## What the gate requires
 
 - Every contract check run on the **current** tree (content fingerprint, not the commit). Exit 0
   with no output is not green (`min_lineas`); a check that does not finish or start is an
   instrument failure, not a finding; a positive control that misses the known-bad case voids the green.
+  A check may declare in the registry the paths that cannot change its verdict (`no_afecta`:
+  docs, images), so editing the README after the suite does not force a re-run; everything else does.
 - If the task touches a boundary, a real crossing after the last change.
 - Every finding as `confirmado` (+ regression), `rechazado` (+ reason) or `aceptado` (+ note).
 - Every claim about the outside world as `verificado` (source + quote), `derivado` or `no_verificado`.
