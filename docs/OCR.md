@@ -19,7 +19,7 @@ gh release download vX.Y.Z --repo alibaba/open-code-review -p opencodereview-dar
 shasum -a 256 -c <(grep 'opencodereview-darwin-arm64$' sha256sum.txt)   # tiene que decir OK
 install -m 755 opencodereview-darwin-arm64 ~/bin/ocr
 ocr config set provider anthropic
-ocr config set providers.anthropic.api_key_cmd 'pass show external/anthropic/api-key'   # nada en claro en disco
+ocr config set providers.anthropic.api_key_cmd 'pass show external/anthropic/api-key | tail -n1'   # la clave es la última línea; nada en claro en disco
 ocr config set model claude-sonnet-5
 ocr llm test
 ```
@@ -29,6 +29,8 @@ que estar en PATH y gpg-agent con la frase cargada (`preset-vault.sh`). El plugi
 Code NO se instala: manda `npm i -g`, arregla solo y descarta hallazgos en silencio.
 
 ## Uso en una tarea
+
+`ocr.review` es `solo_local`: CI lo deja en SKIPPED («OK PARCIAL, contrato INCOMPLETO») y el cierre lo decide quien lo cruza fuera con `rompelo cruce -- bash tests/cruce-ocr.sh`.
 
 ```bash
 rompelo init --check ocr.review ...      # o añadir "ocr.review" a checks del contrato

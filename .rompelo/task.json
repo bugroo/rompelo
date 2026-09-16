@@ -1,22 +1,13 @@
 {
   "schema": 1,
-  "id": "FRICCION-Y-MAPA-2026-09-16",
+  "id": "INTEGRACION-ENTREGA-20260917",
   "estado": "cerrada",
-  "base": "55705ee1b1c9137885e23eea20b3ef917dc1504e",
-  "descripcion": "disparo por entrega (PreToolUse commit/push/deploy + cierre declarado), afecta/obliga por ruta, categorías protegidas, presupuesto ocr, revisar",
+  "base": "e45d9506088645260b2db3872ec86e357a189375",
+  "descripcion": "Integrar main cerrado con PR 4 conservando OCR solo_local y las nueve baterías de entrega",
   "scope_paths": [
-    "bin/**",
-    "checks/**",
-    "tests/**",
-    "adapters/**",
-    "config/**",
-    "docs/**",
-    "CHANGELOG.md",
-    "README.md",
-    ".rompelo/task.json",
-    "incidents/**",
-    "corpus/**",
-    ".gitignore"
+    "checks/registry.json",
+    "docs/OCR.md",
+    ".rompelo/task.json"
   ],
   "checks": [
     "rompelo.tests",
@@ -33,6 +24,7 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "revisión con manifiesto sobre v2:9e98e72595f888d8: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 0,
     "perfiles": [],
@@ -52,6 +44,6 @@
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-16T20:42:15+00:00"
+    "fecha": "2026-09-16T22:04:20+00:00"
   }
 }

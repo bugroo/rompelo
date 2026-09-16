@@ -154,7 +154,8 @@
    "*.md",
    "corpus/**",
    "incidents/**"
-  ]
+  ],
+  "solo_local": true
  },
  "rompelo.ocr-review-tests": {
   "argv": [
