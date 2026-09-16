@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Control positivo de ocr.review: el MISMO instrumento (envoltorio + ocr + LLM) sobre un malo conocido.
 Repo temporal con una inyección SQL introducida en el árbol; --effort low para que cueste poco.
-Imprime: 1 detectado · 0 ciego · 2 no pudo mirar. Cuesta una llamada al LLM (~15 s, ~40k tokens)."""
+Imprime: 1 detectado · 0 ciego · 2 no pudo mirar (también si agota el plazo, OCR_CP_TIMEOUT). Cuesta una llamada al LLM (~15 s, ~40k tokens)."""
 import os, subprocess, sys, tempfile
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BUENO = 'export async function buscar(pool: { query: (q: string, p: string[]) => Promise<unknown> }, email: string) {\n  return pool.query("SELECT id FROM customers WHERE email = $1", [email]);\n}\n'
@@ -14,7 +14,11 @@ with tempfile.TemporaryDirectory() as t:
     open(os.path.join(t, "db.ts"), "w").write(MALO)
     if open(os.path.join(t, "db.ts")).read() != MALO:
         print("no pude escribir el malo conocido"); sys.exit(2)
-    r = subprocess.run([sys.executable, os.path.join(AQUI, "ocr-review.py"), "--effort", "low"], cwd=t, capture_output=True, text=True, timeout=900)
+    try:
+        r = subprocess.run([sys.executable, os.path.join(AQUI, "ocr-review.py"), "--effort", "low"], cwd=t,
+                           capture_output=True, text=True, timeout=int(os.environ.get("OCR_CP_TIMEOUT", "900")))
+    except subprocess.TimeoutExpired:
+        print("el instrumento no pudo mirar su control conocido: plazo agotado"); sys.exit(2)
     if r.returncode == 1 and "db.ts:" in r.stdout:
         print("1 inyección SQL plantada; el mismo instrumento la detectó"); sys.exit(1)
     if r.returncode == 0:

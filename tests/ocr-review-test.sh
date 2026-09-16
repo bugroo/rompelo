@@ -31,11 +31,30 @@ caso "warnings, cobertura incompleta → 2"     2 0 "$J_WARN"
 caso "status con errores → 2"                 2 0 "$J_ERR"
 caso "ocr sale con 1 → 2"                     2 1 "$J_OK"
 caso "ocr no devuelve JSON → 2"               2 0 "esto no es json"
+J_RARO='{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":3,"total_tokens":10},"comments":[{"path":"a.ts","start_line":2,"end_line":2,"severity":"Blocker","category":"bug","content":"nivel desconocido"}]}'
+J_ROTO='{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":"tres","total_tokens":10},"comments":[]}'
+caso "severidad desconocida cuenta como grave → 1" 1 0 "$J_RARO"
+caso "summary mal formado → 2, nunca 1"           2 0 "$J_ROTO"
 # umbral configurable: con OCR_UMBRAL=low el nit ya cuenta
 printf '#!/bin/bash\nprintf %%s %q\n' "$J_LOW" > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
 ( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" OCR_UMBRAL=low python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
 if [ "$rc" = 1 ]; then echo "OK   umbral low cuenta el nit → 1"; else echo "FALLO umbral low → $rc (esperado 1)"; fallos=$((fallos+1)); fi
 # el falso tiene que haber sido llamado de verdad (el envoltorio deja .rompelo/ocr-ultimo.json)
 [ -s "$TMP/repo/.rompelo/ocr-ultimo.json" ] && grep -q '"falso"' "$TMP/repo/.rompelo/ocr-ultimo.json" && echo "OK   el envoltorio guardó la salida del instrumento" || { echo "FALLO no quedó ocr-ultimo.json con el modelo falso"; fallos=$((fallos+1)); }
+# modo rango: contrato con base != HEAD → pasada rango; y .rompelo/** sucio NO añade pasada workspace (OCR-3)
+git -C "$TMP/repo" checkout -q -- a.ts   # árbol limpio salvo .rompelo/
+BASE="$(git -C "$TMP/repo" rev-parse HEAD)"; echo c >> "$TMP/repo/a.ts" && git -C "$TMP/repo" add -A && git -C "$TMP/repo" -c user.name=t -c user.email=t@t commit -qm segundo
+mkdir -p "$TMP/repo/.rompelo" && printf '{"base":"%s"}\n' "$BASE" > "$TMP/repo/.rompelo/task.json"
+printf '#!/bin/bash\nprintf %%s %q\n' "$J_OK" > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+pasadas="$(python3 -c "import json;print(' '.join(json.load(open('$TMP/repo/.rompelo/ocr-ultimo.json'))['pasadas']))")"
+case "$pasadas" in rango*) [ "$rc" = 0 ] && [[ "$pasadas" != *workspace* ]] && echo "OK   base != HEAD → solo pasada rango ($pasadas)" || { echo "FALLO rango: rc=$rc pasadas='$pasadas'"; fallos=$((fallos+1)); } ;;
+  *) echo "FALLO no hubo pasada rango: '$pasadas'"; fallos=$((fallos+1)) ;; esac
+# comments: null explícito no revienta (OCR-5)
+caso "comments null → 0, no TypeError" 0 0 '{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":1,"total_tokens":1},"comments":null}'
+# control positivo: si ocr cuelga más del plazo, 2 y no traceback (OCR-7)
+printf '#!/bin/bash\nsleep 5\n' > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
+( PATH="$TMP/bin:$PATH" OCR_CP_TIMEOUT=1 python3 "$RAIZ/checks/ocr-control-positivo.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+[ "$rc" = 2 ] && echo "OK   control positivo con plazo agotado → 2" || { echo "FALLO control positivo plazo → $rc (esperado 2)"; fallos=$((fallos+1)); }
 echo "$vistos casos, $fallos fallos"
 [ "$fallos" = 0 ]

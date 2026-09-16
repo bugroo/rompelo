@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "id": "ROMPELO-CODEX-05",
+  "estado": "cerrada",
+  "base": "044eef3861b1e242d1617b3f5ad6f6dbb371a6d9",
+  "descripcion": "",
+  "scope_paths": [
+    "adapters/codex/LEEME.md"
+  ],
+  "checks": [
+    "rompelo.tests",
+    "rompelo.observe-tests",
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests",
+    "rompelo.sin-var-pegada",
+    "rompelo.cruce-settings-claude",
+    "rompelo.control-negativo-sesiones"
+  ],
+  "toca_junta": true,
+  "exige_prueba_en_diff": false,
+  "segunda_pasada": "Revisados de nuevo los dos bloqueos Stop nativos y su transcripción con XML decodificado, no_afecta para LEEME.md, INC-0036 con codigo null y la evidencia cliente-nativo.json de la sesión 01a08f3a-ee58-70b1-b600-40243d0a790e: cambiar solo el workdir conserva el cwd principal, pero reanudar la misma sesión con -C al worktree registra su ruta canónica.",
+  "hallazgos": [],
+  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "obligaciones_efectivas": {
+    "nivel": 2,
+    "perfiles": [
+      "auth",
+      "junta"
+    ],
+    "permisos": [],
+    "checks": [
+      "rompelo.tests",
+      "rompelo.observe-tests",
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests",
+      "rompelo.sin-var-pegada",
+      "rompelo.cruce-settings-claude",
+      "rompelo.control-negativo-sesiones"
+    ],
+    "toca_junta": true,
+    "toca_exterior": false,
+    "fecha": "2026-09-11T07:13:56+00:00"
+  }
+}

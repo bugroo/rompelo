@@ -16,7 +16,13 @@ Siempre excluye .rompelo/** y .opencodereview/**: medido el 16-09-2026, sin eso 
 """
 import json, os, shutil, subprocess, sys
 
-ORDEN = {"critical": 4, "high": 3, "medium": 2, "low": 1, "": 0}
+ORDEN = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+
+
+def peso(sev):
+    """Severidad de un comentario. Desconocida o ausente cuenta como la más alta: un nivel nuevo o mal
+    escrito no puede colarse por debajo del umbral en silencio (hallazgo de ocr sobre este fichero, 16-09-2026)."""
+    return ORDEN.get(str(sev or "").strip().lower(), 5)
 
 
 def git(*a):
@@ -47,7 +53,7 @@ def correr_ocr(args, etiqueta):
 def main():
     extra = sys.argv[1:]
     umbral = os.environ.get("OCR_UMBRAL", "medium")
-    if umbral not in ORDEN or not umbral:
+    if umbral not in ORDEN:
         salir(2, f"OCR_UMBRAL inválido: {umbral!r}")
     if not shutil.which("ocr"):
         salir(2, "ocr no está en PATH: binario de GitHub Release verificado con sha256sum.txt")
@@ -64,7 +70,8 @@ def main():
             base = None
     except (OSError, ValueError):
         pass
-    sucio = bool(git("status", "--porcelain", "--untracked-files=all").stdout.strip())
+    sucio = any(l[3:] and not l[3:].startswith((".rompelo/", ".opencodereview/"))
+                for l in git("status", "--porcelain", "--untracked-files=all").stdout.splitlines())
 
     pasadas = []
     if base and head and base != head:
@@ -86,7 +93,7 @@ def main():
         ficheros += int(s.get("files_reviewed", 0))
         tokens += int(s.get("total_tokens", 0))
         avisos += d.get("warnings") or []
-        comentarios += [dict(x, _pasada=etiqueta) for x in d.get("comments", [])]
+        comentarios += [dict(x, _pasada=etiqueta) for x in (d.get("comments") or [])]
 
     os.makedirs(os.path.join(root, ".rompelo"), exist_ok=True)
     with open(os.path.join(root, ".rompelo", "ocr-ultimo.json"), "w") as f:
@@ -98,7 +105,7 @@ def main():
         salir(2, f"ocr revisó {ficheros} ficheros pero {len(avisos)} subagente(s) fallaron: cobertura incompleta")
     if ficheros == 0:
         salir(2, f"ocr no vio ningún fichero revisable ({', '.join(e for _, e in pasadas)}): no puedo decir nada")
-    graves = [x for x in comentarios if ORDEN.get(x.get("severity", ""), 0) >= ORDEN[umbral]]
+    graves = [x for x in comentarios if peso(x.get("severity")) >= ORDEN[umbral]]
     cabecera = f"ocr ({modelo}) revisó {ficheros} ficheros en {len(pasadas)} pasada(s), {tokens} tokens, umbral {umbral}"
     if graves:
         print(f"{cabecera}: {len(graves)} hallazgo(s) (+{len(comentarios) - len(graves)} por debajo del umbral)")
@@ -110,4 +117,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as e:  # JSON mal formado, git ausente, permisos: el envoltorio no vio nada
+        salir(2, f"el envoltorio falló antes de poder juzgar: {type(e).__name__}: {e}")
