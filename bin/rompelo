@@ -27,6 +27,8 @@ TOPE_BLOQUEOS = 3
 # Idioma de los mensajes del gate y del observador: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json.
 # Las claves son las plantillas en español; el informe de cierre sigue en español.
 EN = {
+    "[rompelo · Codex] {n} ejecuciones con código NO VERIFICADO; cobertura del observador incompleta. No cuentan como checks verdes.": "[rompelo · Codex] {n} executions have UNVERIFIED exit status; observer coverage is incomplete. They do not count as green checks.",
+    "[rompelo · Codex] No se pudo reconciliar el observador; códigos NO VERIFICADOS.": "[rompelo · Codex] Observer reconciliation failed; exit statuses are UNVERIFIED.",
     "[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n": "[rompelo] Task {tid} cannot be marked done ({n}/{tope}):\n",
     "\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.":
         "\nDo not declare the task done. Resolve each point (rompelo check / rompelo cruce / finding disposition) and try again. If something cannot be met, say so as NOT VERIFIED and write it in the contract.",
@@ -330,12 +332,23 @@ def escribir_json_atomico(f, datos):
 
 
 @contextlib.contextmanager
-def cerrojo(f):
+def cerrojo(f, espera=None):
     """flock sobre <f>.lock: serializa leer-modificar-escribir entre procesos. Reemplazar atómicamente no
     evita que dos observadores (dos sesiones sobre el mismo repo) se pisen la actualización."""
     os.makedirs(os.path.dirname(f), exist_ok=True)
     with open(f + ".lock", "w") as lk:
-        fcntl.flock(lk, fcntl.LOCK_EX)
+        if espera is None:
+            fcntl.flock(lk, fcntl.LOCK_EX)
+        else:
+            fin = time.monotonic() + espera
+            while True:
+                try:
+                    fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= fin:
+                        raise TimeoutError("cerrojo ocupado")
+                    time.sleep(0.005)
         try:
             yield
         finally:
@@ -1527,14 +1540,14 @@ def codigo_de_texto(texto):
     return int(mo.group(1)) if mo else None
 
 
-def evento_desde_hook(ent):
+def evento_desde_hook(ent, agente="claude"):
     """Traduce el PostToolUse / PostToolUseFailure de Claude Code o Codex a la línea del libro. Sin
     texto de comandos ni de salidas: solo programa, hash, código, recuentos, firma y rutas.
 
     Claude Code (doc oficial, leída 05-09-2026): PostToolUse «fires after a tool has already executed
     successfully»; un comando con salida != 0 llega por PostToolUseFailure con `error` = "Exit code N\n…"
-    (INC-0031). Codex: PostToolUse «also runs after commands that exit with a non-zero status»; la forma
-    de tool_response para Bash NO está verificada, se aceptan campos de código y la primera línea."""
+    (INC-0031). Codex Bash: stdout es dato; el estado procede exclusivamente del evento de ejecución
+    correlacionado en un transcript de versión comprobada (INC-0036, 16-09-2026)."""
     evento = str(ent.get("hook_event_name") or "PostToolUse")
     tool = str(ent.get("tool_name") or "")
     ti = ent.get("tool_input") or {}
@@ -1550,7 +1563,13 @@ def evento_desde_hook(ent):
     stdout, stderr, codigo = "", "", None
     sin_codigo = False  # el agente no manda código de salida (Codex): la firma sale del texto, por heurística
     fallo = evento == "PostToolUseFailure"
-    if fallo:
+    if agente == "codex" and es_shell:
+        # INC-0036: exec_command envía stdout crudo, independientemente de text(r.output).
+        # Incluso una cadena JSON o «Exit code 0» es salida, nunca metadatos del proceso.
+        resp = ent.get("tool_response")
+        stdout = resp if isinstance(resp, str) else ""
+        sin_codigo = True
+    elif fallo:
         err = ent.get("error") if isinstance(ent.get("error"), str) else ""
         codigo = codigo_de_texto(err)
         # tras la línea de código viene la salida con stdout y stderr entrelazados: vale como stderr para la firma
@@ -1558,8 +1577,7 @@ def evento_desde_hook(ent):
     else:
         resp = ent.get("tool_response")
         if isinstance(resp, str) and resp.lstrip().startswith("{"):
-            # Codex manda la salida de Bash como CADENA JSON {"output": …, "metadata": {"exit_code": N, …}}
-            # (medido con `codex exec` el 05-09-2026, INC-2026-0036). Se abre y se trata como dict.
+            # Compatibilidad del adaptador legado. Codex Bash no entra en esta rama.
             try:
                 abierto = json.loads(resp)
                 if isinstance(abierto, dict):
@@ -1573,10 +1591,10 @@ def evento_desde_hook(ent):
             stderr = resp.get("stderr") if isinstance(resp.get("stderr"), str) else ""
             meta = resp.get("metadata") if isinstance(resp.get("metadata"), dict) else {}
             for k in ("exit_code", "exitCode", "code", "returncode"):
-                if isinstance(resp.get(k), int):
+                if type(resp.get(k)) is int:
                     codigo = resp[k]
                     break
-                if isinstance(meta.get(k), int):
+                if type(meta.get(k)) is int:
                     codigo = meta[k]
                     break
             if codigo is None:
@@ -1584,9 +1602,7 @@ def evento_desde_hook(ent):
             if codigo is None and es_shell:
                 codigo = 0  # PostToolUse solo llega tras éxito (Claude Code); el texto de stdout no cuenta
         elif isinstance(resp, str):
-            # Codex (medido con `codex exec`, 05-09-2026): tool_response de Bash es SOLO el texto que el modelo
-            # imprimió (`text(r.output)`), sin código de salida. Se deja desconocido (None), no 0: un «ls» roto
-            # llegaba como verde y el observador estaba ciego a los fallos en Codex (INC-2026-0036).
+            # Cabecera del adaptador legado y apply_patch, nunca stdout de Codex Bash.
             codigo = codigo_de_texto(resp)
             stdout = resp.split("\n", 1)[1] if (codigo is not None and "\n" in resp) else resp
             if codigo is None and es_shell:
@@ -1613,7 +1629,7 @@ def evento_desde_hook(ent):
         firma = firma_error(stdout, prog, None)  # heurística sobre la última línea; documentada en docs/observacion.md §12.3
     else:
         firma = None  # un comando que salió bien no tiene firma de error, diga lo que diga stderr
-    return {
+    ev = {
         "t": ahora(), "tool": tool, "evento": evento, "prog": prog,
         "cmd_sha": hashlib.sha256(cmd.encode()).hexdigest()[:12] if cmd else None,
         "cmd_es_check": es_check(cmd),
@@ -1625,6 +1641,232 @@ def evento_desde_hook(ent):
         # documento que habla de functions/api no es tocar functions/api (falso positivo en vivo, 05-09).
         "riesgo_texto": (re.sub(r"<<-?\s*['\"]?(\w+)['\"]?.*?^\s*\1\s*$", "", cmd, flags=re.S | re.M) + "\n" + "\n".join(ficheros)),
     }
+    if agente == "codex" and es_shell:
+        ev.update(codigo=None, fuente_codigo=None, estado_ejecucion="desconocido",
+                  motivo_desconocido="sin_evento_correlacionado", firma_salida=firma_error(stdout, prog, None),
+                  firma_heuristica=firma, orden_ms=time.time_ns() // 1000000)
+        for key in ("session_id", "turn_id", "tool_use_id"):
+            val = ent.get(key)
+            # Identificadores técnicos completos; nunca contenido libre en el libro.
+            ev[key] = val if isinstance(val, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,160}", val) else None
+    return ev
+
+
+# Adaptador deliberadamente versionado: el rollout NO es una API estable de Codex.
+CODEX_VERSIONES = {"0.154.0"}
+CODEX_BYTES = 4 * 1024 * 1024
+CODEX_LINEA = 1024 * 1024
+CODEX_EVENTOS = 10000
+
+
+def codex_indice(ent, cache):
+    """Lee solo el transcript recibido. Cache sin comandos/salidas; IO acotado e incremental.
+    El llamador mantiene el cerrojo del libro. Ausencia/incompatibilidad nunca produce cero."""
+    sid = ent.get("session_id")
+    path = ent.get("transcript_path")
+    if not isinstance(path, str) or not path:
+        return {}, "sin_transcript"
+    base = os.path.realpath(os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex"))
+    absoluto = os.path.abspath(path)
+    real = os.path.realpath(path)
+    roots = [os.path.join(base, x) + os.sep for x in ("sessions", "archived_sessions")]
+    if absoluto != real or not real.endswith(".jsonl") or not any(real.startswith(x) for x in roots):
+        return {}, "ruta_no_admitida"
+    try:
+        fd = os.open(real, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as fh:
+            st = os.fstat(fh.fileno())
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid():
+                return {}, "archivo_no_admitido"
+            identidad = [st.st_dev, st.st_ino, hashlib.sha256(real.encode()).hexdigest()]
+            off = cache.get("offset", 0)
+            if cache.get("schema") != 3 or cache.get("archivo") != identidad or type(off) is not int or not 0 <= off <= st.st_size:
+                cache.clear()
+            elif off:
+                fh.seek(max(0, off - 128))
+                if hashlib.sha256(fh.read(min(128, off))).hexdigest() != cache.get("ancla"):
+                    cache.clear()  # truncamiento + crecimiento, incluso en el mismo inode
+            cache.setdefault("archivo", identidad)
+            cache.setdefault("schema", 3)
+            cache.setdefault("offset", 0)
+            cache.setdefault("items", {})
+            if cache.get("error"):
+                return {}, cache["error"]
+            fh.seek(cache["offset"])
+            leidos, registros = 0, 0
+            fin = time.monotonic() + 0.10
+            motivo = None
+            while leidos < CODEX_BYTES and registros < CODEX_EVENTOS and time.monotonic() < fin:
+                inicio = fh.tell()
+                line = fh.readline(min(CODEX_LINEA + 1, CODEX_BYTES - leidos))
+                if not line:
+                    break
+                leidos += len(line)
+                if cache.get("saltando"):
+                    cache["offset"] = fh.tell()
+                    if line.endswith(b"\n"):
+                        cache.pop("saltando", None)
+                    continue
+                if len(line) > CODEX_LINEA:
+                    # 0.154.0 serializa timestamp,ordinal opcional,type,payload. Solo estos envelopes
+                    # no autoritativos se pueden saltar por bloques sin materializar su texto.
+                    prefijo = rb'^\{"timestamp":\s*"[^"\\]*",\s*(?:"ordinal":\s*\d+,\s*)?"type":\s*"(?:response_item|compacted|turn_context)",\s*"payload":'
+                    if inicio > 0 and re.match(prefijo, line[:512]):
+                        cache["offset"] = fh.tell()
+                        if not line.endswith(b"\n"):
+                            cache["saltando"] = True
+                        continue
+                    cache["error"] = "linea_demasiado_grande"
+                    break
+                if not line.endswith(b"\n"):
+                    motivo = "registro_pendiente"
+                    break  # reintentar desde inicio, sin persistir el fragmento de texto
+                try:
+                    obj = json.loads(line)
+                    if not isinstance(obj, dict) or not isinstance(obj.get("payload"), dict):
+                        raise ValueError()
+                except (ValueError, UnicodeError, RecursionError):
+                    cache["error"] = "transcript_invalido"
+                    break
+                p = obj["payload"]
+                if inicio == 0:
+                    if obj.get("type") != "session_meta" or p.get("id") != sid or p.get("session_id", sid) != sid:
+                        cache["error"] = "sesion_distinta"
+                        break
+                    if not isinstance(p.get("cli_version"), str) or p["cli_version"] not in CODEX_VERSIONES:
+                        cache["error"] = "version_no_validada"
+                        break
+                    cache["session_id"] = sid
+                    cache["version"] = p["cli_version"]
+                elif obj.get("type") == "session_meta":
+                    cache["error"] = "cabecera_duplicada"
+                    break
+                if obj.get("type") == "event_msg" and p.get("type") == "item_completed":
+                    item = p.get("item")
+                    if isinstance(item, dict) and item.get("type") == "CommandExecution" and p.get("thread_id") == sid:
+                        turno, ident = p.get("turn_id"), item.get("id")
+                        if all(isinstance(x, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,160}", x) for x in (turno, ident)):
+                            key = turno + "/" + ident
+                            codigo, estado = item.get("exit_code"), item.get("status")
+                            valido = type(codigo) is int and 0 <= codigo <= 255
+                            valido = valido and estado in ("completed", "failed") and ((estado == "completed") == (codigo == 0))
+                            # Solo esquema/estado conocido: -1, interrupciones o null son desconocidos.
+                            value = {"codigo": codigo if valido else None,
+                                     "motivo": None if valido else "estado_o_codigo_invalido"}
+                            end = p.get("completed_at_ms")
+                            if type(end) is int and 0 < end <= time.time_ns() // 1000000 + 1000:
+                                value["orden_ms"] = end
+                            old = cache["items"].get(key)
+                            if old and (old.get("codigo"), old.get("motivo")) != (value["codigo"], value["motivo"]):
+                                value = {"codigo": None, "motivo": "eventos_contradictorios"}
+                            cache["items"][key] = value
+                            if len(cache["items"]) > CODEX_EVENTOS:
+                                cache["items"].clear()
+                                cache["error"] = "demasiados_eventos"
+                                break
+                cache["offset"] = fh.tell()
+                registros += 1
+            if cache["offset"]:
+                fh.seek(max(0, cache["offset"] - 128))
+                cache["ancla"] = hashlib.sha256(fh.read(min(128, cache["offset"]))).hexdigest()
+            cache["bytes_ultima_lectura"] = leidos
+            if cache.get("error"):
+                return {}, cache["error"]
+            if cache.get("session_id") != sid:
+                return {}, "cabecera_pendiente"
+            if cache.get("saltando"):
+                return {}, "registro_pendiente"
+            if cache["offset"] < st.st_size:
+                return {}, motivo or "lectura_pendiente"  # puede faltar un duplicado contradictorio
+            return cache["items"], None
+    except OSError:
+        return {}, "transcript_no_disponible"
+
+
+def codex_reconciliar(ent, libro, cache):
+    items, motivo = codex_indice(ent, cache)
+    for ev in libro:
+        if "estado_ejecucion" not in ev:
+            continue  # historia anterior sin procedencia: no reinterpretarla
+        identidad = (ev.get("session_id"), ev.get("turn_id"), ev.get("tool_use_id"))
+        resultado = items.get(str(identidad[1]) + "/" + str(identidad[2]), {})
+        razon = motivo or resultado.get("motivo")
+        if not all(identidad) or identidad[0] != ent.get("session_id"):
+            razon = "identidad_incompleta_o_distinta"
+        codigo = resultado.get("codigo") if not razon else None
+        ev.update(codigo=codigo, fuente_codigo="codex_rollout_0.154.0" if codigo is not None else None,
+                  estado_ejecucion="terminado" if codigo is not None else "desconocido",
+                  motivo_desconocido=razon or ("sin_evento_correlacionado" if codigo is None else None))
+        if ev["motivo_desconocido"] in ("sin_evento_correlacionado", "cabecera_pendiente", "registro_pendiente", "lectura_pendiente"):
+            ev["estado_ejecucion"] = "pendiente"
+        if codigo is not None:
+            ev["firma"] = (ev.get("firma_salida") or firma_error("", ev["prog"], codigo)) if codigo else None
+            if "orden_ms" in resultado:
+                ev["orden_ms"] = resultado["orden_ms"]
+        else:
+            ev["firma"] = ev.get("firma_heuristica")
+    # Reemplazar el resultado en su posición lógica; un verde tardío no limpia ediciones posteriores.
+    if all(type(e.get("orden_ms")) is int for e in libro):
+        libro.sort(key=lambda e: e["orden_ms"])
+
+
+def guardar_libro(f, libro):
+    tmp = f + f".{os.getpid()}.{time.monotonic_ns()}.tmp"
+    with open(tmp, "x", encoding="utf-8") as fh:
+        os.chmod(tmp, 0o600)
+        for ev in libro:
+            fh.write(json.dumps(ev, ensure_ascii=False) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, f)
+
+
+def observar_libro(agente, sid, ent, guardado=None):
+    """Un cerrojo para reconciliación + deduplicación + escritura del libro y caché."""
+    f = os.path.join(ESTADO, "sesiones", f"{agente}-{sid}.jsonl")
+    with cerrojo(f, espera=0.5):
+        try:
+            if os.path.getsize(f) > 8 * 1024 * 1024:
+                raise ValueError("libro demasiado grande")
+            with open(f) as fh:
+                libro = [json.loads(l) for l in fh if l.strip()]
+        except FileNotFoundError:
+            libro = []
+        if guardado is not None:
+            key = (guardado.get("turn_id"), guardado.get("tool_use_id"))
+            if agente != "codex" or not all(key) or not any((e.get("turn_id"), e.get("tool_use_id")) == key for e in libro):
+                libro.append(guardado)
+        if agente == "codex" and any("estado_ejecucion" in e for e in libro):
+            cache_f = os.path.join(ESTADO, "codex", sid + ".json")
+            cache = leer_json_estricto(cache_f, {})
+            codex_reconciliar(ent, libro, cache)
+            escribir_json_atomico(cache_f, cache)
+        guardar_libro(f, libro)
+        return f, libro
+
+
+def codex_al_stop(ent, sid, root):
+    """Reconciliar antes de juzgar el contrato, sin crear un éxito ni relajar el gate."""
+    f = os.path.join(ESTADO, "sesiones", f"codex-{sid}.jsonl")
+    if not os.path.isfile(f):
+        return None
+    _f, libro = observar_libro("codex", sid, ent)
+    pendientes = sum(1 for e in libro if e.get("repo") == root and e.get("estado_ejecucion") in ("pendiente", "desconocido"))
+    if root in repos_permitidos():
+        relevantes = [e for e in libro if e.get("repo") == root]
+        ventana = ventana_horas()
+        if ventana > 0:
+            relevantes = otras_sesiones(root, f, ventana) + relevantes
+        with cerrojo(ruta_estado_repo(root), espera=5.0):
+            est = estado_repo(root)
+            nuevos = set(patrones_de(relevantes, umbrales())) - set(est.get("patrones", []))
+            if nuevos:
+                est["patrones"] = sorted(set(est.get("patrones", [])) | nuevos)
+                est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+                guardar_estado_repo(root, est)
+    if pendientes:
+        return _("[rompelo · Codex] {n} ejecuciones con código NO VERIFICADO; cobertura del observador incompleta. No cuentan como checks verdes.", n=pendientes)
+    return None
 
 
 def perfiles_de(evento):
@@ -1682,6 +1924,7 @@ def patrones_de(libro, u):
 def cmd_observe(agente, args):
     """PostToolUse. Nunca bloquea; a lo sumo devuelve additionalContext. Fail-silent hacia
     state/observe.err para no romper la sesión."""
+    etapa = "entrada del observador"
     try:
         ent = json.load(sys.stdin)
         if not isinstance(ent, dict):
@@ -1689,14 +1932,23 @@ def cmd_observe(agente, args):
         sid = re.sub(r"[^A-Za-z0-9._-]", "_", str(ent.get("session_id") or "nosession"))
         cwd = ent.get("cwd") or os.getcwd()
         root = raiz_repo_rapida(cwd)  # sin proceso git: el observador corre tras cada herramienta
-        ev = evento_desde_hook(ent)
+        ev = evento_desde_hook(ent, agente)
         ev["repo"] = root
+        ev.setdefault("orden_ms", time.time_ns() // 1000000)
+        perfiles = perfiles_de(ev)
+        guardado = {k: v for k, v in ev.items() if k != "riesgo_texto"}
+        guardado["perfiles"] = sorted(perfiles)
+        libro_f, libro = observar_libro(agente, sid, ent, guardado)
+        if agente == "codex" and guardado.get("tool_use_id"):
+            ev = next((e for e in libro if (e.get("turn_id"), e.get("tool_use_id")) ==
+                       (guardado.get("turn_id"), guardado.get("tool_use_id"))), guardado)
         if os.environ.get("ROMPELO_DEBUG_FORMA"):
             # Solo la FORMA del payload (tipo y claves), nunca texto: sirve para verificar qué manda cada
             # agente en un comando que falla (NO VERIFICADO en Codex, docs/observacion.md §12.2).
             resp = ent.get("tool_response")
             forma = {"t": ahora(), "agente": agente, "evento": ev["evento"], "tool": ev["tool"], "codigo": ev["codigo"],
-                     "tool_use_id": str(ent.get("tool_use_id") or "")[:20], "transcript": bool(ent.get("transcript_path")),
+                     "tool_use_id": ev.get("tool_use_id"), "transcript": bool(ent.get("transcript_path")),
+                     "fuente_codigo": ev.get("fuente_codigo"), "motivo_desconocido": ev.get("motivo_desconocido"),
                      "tipo": type(resp).__name__, "claves": sorted(resp.keys())[:20] if isinstance(resp, dict) else None,
                      "claves_error": sorted(k for k in ent.keys() if k not in ("tool_input", "tool_response")),
                      "claves_input": sorted((ent.get("tool_input") or {}).keys())[:20] if isinstance(ent.get("tool_input"), dict) else type(ent.get("tool_input")).__name__,
@@ -1709,24 +1961,11 @@ def cmd_observe(agente, args):
             os.makedirs(ESTADO, exist_ok=True)
             with open(os.path.join(ESTADO, "forma.jsonl"), "a") as fh:
                 fh.write(json.dumps(forma, ensure_ascii=False) + "\n")
-        os.makedirs(os.path.join(ESTADO, "sesiones"), exist_ok=True)
-        libro_f = os.path.join(ESTADO, "sesiones", f"{agente}-{sid}.jsonl")
-        libro = []
-        try:
-            with open(libro_f) as fh:
-                libro = [json.loads(l) for l in fh if l.strip()]
-        except FileNotFoundError:
-            pass
-        perfiles = perfiles_de(ev)
-        guardado = {k: v for k, v in ev.items() if k != "riesgo_texto"}
-        guardado["perfiles"] = sorted(perfiles)
-        with open(libro_f, "a") as fh:
-            fh.write(json.dumps(guardado, ensure_ascii=False) + "\n")
-        libro.append(guardado)
         if not root or root not in repos_permitidos():
             return 0  # se observa, pero solo se escala en repos alistados
         u = umbrales()
-        with cerrojo(ruta_estado_repo(root)):  # dos sesiones sobre el mismo repo: leer-modificar-escribir en serie
+        etapa = "estado del repo"
+        with cerrojo(ruta_estado_repo(root), espera=5.0):  # dos sesiones sobre el mismo repo: leer-modificar-escribir en serie
             est = estado_repo(root)
             if os.environ.get("ROMPELO_RETARDO_ESTADO"):  # solo para la batería: ensancha la ventana de la carrera
                 time.sleep(float(os.environ["ROMPELO_RETARDO_ESTADO"]))
@@ -1783,7 +2022,7 @@ def cmd_observe(agente, args):
         try:
             os.makedirs(ESTADO, exist_ok=True)
             with open(os.path.join(ESTADO, "observe.err"), "a") as fh:
-                fh.write(f"{ahora()} {exc.__class__.__name__}: {exc}\n")
+                fh.write(f"{ahora()} {etapa}: {exc.__class__.__name__}\n")  # nunca datos/rutas del transcript
         except Exception:
             pass
         return 0
@@ -1845,7 +2084,7 @@ def cmd_state(args):
     limite = time.time() - int(dias) * 86400
     seco = "--dry-run" in args
     candidatos = []
-    for sub_, patron in (("sesiones", ".jsonl"), ("marcas", "")):
+    for sub_, patron in (("sesiones", ".jsonl"), ("marcas", ""), ("codex", ".json")):
         d = os.path.join(ESTADO, sub_)
         try:
             for n in sorted(os.listdir(d)):
@@ -1934,6 +2173,12 @@ def cmd_hook(agente, args):
     root = raiz_repo(cwd)
     if not root:
         return 0  # cwd sin git: no hay tarea que juzgar
+    cobertura = None
+    if agente == "codex":
+        try:
+            cobertura = codex_al_stop(ent, sid, root)
+        except Exception:
+            cobertura = _("[rompelo · Codex] No se pudo reconciliar el observador; códigos NO VERIFICADOS.")
     tid = "sin-id"
     m = None
     sig = ""
@@ -1956,6 +2201,8 @@ def cmd_hook(agente, args):
         except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
             m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
     if not m:
+        if cobertura:
+            print(json.dumps({"systemMessage": cobertura}, ensure_ascii=False))
         return 0
     # La marca del tope vive en el estado de rompelo, no en el tempdir: bajo el sandbox de Codex el
     # tempdir del hook no era escribible y el tope de 3 nunca llegaba (medido con codex exec, 05-09).
@@ -1984,6 +2231,8 @@ def cmd_hook(agente, args):
         print(json.dumps({"systemMessage": _("[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ", tope=TOPE_BLOQUEOS, tid=tid) + " | ".join(m + ([sig] if sig else []))}, ensure_ascii=False))
         return 0
     texto = _("[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n", tid=tid, n=n, tope=TOPE_BLOQUEOS) + "\n".join("- " + x for x in m)
+    if cobertura:
+        texto += "\n" + cobertura
     if sig:
         texto += "\n" + sig
     print(json.dumps({"decision": "block", "reason": texto + _("\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.")}, ensure_ascii=False))

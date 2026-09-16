@@ -1,56 +1,38 @@
 {
   "schema": 1,
-  "id": "OCR-PENDIENTES-2026-09-16",
+  "id": "CODEX-INC0036-20260916",
   "estado": "cerrada",
-  "base": "56a32c72a923372aab9f24ace492c737bd5990d7",
-  "descripcion": "Primera tarea real con ocr.review en el contrato: OCR-8 (.get en path/content), OCR-9 (${TMP:?} en el trap) y .rompelo/ocr-ultimo.json al .gitignore. Ampliado el scope a tests/rompelo-stop-test.sh: su caso «hijos vivos» buscaba `sleep 30` en toda la máquina y pescó un bucle de otra sesión",
+  "base": "d4c761f2a7a2fa16d1ae58e8c43a9af10276075d",
+  "descripcion": "Códigos de salida de Codex con procedencia y correlación exacta; compatibilidad Claude y pruebas nativas",
   "scope_paths": [
-    "checks/ocr-review.py",
-    "tests/ocr-review-test.sh",
-    ".gitignore",
-    ".rompelo/task.json",
+    "bin/rompelo",
+    "tests/codex-status-test.py",
+    "tests/codex-native-test.py",
+    "tests/rompelo-observe-test.sh",
+    "docs/observacion.md",
     "adapters/codex/LEEME.md",
-    "tests/rompelo-stop-test.sh"
+    "incidents/INC-2026-0036.yaml",
+    ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.ocr-review-tests",
+    "rompelo.observe-tests",
     "rompelo.tests",
-    "rompelo.sin-var-pegada",
-    "ocr.review"
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests",
+    "rompelo.sin-var-pegada"
   ],
   "toca_junta": true,
-  "exige_prueba_en_diff": false,
-  "hallazgos": [
+  "exige_prueba_en_diff": true,
+  "hallazgos": [],
+  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "Revisado el diff completo antes del commit: stdout no autoriza códigos de Codex; identidad completa, versión, rutas, límites, deduplicación, bloqueo por sesión y reconciliación en Stop. No se encontraron cambios ajenos al scope. Cinco checks repetidos en verde; cruce native-before-commit con 11 casos Codex y 9 Claude, un bloqueo real de Stop y cierre en cada cliente. Regresiones vistas en rojo y verde. GUI de Codex NO VERIFICADO por bloqueo de Computer Use. El problema de propiedad entre agentes queda registrado aparte para otro contrato.",
+  "afirmaciones": [
     {
-      "id": "OCR-8",
-      "texto": "ocr-review.py: x['path'] / x['content'] reventaban con KeyError si un comentario grave venía sin esos campos (rc 2 en vez de 1)",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.ocr-review-tests",
-      "nota": "caso «grave sin path/content → 1, no KeyError»; visto en rojo contra el código anterior (rc 2, KeyError: 'path')"
-    },
-    {
-      "id": "OCR-9",
-      "texto": "ocr-review-test.sh: trap 'rm -rf \"$TMP\"' sin guarda ${TMP:?}",
-      "disposicion": "confirmado",
-      "regresion": "tests/ocr-review-test.sh",
-      "nota": "la guarda vive en el prólogo de la propia batería; visto con bash -c: con TMP vacío aborta «parameter null or not set», sin guarda pasa en silencio"
-    },
-    {
-      "id": "H-1",
-      "texto": "tests/rompelo-stop-test.sh: el caso «quedan hijos vivos» hacía pgrep -f 'sleep 30' sobre toda la máquina y pescó el bucle de espera del backup R2 de otra sesión (PID 31823); rompelo.tests en rojo y su control positivo en «no pudo mirar» sin regresión real",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.tests",
-      "nota": "duración única 30.71; visto en rojo con un sleep 30.71 plantado (FAIL=1) y en verde con el sleep 30 ajeno todavía vivo (PID 34743)"
-    },
-    {
-      "id": "OCR-RUN",
-      "texto": "ocr.review sobre el diff real: 2 corridas + cruce, sonnet-5, 3–4 ficheros, 25k/47k tokens, 0 comentarios de cualquier severidad; control positivo (inyección SQL) detectado en las 2 corridas",
-      "disposicion": "aceptado",
-      "nota": "cero hallazgos con diff de 4 líneas es creíble pero no lo he visto sucio en ESTA tarea salvo por el control positivo; el umbral medium no metió ruido, así que no hay dato todavía para OCR_UMBRAL. Riesgo asumido hasta la primera tarea con diff grande en ClaveON_B2C/claveon-admin"
+      "texto": "Validación desde la app gráfica de Codex",
+      "estado": "no_verificado",
+      "falta": "Computer Use rechaza com.openai.codex por seguridad. Las sesiones nativas realizadas son de CLI; no se atribuyen a la interfaz gráfica."
     }
   ],
-  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisado de nuevo tras cerrar el diff: (1) los tres cambios previstos están y cada uno tiene su fallo visto (OCR-8 batería roja contra el código anterior; OCR-9 bash -c; .gitignore: `git status` ya no lista ocr-ultimo.json); (2) rompelo.tests estaba en rojo por un falso positivo del propio test, no por el runner: arreglado con patrón único y visto rojo/verde; (3) ocr corrió de verdad contra la API en las dos pasadas y en el cruce (modelo y ficheros>0 en ocr-ultimo.json) y devolvió 0 comentarios; no lo tomo como prueba de calidad, solo de que la junta funciona; (4) adapters/codex/LEEME.md sigue modificado por la sesión de Codex, en scope para no bloquear, sin tocar y sin commitear; (5) NO VERIFICADO: comportamiento del umbral medium con un diff grande real.",
   "obligaciones_efectivas": {
     "nivel": 2,
     "perfiles": [
@@ -60,13 +42,14 @@
     ],
     "permisos": [],
     "checks": [
-      "rompelo.ocr-review-tests",
+      "rompelo.observe-tests",
       "rompelo.tests",
-      "rompelo.sin-var-pegada",
-      "ocr.review"
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests",
+      "rompelo.sin-var-pegada"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T16:18:41+00:00"
+    "fecha": "2026-09-16T17:37:30+00:00"
   }
 }

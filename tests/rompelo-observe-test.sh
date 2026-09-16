@@ -6,6 +6,7 @@
 [ -x "$ROMPELO" ] || { echo "no existe $ROMPELO"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
+export CODEX_HOME="$T/codex"; mkdir -p "$CODEX_HOME/sessions"
 printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
 R="$T/repo"; mkdir -p "$R/src" "$R/functions/api"; cd "$R" || exit 2
 git init -q && git config user.email t@t && git config user.name t && echo a > src/a.txt && git add -A && git commit -qm base
@@ -14,9 +15,18 @@ SES=0
 nueva_sesion() { SES=$((SES+1)); SID="s$SES"; }
 # bash <sid> <comando> <codigo> <stdout> <stderr>  → salida del hook
 bash_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" "$3" "$4" "$5" <<'PY'
-import json,sys
+import json,sys,os,uuid
 sid,cwd,cmd,code,out,err=sys.argv[1:7]
-print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"exit_code":int(code)}}))
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"exit_code":int(code)}}
+if os.environ.get('AGENTE') == 'codex':
+    ident='exec-'+str(uuid.uuid4()); path=os.path.realpath(os.path.join(os.environ['CODEX_HOME'],'sessions',sid+'.jsonl'))
+    rows=[] if os.path.exists(path) else [{'type':'session_meta','payload':{'id':sid,'cli_version':'0.154.0'}}]
+    rows.append({'type':'event_msg','payload':{'type':'item_completed','thread_id':sid,'turn_id':'turn-test',
+            'item':{'type':'CommandExecution','id':ident,'status':'failed' if int(code) else 'completed','exit_code':int(code)}}})
+    with open(path,'a') as f:
+        for row in rows: f.write(json.dumps(row)+'\n')
+    ev.update(tool_response=out+err,tool_use_id=ident,turn_id='turn-test',transcript_path=path)
+print(json.dumps(ev))
 PY
 )"; }
 edit_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" <<'PY'
@@ -178,7 +188,7 @@ reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 2, "exterior"
 o="$(bash_ev $SID 'pnpm add left-pad' 0 'added 1 package' '')"; printf '%s' "$o" | grep -q 'toca `exterior`' && ok "excepción por perfil: exterior a un toque" || bad "excepción exterior" "$o"
 rm "$ROMPELO_HOME/config/observacion.json"
 
-echo "── Codex: si tool_response fuera una cadena JSON {output, metadata:{exit_code}}, se abre (forma admitida, no la medida)"
+echo "── Codex: una cadena JSON en stdout no proporciona un código de salida"
 reset_estado; nueva_sesion
 observar codex "$(python3 - $SID "$R" <<'PY'
 import json,sys
@@ -187,7 +197,7 @@ resp=json.dumps({"output":"ls: /no-existe: No such file or directory","metadata"
 print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls /no-existe"},"tool_response":resp}))
 PY
 )" >/dev/null
-tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 1' && ok "el código sale de metadata.exit_code dentro de la cadena JSON" || bad "codex str json" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": null' && ok "metadata.exit_code dentro de stdout no es un código fiable" || bad "codex str json"
 observar codex "$(python3 - $SID "$R" <<'PY'
 import json,sys
 sid,cwd=sys.argv[1:3]
@@ -195,9 +205,9 @@ resp=json.dumps({"output":"hola\n","metadata":{"exit_code":0,"duration_seconds":
 print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo hola"},"tool_response":resp}))
 PY
 )" >/dev/null
-tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 0' && tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"stdout_vacio": false' && ok "y con 0 la salida cuenta como salida (no como cadena opaca)" || bad "codex str json 0" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": null' && tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"stdout_vacio": false' && ok "el JSON sigue siendo salida; su cero no autoriza un verde" || bad "codex str json 0"
 
-echo "── Codex de verdad (medido con codex exec, 05-09): tool_response es SOLO el texto que el modelo imprimió, sin código de salida"
+echo "── Codex: tool_response contiene salida del proceso; sin transcript el código es desconocido"
 reset_estado; nueva_sesion
 codex_txt() { observar codex "$(python3 - "$1" "$R" "$2" "$3" <<'PY'
 import json,sys
@@ -445,4 +455,5 @@ for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
 bash_ev $SID 'uv pip list' 0 'ok' '' >/dev/null
 o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "control: «uv pip list» no es un check y el aviso salta" || bad "uv pip list contó como check" "$o"
 
+python3 "$LIB_DIR/codex-status-test.py" && ok "INC-0036: procedencia, correlación, concurrencia y Stop" || bad "INC-0036"
 rm -rf "$T"; resumen
