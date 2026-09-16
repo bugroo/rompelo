@@ -1,16 +1,18 @@
 {
   "schema": 1,
-  "id": "OCR-PENDIENTES-2026-09-16",
-  "estado": "cerrada",
+  "id": "ROMPELO-MAC-GITHUB-20260916-PR",
+  "estado": "abierta",
   "base": "56a32c72a923372aab9f24ace492c737bd5990d7",
-  "descripcion": "Primera tarea real con ocr.review en el contrato: OCR-8 (.get en path/content), OCR-9 (${TMP:?} en el trap) y .rompelo/ocr-ultimo.json al .gitignore. Ampliado el scope a tests/rompelo-stop-test.sh: su caso «hijos vivos» buscaba `sleep 30` en toda la máquina y pescó un bucle de otra sesión",
+  "descripcion": "Actualización documental de instalación Mac y protección de main (PR #3). Se heredan la base, hallazgos y todas las obligaciones del contrato OCR publicado, sin omitir checks ni el cruce.",
   "scope_paths": [
     "checks/ocr-review.py",
     "tests/ocr-review-test.sh",
     ".gitignore",
     ".rompelo/task.json",
     "adapters/codex/LEEME.md",
-    "tests/rompelo-stop-test.sh"
+    "tests/rompelo-stop-test.sh",
+    "docs/PROTECCION-MAIN.md",
+    "docs/auditoria-2026-09-07/SEGUIMIENTO.md"
   ],
   "checks": [
     "rompelo.ocr-review-tests",
@@ -50,7 +52,7 @@
     }
   ],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisado de nuevo tras cerrar el diff: (1) los tres cambios previstos están y cada uno tiene su fallo visto (OCR-8 batería roja contra el código anterior; OCR-9 bash -c; .gitignore: `git status` ya no lista ocr-ultimo.json); (2) rompelo.tests estaba en rojo por un falso positivo del propio test, no por el runner: arreglado con patrón único y visto rojo/verde; (3) ocr corrió de verdad contra la API en las dos pasadas y en el cruce (modelo y ficheros>0 en ocr-ultimo.json) y devolvió 0 comentarios; no lo tomo como prueba de calidad, solo de que la junta funciona; (4) adapters/codex/LEEME.md sigue modificado por la sesión de Codex, en scope para no bloquear, sin tocar y sin commitear; (5) NO VERIFICADO: comportamiento del umbral medium con un diff grande real.",
+  "segunda_pasada": "Revisados los dos documentos de la PR #3 contra las comprobaciones del Mac y la API de GitHub. El contrato local OCR-SOLO-LOCAL-2026-09-16 y su evidencia permanecen intactos. Se conservan la base y las obligaciones OCR del contrato publicado anterior; los hallazgos y su evidencia descrita son históricos y no demuestran OCR ejecutado en esta PR. OCR y el cruce heredado NO VERIFICADOS para este contrato nuevo. La ampliación de scope enumera únicamente los dos documentos de esta PR.",
   "obligaciones_efectivas": {
     "nivel": 2,
     "perfiles": [
