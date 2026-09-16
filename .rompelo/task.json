@@ -1,48 +1,30 @@
 {
   "schema": 1,
-  "id": "OCR-SOLO-LOCAL-2026-09-16",
+  "id": "CORPUS-PUBLICACION-20260916",
   "estado": "cerrada",
-  "base": "b0b0d0cd3a550eff1d0a211b4fff0107d7b5219b",
-  "descripcion": "ocr.review es solo_local: CI no tiene ocr ni clave; el cruce real se hace fuera y queda en rompelo cruce",
+  "base": "bad1fc22a4f4fdaa37f176e3461434078525bf75",
+  "descripcion": "Sincronizar las dos líneas derivadas de INC-0036 para publicar el cierre OCR con CI verde antes de PR 4",
   "scope_paths": [
-    "checks/registry.json",
-    "docs/OCR.md",
+    "corpus/TABLA.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.ocr-review-tests",
-    "rompelo.tests",
-    "rompelo.sin-var-pegada",
-    "ocr.review"
+    "rompelo.sin-var-pegada"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
-  "hallazgos": [
-    {
-      "id": "CORPUS-INC0036-PENDIENTE",
-      "texto": "corpus/TABLA.md requiere regenerar dos líneas derivadas de INC-0036; la comprobación de sincronización del corpus en CI detectará la diferencia.",
-      "disposicion": "aceptado",
-      "nota": "Por instrucción de José, queda fuera de este contrato y no se modifica. Se acepta dejar pendiente esta diferencia, que bloquea CI, hasta que José decida su tratamiento en otro contrato. Esta aceptación no convierte CI en verde. Parche medido en .rompelo/evidence/OCR-SOLO-LOCAL-2026-09-16/corpus-pending.patch."
-    }
-  ],
-  "segunda_pasada": "Revisado el diff completo de checks/registry.json y docs/OCR.md: se añade solo_local a ocr.review y se documenta tanto esa semántica como la lectura de la última línea de la entrada, según instrucción expresa de José. No se modifica la configuración de OCR ni se lee material de autenticación. José confirmó vault restaurado y ocr llm test conectado. Ejecutados rompelo check --id ocr.review (control positivo 1 operativo, revisión 0 sin comentarios) y rompelo cruce -- bash tests/cruce-ocr.sh (código 0). Los tres checks locales anteriores conservan la misma huella vigente. La prueba previa sin OCR mostró código 1 antes de solo_local y código 0 con OK PARCIAL en CI después; no se presenta ese parcial como prueba OCR. Corpus permanece fuera de este contrato: su regeneración ya existe en e45d950 y se integrará en un cierre separado para cumplir la nueva orden de publicar main en verde antes de PR #4.",
+  "hallazgos": [],
+  "segunda_pasada": "Revisadas las dos líneas generadas de INC-0036 contra incidents/INC-2026-0036.yaml y contra el commit e45d950 de PR #4: corpus/TABLA.md coincide exactamente. El generador real procesa 48 incidentes y una segunda ejecución no altera el fichero preparado. Ningún cambio funcional ni de configuración; OCR-SOLO-LOCAL permanece cerrado en el commit padre bad1fc2 y sus evidencias originales. Este contrato independiente resuelve el hallazgo del corpus fuera del scope de OCR, conforme a la orden de publicar main en verde antes de PR #4.",
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
   "obligaciones_efectivas": {
-    "nivel": 2,
-    "perfiles": [
-      "auth",
-      "junta",
-      "secretos"
-    ],
+    "nivel": 0,
+    "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.ocr-review-tests",
-      "rompelo.tests",
-      "rompelo.sin-var-pegada",
-      "ocr.review"
+      "rompelo.sin-var-pegada"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T21:56:06+00:00"
+    "fecha": "2026-09-16T21:56:46+00:00"
   }
 }
