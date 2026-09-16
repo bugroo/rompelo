@@ -31,7 +31,7 @@ Cada línea guarda solo lo necesario para reconocer patrones, nunca contenido:
 | `tool` | `Bash`, `Edit`, `Write`, `apply_patch`, MCP… | |
 | `prog` | primer token del comando y subcomando (`git commit`, `pnpm test`) | el comando entero: puede llevar secretos (`curl -H "Key: $(pass show …)"`) |
 | `cmd_sha` | sha256 corto del comando normalizado | |
-| `codigo` | código de salida si el agente lo da; si no, `null` (**NO VERIFICADO** que Claude Code lo incluya siempre en `tool_response`; el hook `werixo-medir-de-verdad.sh` lo lee con fallback) | |
+| `codigo` | estado verificado por el adaptador del agente; en Codex 0.154.0, evento de ejecución correlacionado; si falta evidencia, `null` | |
 | `stderr_lineas` | recuento | el texto |
 | `firma` | ver §3 | la línea de error |
 | `ficheros` | rutas relativas tocadas por Edit/Write/apply_patch | el contenido |
@@ -294,17 +294,56 @@ Codex había fusionado los hooks y dejado el cruce como NO VERIFICADO. Se cruzó
   Medido después: la marca marcó 4 y el cuarto intento no bloqueó.
 - **Observador.** `PostToolUse` de Codex llega para cada herramienta (226 comandos Bash de cinco
   sesiones de Codex en el libro antes de este cruce). Todos con código 0, y eso era la pista:
-  **Codex no manda código de salida.** Su `tool_response` de Bash es solo el texto que el modelo
-  imprimió (en el rollout: `tools.exec_command(...)` y `text(r.output)`); no hay `exit_code` ni en
-  el payload ni en el rollout. Un `ls /no-existe` a propósito quedó anotado como 0
-  ([INC-2026-0036](../incidents/INC-2026-0036.yaml)). Ahora queda como desconocido (`null`) y
-  la firma de error sale de la última línea por heurística (`parece_error`: «No such file»,
+  **Codex no manda código de salida en `tool_response` de Bash.** Corrección de diagnóstico
+  (16-09-2026): ese campo es salida del proceso, independientemente de lo que imprima el modelo;
+  el código sí existe en eventos estructurados del rollout de 0.154.0. Un `ls /no-existe` quedó anotado como 0
+  ([INC-2026-0036](../incidents/INC-2026-0036.yaml)). En aquella implementación quedaba desconocido (`null`) y
+  la firma de error salía de la última línea por heurística (`parece_error`: «No such file»,
   «Error», «FAILED», «Traceback»…), documentada como tal. En Codex, «firma repetida» funciona
   por texto; «check en rojo» y «verde ambiguo» **no pueden saltar** porque exigen código. En
-  Claude Code sí, por `PostToolUseFailure`.
+  Claude Code sí, por `PostToolUseFailure`. Ese límite histórico queda corregido para el formato
+  0.154.0 mediante correlación estructurada, según la sección siguiente.
 - Bajo `ROMPELO_DEBUG_FORMA=1`, `rompelo observe` guarda en `state/forma.jsonl` la forma del
-  payload (tipo, claves, y los primeros 120 caracteres si es cadena) para verificar nuevos
-  agentes sin guardar texto por defecto.
+  payload (tipo, claves y longitud), identificadores técnicos y procedencia, sin guardar texto.
+
+### INC-0036 · Estado con procedencia (16-09-2026)
+
+Codex y Claude se normalizan por separado. En Codex Bash, ni `Exit code 0` ni un JSON impreso
+con `exit_code` son evidencia de estado. El lector acepta únicamente eventos
+`event_msg/item_completed/CommandExecution` con sesión, turno e identificador completo exactos,
+estado terminal coherente y código entero 0–255. Se comprobó el formato local **0.154.0**;
+una versión nueva queda desconocida hasta validar su compatibilidad. Fuente:
+[código de Codex](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/tools/context.rs).
+
+El hook lee exclusivamente el `transcript_path` recibido bajo `CODEX_HOME/sessions` o
+`archived_sessions`, valida cabecera, propietario, archivo regular y ausencia de enlaces.
+Cachea solo metadatos; nunca copia comandos, respuestas o conversación. El libro añade
+`fuente_codigo`, `estado_ejecucion`, `motivo_desconocido`, `session_id`, `turn_id` y `tool_use_id`.
+Hashes de firma permiten reconciliar sin retener texto. Un código desconocido no reinicia
+el contador de ediciones ni cuenta como check verde.
+
+La lectura es incremental, con 4 MiB, 10.000 registros y un presupuesto de 100 ms por pasada
+(no es un límite de tiempo real para una llamada al sistema). Líneas autoritativas mayores de
+1 MiB se rechazan; registros grandes de conversación/compactación con envelope reconocido se
+saltan por bloques. Hay un límite de 10.000 ejecuciones cacheadas y 8 MiB por libro. Superar
+un límite degrada cobertura; no fabrica un resultado. El cerrojo del libro espera hasta 0,5 s;
+el del estado compartido del repo hasta 5 s, para conservar las actualizaciones concurrentes.
+Truncamiento, rotación, duplicados contradictorios y JSON incompleto están cubiertos.
+
+Los resultados pendientes se reconcilian al observar otras herramientas y antes de Stop,
+actualizando la entrada original y su orden, sin duplicar patrones. Stop avisa si quedan códigos
+no verificados; el gate mantiene sus checks propios y puede exigir segunda pasada por los
+patrones recuperados. Los libros anteriores sin procedencia no se reinterpretan.
+
+La [documentación oficial](https://learn.chatgpt.com/docs/hooks) advierte que el transcript no
+es una API estable. No se presupone cobertura de subagentes, sesiones remotas ni versiones
+distintas. Si falta una identidad exacta, el resultado es desconocido. La corrección nativa
+de Codex que entregue el estado directamente permitiría sustituir este lector.
+
+Pruebas: `python3 tests/codex-status-test.py` (también incluida en la batería del observador).
+Prueba nativa optativa, con clientes ya autenticados y hooks existentes:
+`python3 tests/codex-native-test.py --evidence <directorio-nuevo>`.
+Esta última usa sesiones desechables y consumo de los clientes; no se ejecuta en la batería ordinaria.
 
 ### 12.4 · Uso real sobre ClaveON y nivel 3 con herramientas de verdad (05-09, tarde)
 

@@ -42,6 +42,118 @@ Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
 
 ## Estado
 
+### 11-09-2026 · Parte 5: PR #2 medido desde este Codex
+
+Cliente: `codex-cli 0.153.4` (`codex --version`). El proceso principal confirmó escritura
+efectiva en `.git`; `git pull --ff-only` respondió `Already up to date.` sin cambiar de
+rama. `HEAD` y `origin/main` quedaron en `044eef3`, merge del PR #2 y posteriores al commit
+`337dd84` («contrato MEJORAS-2026-09-11 cerrado»). Se abrió el contrato propio
+`ROMPELO-CODEX-05`, con los siete checks prescritos, scope exclusivo de este LEEME y junta.
+
+**Stop y `no_afecta`:** esta misma sesión recibió dos `HookPrompt` nativos desde la
+definición global confiada; no se invocó el adaptador directamente, no se usó bypass y no
+se modificaron hooks ni hashes de confianza. El primer bloqueo llegó completo, conservó los
+saltos de línea y terminó con `Siguiente:` entero y el párrafo de no declarar la tarea
+terminada:
+
+```text
+[rompelo] La tarea ROMPELO-CODEX-05 NO puede darse por terminada (1/3):
+- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.portabilidad-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.sin-var-pegada` sin ejecutar (usa `rompelo check`)
+- check `rompelo.cruce-settings-claude` sin ejecutar (usa `rompelo check`)
+- check `rompelo.control-negativo-sesiones` sin ejecutar (usa `rompelo check`)
+- toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)
+Siguiente: rompelo check && rompelo cruce --nota '<qué cruzas>' -- <comando real>
+No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.
+```
+
+Después, `bin/rompelo check --id rompelo.sin-var-pegada` devolvió código 0, una línea
+de una exigida y control positivo 1. Otra edición de este Markdown no invalidó esa evidencia.
+El segundo bloqueo no dijo «se ejecutó sobre otro árbol», dejó solo los otros seis checks
+sin ejecutar y pidió los seis `--id` exactos:
+
+```text
+[rompelo] La tarea ROMPELO-CODEX-05 NO puede darse por terminada (2/3):
+- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.portabilidad-tests` sin ejecutar (usa `rompelo check`)
+- check `rompelo.cruce-settings-claude` sin ejecutar (usa `rompelo check`)
+- check `rompelo.control-negativo-sesiones` sin ejecutar (usa `rompelo check`)
+- toca_junta: true y no hay cruce real registrado (`rompelo cruce --nota '…' -- <comando real>`)
+Siguiente: rompelo check --id rompelo.tests --id rompelo.observe-tests --id rompelo.instrumento-tests --id rompelo.portabilidad-tests --id rompelo.cruce-settings-claude --id rompelo.control-negativo-sesiones && rompelo cruce --nota '<qué cruzas>' -- <comando real>
+No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.
+```
+
+**Raíz y evidencia nativa:** la sesión real `01a08f3a-ee58-70b1-b600-40243d0a790e`
+dejó su consolidado en `.rompelo/evidence/ROMPELO-CODEX-05/cliente-nativo.json`.
+`cd adapters/codex && ls` produjo `"repo": "/Users/rootml/rompelo"`; cambiar solo el
+`workdir` de una herramienta conservó el `cwd` principal que Codex entregaba al hook, una
+limitación comprobada de ese paso de contexto y no un fallo del buscador de raíz. Al reanudar
+esta misma sesión con `-C /tmp/rompelo-wt-codex`, una única herramienta nativa `pwd`/`ls`
+produjo el 2026-09-11T07:10:00+00:00 un `PostToolUse` con
+`"repo": "/private/tmp/rompelo-wt-codex"` y el proceso terminó con código 0: la ruta
+canónica del worktree queda verificada. El controlador retiró después el worktree y comprobó
+su ausencia; la rama local `rompelo-wt-codex` se conserva. Los dos bloques de arriba
+transcriben las razones con las entidades XML decodificadas (`&lt;` → `<`, `&amp;` → `&`);
+el envoltorio literal, el código 0 del CLI, el contador 2 y la ausencia de `SIN-VERIFICAR`
+permanecen en `cliente-nativo.json`.
+
+**INC-0036:** dos llamadas Bash nativas separadas, `false` y `ls /no/existe`, quedaron en
+el libro con `"codigo": null` (respectivamente `stdout_vacio: true, firma: null` y
+`stdout_vacio: false, firma: "75e8b671da81"`). Sigue sin código de salida con
+`codex-cli 0.153.4`. Como no apareció un número, no se creó un `hooks.json` de proyecto ni
+se activó `ROMPELO_DEBUG_FORMA`; no se capturó ni se copió texto de `tool_response`.
+
+| Batería | Antes | Después |
+|---|---|---|
+| `bash tests/rompelo-stop-test.sh` | PASS=219 FAIL=0 ROTOS=0, rc 0 | PASS=219 FAIL=0 ROTOS=0, rc 0 |
+| `bash tests/rompelo-observe-test.sh` | PASS=111 FAIL=0 ROTOS=0, rc 0 | PASS=111 FAIL=0 ROTOS=0, rc 0 |
+| `bash tests/instrumento-test.sh` | 26/26 distinciones, rc 0 | 26/26 distinciones, rc 0 |
+| `bash tests/portabilidad-test.sh` | PASS=18 FAIL=0 ROTOS=0, rc 0 | PASS=18 FAIL=0 ROTOS=0, rc 0 |
+
+**Siete checks y cierre:** `bin/rompelo check` ejecutó las siete obligaciones y terminó
+`todos en verde`, rc 0: `rompelo.tests` 0 (263 líneas; control 1),
+`rompelo.observe-tests` 0 (146), `rompelo.instrumento-tests` 0 (39),
+`rompelo.portabilidad-tests` 0 (24), `rompelo.sin-var-pegada` 0 (1; control 1),
+`rompelo.cruce-settings-claude` 0 (1) y `rompelo.control-negativo-sesiones` 0 (47).
+La segunda pasada exigida por nivel 2 quedó escrita en el contrato. Una primera pasada de
+`cruce --id rompelo.cruce-settings-claude`, `close` y `verify --json` devolvió tres códigos
+0 y `{"ok": true, "motivos": [], "siguiente": ""}`. Como escribir este resultado cambia
+la huella de la junta, esta sección es la última edición versionada: después de ella se
+repitieron cruce, cierre y verify; los tres volvieron a código 0 con el mismo JSON. El Stop
+nativo siguiente quedó en silencio con el contrato cerrado; no se alcanzó el tope de tres
+bloqueos. No se recibió un tercer bloqueo durante ninguna de las medidas de raíz, incluida
+la ejecución adicional que terminó desde el worktree.
+
+<details>
+<summary>Salida literal de doctor antes de abrir ROMPELO-CODEX-05</summary>
+
+```text
+rompelo: /Users/rootml/rompelo/bin/rompelo
+revisión de rompelo: 044eef3
+python: 3.9.6 (/Library/Developer/CommandLineTools/usr/bin/python3)
+git: git version 2.54.0 (Apple Git-157)
+ROMPELO_HOME: /Users/rootml/rompelo (existe)
+ROMPELO_REGISTRO: home
+registro: /Users/rootml/rompelo/checks/registry.json + /Users/rootml/rompelo/checks/registry.local.json → 21 check(s): claveon.build, claveon.comprobar-deriva, claveon.comprobar-newsletter, claveon.factura, claveon.gitleaks, claveon.humo-navegador, claveon.mcp-publico, claveon.shellcheck, claveon.test, claveon.typecheck, claveon.typecheck-functions, claveon_b2c-rediseno.build …
+allowlist: /Users/rootml/rompelo/config/repos.json → 3 repo(s); este repo SÍ está alistado
+estado: /Users/rootml/rompelo/state (existe)
+repo: /Users/rootml/rompelo
+contrato: MEJORAS-2026-09-11 · estado cerrada · nivel efectivo 2 · checks exigidos ['rompelo.tests', 'rompelo.observe-tests', 'rompelo.instrumento-tests', 'rompelo.portabilidad-tests', 'rompelo.sin-var-pegada', 'rompelo.cruce-settings-claude', 'rompelo.control-negativo-sesiones']
+hooks Claude Code: /Users/rootml/.claude/settings.json → Stop, PostToolUse, PostToolUseFailure
+hooks Codex: /Users/rootml/.codex/hooks.json → Stop, PostToolUse
+cliente claude: /Users/rootml/.local/bin/claude
+cliente codex: /opt/homebrew/bin/codex
+```
+
+</details>
+
 ### 07-09-2026 · Parte 4: binario del PR #1 cruzado en vivo
 
 Cliente: `codex-cli 0.153.4` (`codex --version`). Precondición comprobada contra la API de
@@ -240,10 +352,11 @@ Los hooks corren y están confiados (José los aceptó en `/hooks`). Cruce sobre
   Stop fue silencio. Con instrucción de insistir: tres bloqueos, a la cuarta `systemMessage`.
 - La marca del tope no se escribía bajo el sandbox de Codex (tempdir no escribible): movida a
   `~/rompelo/state/marcas/`. Verificado: la marca cuenta 4 y el cuarto intento no bloquea.
-- `PostToolUse` llega para cada herramienta. **Codex no manda código de salida** en
-  `tool_response` de Bash: es solo el texto que el modelo imprimió (`text(r.output)`). El
+- `PostToolUse` llega para las herramientas observadas. **Codex no manda código de salida** en
+  `tool_response` de Bash: es salida del proceso. Corrección del diagnóstico, 16-09-2026:
+  no depende de `text(r.output)`; el rollout 0.154.0 sí contiene eventos de estado estructurados. El
   observador lo deja desconocido y firma por heurística de texto (INC-2026-0036). «Check en rojo» y
-  «verde ambiguo» no pueden saltar en Codex.
+  «verde ambiguo» no podían saltar en esa implementación. Véase la corrección INC-0036 al final.
 
 Con esto, la Parte 1 del `PROMPT-CODEX.md` queda cerrada (puntos 3 y 4 respondidos). Queda la Parte 2.
 
@@ -376,3 +489,31 @@ Verificación del punto de reanudación: segunda pasada de la batería también
 devuelve 1: los tres checks del contrato nuevo siguen sin evidencia registrada
 y falta la junta. Las pasadas directas de la batería no sustituyen `rompelo check`
 ni prueban la ejecución del hook por Codex.
+
+## 16-09-2026 · INC-0036: códigos de salida con procedencia
+
+El adaptador de Bash ya no interpreta stdout como estado, aunque contenga `Exit code 0`
+o JSON con `exit_code`. Codex CLI 0.154.0 registra el resultado en eventos estructurados
+del transcript. Rómpelo los correlaciona por sesión, turno e identificador completo;
+valida código y estado, deduplica y reconcilia resultados tardíos también en Stop.
+La explicación antigua que atribuía la pérdida a `text(r.output)` era incorrecta.
+
+No cambian las definiciones ni la confianza de los hooks. Los libros incorporan procedencia
+del código y motivo de cobertura incompleta, sin copiar salidas o conversación.
+Una versión no comprobada, archivo ausente o datos contradictorios mantienen `codigo: null`.
+No se reinterpretan ceros históricos sin procedencia. El formato de transcript no es una
+API estable; [límites y funcionamiento](../../docs/observacion.md#inc-0036--estado-con-procedencia-16-09-2026).
+
+Verificación nativa: sesiones nuevas de Codex CLI 0.154.0 y Claude Code 2.1.273, con los hooks
+existentes, registraron los códigos esperados de nueve casos distintos, incluidos stdout
+engañoso, polling, TTY en Codex y terminación del propio proceso por señal; también se repitieron
+`true` y `false` concurrentemente. Cada cliente recibió un bloqueo real de Stop y cerró su
+contrato tras cumplirlo. La prueba automática vive en `tests/codex-native-test.py`.
+También se cruzaron entrada por stdin (0) e interrupción con Ctrl-C: Codex informó 1,
+que coincidió con el libro. No se presupone el código convencional 130; se exige el estado
+real no cero y su coincidencia independiente por identificador con el runtime.
+
+**NO VERIFICADO:** interacción desde la app gráfica de Codex; Computer Use bloqueó el acceso
+a `com.openai.codex` por seguridad. La prueba CLI no se presenta como prueba de esa interfaz.
+Otras versiones, subagentes y sesiones remotas requieren su propia verificación de compatibilidad.
+Evidencia local completa en `.rompelo/evidence/CODEX-INC0036-20260916/`.

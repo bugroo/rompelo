@@ -138,6 +138,7 @@
       "ocr-rompelo"
     ],
     "cwd": "repo",
+    "solo_local": true,
     "triestado": true,
     "min_lineas": 1,
     "timeout": 1800,

@@ -1,15 +1,15 @@
 id: INC-2026-0036
-titulo: "En Codex, tool_response de Bash es solo el texto que el modelo imprimió (text(r.output)): sin código de salida, un ls roto llegaba como verde y el observador estaba ciego a los fallos"
+titulo: "Codex omite el estado estructurado en el hook de Bash; interpretar stdout como código producía falsos éxitos"
 fecha: 2026-09-05
-fuente: "medido con codex exec desde esta sesión: 226 comandos Bash de cinco sesiones de Codex en el libro, todos con código 0; luego un `ls /no-existe` a propósito registrado como 0; rollout de Codex: la llamada era `tools.exec_command(...)` y `text(r.output)`, sin el código"
+fuente: "Reproducción original 05-09: 226 comandos sin fallos registrados y un ls roto como 0. Diagnóstico corregido el 16-09: código oficial y sesiones nativas Codex 0.154.0 prueban que el hook entrega stdout independientemente de text(r.output); el rollout contiene CommandExecution con exit_code. Tres salidas engañosas reproducían falsos ceros."
 tipo: instrumento
 evidencia_verde: "el libro de cada sesión de Codex tenía un código por comando y todos eran 0; nada parecía incoherente hasta contar: 226 comandos y ni un fallo"
-lo_que_faltaba: "que el observador no inventara un 0 cuando el agente no manda código: ahora queda desconocido (null) y la firma de error sale de la última línea por heurística, documentada como tal"
+lo_que_faltaba: "Separar adaptadores, no interpretar stdout como estado y correlacionar sesión, turno e id completos con el evento terminal. Implementado para 0.154.0; formato no compatible o evidencia ausente conservan null y diagnóstico de cobertura."
 gate: instrumento-control-positivo
-gate_descripcion: "cinco casos con la forma real de Codex vistos en rojo; el check de control negativo real ya exigía códigos distintos de 0 para Claude Code y ahora también cubre la forma de Codex"
+gate_descripcion: "Tres regresiones de falsos éxitos vistas fallar antes del cambio; pruebas de procedencia, identidad, límites, concurrencia y Stop; cruce nativo de Codex y Claude con códigos esperados y cierre de contrato."
 existe_hoy: "parcial"
 spike_cubre: "parcial"
 clase: I
 senal_al_stop: "sí: 226 comandos sin un solo fallo es una distribución imposible, pero nadie la miraba"
-disparador: "control negativo real por agente: contar los códigos del libro; un agente sin fallos en 200 comandos es un instrumento ciego"
-regresion: "tests/rompelo-observe-test.sh · «Codex de verdad: tool_response es SOLO el texto…» (código null, firma heurística)"
+disparador: "Control negativo real por agente con fallos conocidos: contar resultados y procedencia; una distribución sin fallos solo es indicio, no prueba por sí sola."
+regresion: "tests/codex-status-test.py, incluido en tests/rompelo-observe-test.sh; tests/codex-native-test.py para clientes reales. Evidencia local: .rompelo/evidence/CODEX-INC0036-20260916/. Cobertura versionada; app gráfica no verificada por restricción de la herramienta de control visual."
