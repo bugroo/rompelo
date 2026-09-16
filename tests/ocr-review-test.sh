@@ -5,7 +5,7 @@
 # dejara de leer `comments`, ese caso lo caza.
 set -u
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+TMP="$(mktemp -d)"; trap 'rm -rf "${TMP:?}"' EXIT
 mkdir -p "$TMP/bin" "$TMP/repo"
 git -C "$TMP/repo" init -q -b main && echo a > "$TMP/repo/a.ts" && git -C "$TMP/repo" add -A && git -C "$TMP/repo" -c user.name=t -c user.email=t@t commit -qm base
 echo b >> "$TMP/repo/a.ts"   # árbol sucio: el envoltorio hace la pasada workspace
@@ -52,6 +52,8 @@ case "$pasadas" in rango*) [ "$rc" = 0 ] && [[ "$pasadas" != *workspace* ]] && e
   *) echo "FALLO no hubo pasada rango: '$pasadas'"; fallos=$((fallos+1)) ;; esac
 # comments: null explícito no revienta (OCR-5)
 caso "comments null → 0, no TypeError" 0 0 '{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":1,"total_tokens":1},"comments":null}'
+# hallazgo grave sin path ni content → sigue siendo 1, no 2 por KeyError (OCR-8)
+caso "grave sin path/content → 1, no KeyError" 1 0 '{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":1,"total_tokens":1},"comments":[{"severity":"critical","category":"bug"}]}'
 # control positivo: si ocr cuelga más del plazo, 2 y no traceback (OCR-7)
 printf '#!/bin/bash\nsleep 5\n' > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
 ( PATH="$TMP/bin:$PATH" OCR_CP_TIMEOUT=1 python3 "$RAIZ/checks/ocr-control-positivo.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))

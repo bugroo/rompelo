@@ -110,7 +110,7 @@ def main():
     if graves:
         print(f"{cabecera}: {len(graves)} hallazgo(s) (+{len(comentarios) - len(graves)} por debajo del umbral)")
         for x in graves:
-            print(f"  {x['path']}:{x.get('start_line', '?')}-{x.get('end_line', '?')} [{x.get('severity')}/{x.get('category')}] {x['content'][:160]}")
+            print(f"  {x.get('path', '?')}:{x.get('start_line', '?')}-{x.get('end_line', '?')} [{x.get('severity')}/{x.get('category')}] {str(x.get('content') or '')[:160]}")
         print("detalle completo: .rompelo/ocr-ultimo.json; cada hallazgo necesita disposición (arreglado o refutado con motivo)")
         sys.exit(1)
     salir(0, f"{cabecera}: 0 hallazgos >= umbral ({len(comentarios)} por debajo)")

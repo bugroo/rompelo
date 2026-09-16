@@ -1,102 +1,56 @@
 {
   "schema": 1,
-  "id": "OCR-CHECK-2026-09-16",
+  "id": "OCR-PENDIENTES-2026-09-16",
   "estado": "cerrada",
-  "base": "044eef3861b1e242d1617b3f5ad6f6dbb371a6d9",
-  "descripcion": "ocr (open-code-review) como check triestado: checks/ocr-review.py, control positivo, batería con ocr falso, registro y docs/OCR.md",
+  "base": "56a32c72a923372aab9f24ace492c737bd5990d7",
+  "descripcion": "Primera tarea real con ocr.review en el contrato: OCR-8 (.get en path/content), OCR-9 (${TMP:?} en el trap) y .rompelo/ocr-ultimo.json al .gitignore. Ampliado el scope a tests/rompelo-stop-test.sh: su caso «hijos vivos» buscaba `sleep 30` en toda la máquina y pescó un bucle de otra sesión",
   "scope_paths": [
     "checks/ocr-review.py",
-    "checks/ocr-control-positivo.py",
-    "checks/registry.json",
     "tests/ocr-review-test.sh",
-    "docs/OCR.md",
+    ".gitignore",
     ".rompelo/task.json",
-    "docs/auditoria-2026-09-07/contrato-ROMPELO-CODEX-05.json",
     "adapters/codex/LEEME.md",
-    "tests/cruce-ocr.sh"
+    "tests/rompelo-stop-test.sh"
   ],
   "checks": [
+    "rompelo.ocr-review-tests",
     "rompelo.tests",
-    "rompelo.observe-tests",
-    "rompelo.instrumento-tests",
-    "rompelo.portabilidad-tests",
     "rompelo.sin-var-pegada",
-    "rompelo.cruce-settings-claude",
-    "rompelo.control-negativo-sesiones",
-    "rompelo.ocr-review-tests"
+    "ocr.review"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [
     {
-      "id": "OCR-1",
-      "texto": "ocr: severidad fuera de critical|high|medium|low (otra caja o nivel nuevo) caía a 0 y pasaba por debajo del umbral en silencio (ocr-review.py:101)",
-      "disposicion": "confirmado",
-      "nota": "arreglado: peso() normaliza a minúsculas y lo desconocido cuenta como máximo (fail-closed); caso 'severidad desconocida' en la batería, visto en rojo contra el envoltorio anterior",
-      "regresion": "rompelo.ocr-review-tests"
-    },
-    {
-      "id": "OCR-2",
-      "texto": "ocr: int() sobre summary/OCR_TIMEOUT mal formados lanzaba traceback con código 1, que rompelo leería como hallazgo (ocr-review.py:86-87)",
-      "disposicion": "confirmado",
-      "nota": "arreglado: cualquier excepción propia sale con 2 (no pude mirar); caso 'summary mal formado' en la batería, visto en rojo contra el envoltorio anterior",
-      "regresion": "rompelo.ocr-review-tests"
-    },
-    {
-      "id": "OCR-3",
-      "texto": "ocr: git status contaba .rompelo/** y .opencodereview/** como árbol sucio y lanzaba una pasada workspace que ocr luego excluía (ocr-review.py:67)",
-      "disposicion": "confirmado",
-      "nota": "arreglado: el árbol sucio ignora esos prefijos; sin coste de LLM porque ocr devolvía skipped, pero era una pasada de más",
-      "regresion": "rompelo.ocr-review-tests"
-    },
-    {
-      "id": "OCR-4",
-      "texto": "ocr: la batería solo ejercitaba el modo workspace, no el modo rango base..HEAD (tests/ocr-review-test.sh)",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.ocr-review-tests",
-      "nota": "caso 'base != HEAD → solo pasada rango'; rojo contra el envoltorio anterior y contra un mutante que ignora la base"
-    },
-    {
-      "id": "OCR-5",
-      "texto": "ocr: comments:null explícito hacía TypeError (ocr-review.py:89)",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.ocr-review-tests",
-      "nota": "`or []`; caso 'comments null'; rojo contra el envoltorio anterior"
-    },
-    {
-      "id": "OCR-6",
-      "texto": "ocr (low): el mensaje del control positivo imprime el código del instrumento (1) aunque el control salga con 2",
-      "disposicion": "rechazado",
-      "motivo": "el mensaje informa del código del instrumento y el control devuelve su propio veredicto; son dos cosas y las dos se ven"
-    },
-    {
-      "id": "OCR-7",
-      "texto": "ocr: TimeoutExpired en el control positivo salía con traceback y código 1 en vez de 2 (ocr-control-positivo.py:17)",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.ocr-review-tests",
-      "nota": "captura TimeoutExpired → 2, plazo por OCR_CP_TIMEOUT; caso con ocr falso que duerme; rojo contra un mutante sin la captura"
-    },
-    {
       "id": "OCR-8",
-      "texto": "ocr (high): x['path'] y x['content'] indexan directo mientras el resto usa .get; un comentario sin path haría KeyError (ocr-review.py:105)",
-      "disposicion": "aceptado",
-      "nota": "hoy el KeyError lo captura el manejador superior y sale 2 (fail-closed, no se cuela como verde); pasar a .get con valor por defecto en la siguiente tarea de este repo, no aquí, para no reabrir checks y cruce por un caso que hoy no puede dar falso verde"
+      "texto": "ocr-review.py: x['path'] / x['content'] reventaban con KeyError si un comentario grave venía sin esos campos (rc 2 en vez de 1)",
+      "disposicion": "confirmado",
+      "regresion": "rompelo.ocr-review-tests",
+      "nota": "caso «grave sin path/content → 1, no KeyError»; visto en rojo contra el código anterior (rc 2, KeyError: 'path')"
     },
     {
       "id": "OCR-9",
-      "texto": "ocr (low): rm -rf \"$TMP\" en el trap sin ${TMP:?} (ocr-review-test.sh:8)",
-      "disposicion": "aceptado",
-      "nota": "regla de la casa propia; con mktemp fallido TMP queda vacío y set -u no lo caza. Mismo tratamiento que OCR-8: siguiente tarea"
+      "texto": "ocr-review-test.sh: trap 'rm -rf \"$TMP\"' sin guarda ${TMP:?}",
+      "disposicion": "confirmado",
+      "regresion": "tests/ocr-review-test.sh",
+      "nota": "la guarda vive en el prólogo de la propia batería; visto con bash -c: con TMP vacío aborta «parameter null or not set», sin guarda pasa en silencio"
     },
     {
-      "id": "OCR-10",
-      "texto": "ocr (medium): la batería no ejercita el modo rango (ocr-review-test.sh:20)",
-      "disposicion": "rechazado",
-      "motivo": "falso: el caso 'base != HEAD → solo pasada rango' existe desde OCR-4 y se vio en rojo contra un mutante que ignora la base; el revisor leyó solo el bloque inicial"
+      "id": "H-1",
+      "texto": "tests/rompelo-stop-test.sh: el caso «quedan hijos vivos» hacía pgrep -f 'sleep 30' sobre toda la máquina y pescó el bucle de espera del backup R2 de otra sesión (PID 31823); rompelo.tests en rojo y su control positivo en «no pudo mirar» sin regresión real",
+      "disposicion": "confirmado",
+      "regresion": "rompelo.tests",
+      "nota": "duración única 30.71; visto en rojo con un sleep 30.71 plantado (FAIL=1) y en verde con el sleep 30 ajeno todavía vivo (PID 34743)"
+    },
+    {
+      "id": "OCR-RUN",
+      "texto": "ocr.review sobre el diff real: 2 corridas + cruce, sonnet-5, 3–4 ficheros, 25k/47k tokens, 0 comentarios de cualquier severidad; control positivo (inyección SQL) detectado en las 2 corridas",
+      "disposicion": "aceptado",
+      "nota": "cero hallazgos con diff de 4 líneas es creíble pero no lo he visto sucio en ESTA tarea salvo por el control positivo; el umbral medium no metió ruido, así que no hay dato todavía para OCR_UMBRAL. Riesgo asumido hasta la primera tarea con diff grande en ClaveON_B2C/claveon-admin"
     }
   ],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisado de nuevo: (1) checks/ocr-review.py excluye .rompelo/** y .opencodereview/** porque en la corrida 5 del banco ocr revisó su propia salida; (2) los dos mutantes (graves siempre vacíos; avisos ignorados) pusieron en rojo tests/ocr-review-test.sh y el fichero quedó restaurado (grep 'if avisos:' línea 95); (3) adapters/codex/LEEME.md es un cambio sin commitear de la sesión de Codex (Parte 5): está en scope solo para no mentir sobre el árbol, no se toca ni se commitea aquí; (4) el contrato cerrado ROMPELO-CODEX-05 se conserva en docs/auditoria-2026-09-07/contrato-ROMPELO-CODEX-05.json. Nada más encontrado. Tras el cruce con ocr sobre este mismo repo: tres hallazgos medium sobre checks/ocr-review.py, los tres confirmados y arreglados (OCR-1..3), batería 9→11 casos. Segundo cruce con ocr: cuatro hallazgos más (OCR-4..7), tres confirmados y arreglados con caso de regresión visto en rojo, uno (low) rechazado con motivo. La junta se cruza con tests/cruce-ocr.sh: 0 si el envoltorio llegó al modelo y juzgó ficheros (código 0 o 1); los hallazgos que salgan van al contrato, no se tragan. Tercer cruce (junta OK, 9 ficheros, 452k tokens): tres comentarios más; OCR-8 y OCR-9 aceptados y aplazados a la siguiente tarea (hoy fallan cerrado, no verde), OCR-10 rechazado por falso.",
+  "segunda_pasada": "Revisado de nuevo tras cerrar el diff: (1) los tres cambios previstos están y cada uno tiene su fallo visto (OCR-8 batería roja contra el código anterior; OCR-9 bash -c; .gitignore: `git status` ya no lista ocr-ultimo.json); (2) rompelo.tests estaba en rojo por un falso positivo del propio test, no por el runner: arreglado con patrón único y visto rojo/verde; (3) ocr corrió de verdad contra la API en las dos pasadas y en el cruce (modelo y ficheros>0 en ocr-ultimo.json) y devolvió 0 comentarios; no lo tomo como prueba de calidad, solo de que la junta funciona; (4) adapters/codex/LEEME.md sigue modificado por la sesión de Codex, en scope para no bloquear, sin tocar y sin commitear; (5) NO VERIFICADO: comportamiento del umbral medium con un diff grande real.",
   "obligaciones_efectivas": {
     "nivel": 2,
     "perfiles": [
@@ -106,17 +60,13 @@
     ],
     "permisos": [],
     "checks": [
+      "rompelo.ocr-review-tests",
       "rompelo.tests",
-      "rompelo.observe-tests",
-      "rompelo.instrumento-tests",
-      "rompelo.portabilidad-tests",
       "rompelo.sin-var-pegada",
-      "rompelo.cruce-settings-claude",
-      "rompelo.control-negativo-sesiones",
-      "rompelo.ocr-review-tests"
+      "ocr.review"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T14:05:23+00:00"
+    "fecha": "2026-09-16T16:18:41+00:00"
   }
 }

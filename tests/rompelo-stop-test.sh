@@ -561,7 +561,7 @@ rm -rf "$ROMPELO_HOME/state"
 echo "── runner (RMP-010): plazo, salida binaria, salida enorme, ejecutable ausente, hijos"
 python3 - "$ROMPELO_HOME/checks/registry.json" <<'PY'
 import json,sys;f=sys.argv[1];r=json.load(open(f))
-r['lento']={'argv':['sh','-c','sleep 30 & sleep 30'],'timeout':1}
+r['lento']={'argv':['sh','-c','sleep 30.71 & sleep 30.71'],'timeout':1}  # duración única: `sleep 30` a secas lo usa cualquier bucle de espera de la máquina
 r['binario']={'argv':['python3','-c',"import sys;sys.stdout.buffer.write(b'\\xff\\xfe visto\\n')"],'min_lineas':1}
 r['chorro']={'argv':['python3','-c',"print('x'*6000000)"]}
 r['ausente']={'argv':['/no/existe/rompelo-canario']}
@@ -570,7 +570,7 @@ json.dump(r,open(f,'w'))
 PY
 contrato 'checks=["lento"]'; t0=$(date +%s); "$ASSURE" check >"$T/lento.txt" 2>&1; rc=$?; t1=$(date +%s)
 [ "$rc" -ne 0 ] && [ $((t1-t0)) -lt 10 ] && grep -q 'no terminó' "$T/lento.txt" && ok "check que no termina: corta al plazo ($((t1-t0)) s) y lo dice" || bad "plazo rc=$rc $((t1-t0))s" "$(cat "$T/lento.txt")"
-sleep 1; pgrep -f 'sleep 30' >/dev/null && bad "quedan hijos vivos tras el plazo" "$(pgrep -fl 'sleep 30')" || ok "no quedan hijos vivos (se mata el grupo de procesos)"
+sleep 1; pgrep -f 'sleep 30\.71' >/dev/null && bad "quedan hijos vivos tras el plazo" "$(pgrep -fl 'sleep 30\.71')" || ok "no quedan hijos vivos (se mata el grupo de procesos)"
 espera_bloqueo "y el gate lo cuenta como instrumento, no como hallazgo" r1 "no terminó"
 contrato 'checks=["binario"]'; "$ASSURE" check >/dev/null 2>&1 && ok "salida no UTF-8: el check pasa (antes UnicodeDecodeError sin capturar)" || bad "binario"
 contrato 'checks=["chorro"]'; "$ASSURE" check >/dev/null 2>&1 && python3 -c 'import json;e=json.load(open(".rompelo/evidence/E1/check-chorro.json"));assert e["salida_truncada"] is True and e["bytes_salida"]>6000000,e' && ok "salida de 6 MB: acotada, anotada como truncada, con el tamaño real" || bad "chorro" "$(cat .rompelo/evidence/E1/check-chorro.json 2>/dev/null)"
