@@ -1,5 +1,28 @@
 # Seguimiento de la auditoría del 07-09-2026
 
+## Actualización operacional del 16-09-2026
+
+- **RMP-016:** protección de `main` activada y releída mediante la API: `gate` obligatorio,
+  rama actualizada, PR con cero aprobaciones requeridas, administradores incluidos, force-push y
+  borrado deshabilitados. Configuración reproducible en [PROTECCION-MAIN.md](../PROTECCION-MAIN.md).
+- **RMP-018, instalación del Mac:** las tres rutas de hooks de Claude Code llevan las comillas del
+  fragmento versionado; el resto de la configuración se conserva. Skill de Claude actualizada y
+  skill de Codex instalada, ambas idénticas a `adapters/skill/SKILL.md`. Un proceso nuevo de
+  Codex CLI 0.154.0 la descubre como skill de usuario habilitada, sin duplicados.
+- **Portabilidad local:** `bash tests/portabilidad-test.sh`: `PASS=18 FAIL=0 ROTOS=0`.
+- **CI en Linux:** la ejecución [35128168803](https://github.com/bugroo/rompelo/actions/runs/35128168803)
+  pasó las baterías del gate, observador, instrumento, portabilidad, triestado y sincronización del
+  corpus. Falló después en `verify --ci` porque `ocr.review` no pudo ejecutar su control positivo.
+  Ese fallo no invalida los pasos anteriores ni constituye un cierre global.
+- **Pendiente:** el contrato local `OCR-SOLO-LOCAL-2026-09-16` conserva la pausa de OCR hasta restaurar
+  la credencial; siguen sin verificar `ocr.review` y su cruce real. La diferencia derivada de
+  INC-0036 en el corpus y la separación de contratos entre sesiones no se resuelven en este lote.
+
+Las cifras, permisos y pendientes que siguen son el registro histórico del 07-09; esta actualización
+sustituye únicamente los estados operacionales comprobados arriba.
+
+## Registro histórico
+
 Snapshot auditado: `86001d2`. Contraste contra el binario real (07-09, sesión Claude Code): `repro-2026-09-07.py`
 y `repro2-2026-09-07.py` en esta carpeta, ejecutados sobre `af6ee5e` (mismo código que el snapshot).
 Resultado: 17 comprobaciones ejecutadas, 17 reproducidas; cubren RMP-001 (a, a', b, c, d, e), 002 (2),
