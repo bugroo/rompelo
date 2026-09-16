@@ -1,0 +1,41 @@
+#!/bin/bash
+# Prueba del envoltorio checks/ocr-review.py con un `ocr` falso en PATH (sin LLM, sin red).
+# Cada caso dice qué JSON devuelve el falso y qué código tiene que dar el envoltorio.
+# Control positivo del propio test: un caso con hallazgo grave TIENE que dar 1; si el envoltorio
+# dejara de leer `comments`, ese caso lo caza.
+set -u
+RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/bin" "$TMP/repo"
+git -C "$TMP/repo" init -q -b main && echo a > "$TMP/repo/a.ts" && git -C "$TMP/repo" add -A && git -C "$TMP/repo" -c user.name=t -c user.email=t@t commit -qm base
+echo b >> "$TMP/repo/a.ts"   # árbol sucio: el envoltorio hace la pasada workspace
+fallos=0; vistos=0
+caso() {  # nombre, código esperado, rc del falso, JSON que imprime el falso
+  local nombre="$1" esperado="$2" rc_falso="$3" json="$4"
+  printf '#!/bin/bash\nprintf %%s %q\nexit %s\n' "$json" "$rc_falso" > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
+  local salida; salida="$(cd "$TMP/repo" && PATH="$TMP/bin:$PATH" python3 "$RAIZ/checks/ocr-review.py" 2>&1)"; local rc=$?
+  vistos=$((vistos+1))
+  if [ "$rc" = "$esperado" ]; then echo "OK   $nombre → $rc"; else echo "FALLO $nombre → $rc (esperado $esperado): $salida"; fallos=$((fallos+1)); fi
+}
+J_OK='{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":3,"total_tokens":10},"comments":[]}'
+J_LOW='{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":3,"total_tokens":10},"comments":[{"path":"a.ts","start_line":1,"end_line":1,"severity":"low","category":"style","content":"nit"}]}'
+J_HIGH='{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":3,"total_tokens":10},"comments":[{"path":"a.ts","start_line":2,"end_line":2,"severity":"high","category":"bug","content":"grave"}]}'
+J_SKIP='{"status":"skipped","llm":{"model":"falso"},"message":"nada","comments":[]}'
+J_WARN='{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":2,"total_tokens":10},"comments":[],"warnings":[{"path":"b.ts","error":"subagente caído"}]}'
+J_ERR='{"status":"completed_with_errors","llm":{"model":"falso"},"summary":{"files_reviewed":0},"comments":[]}'
+caso "sin comentarios → 0"                    0 0 "$J_OK"
+caso "solo low con umbral medium → 0"         0 0 "$J_LOW"
+caso "high → 1 (control positivo)"            1 0 "$J_HIGH"
+caso "skipped, cero ficheros → 2"             2 0 "$J_SKIP"
+caso "warnings, cobertura incompleta → 2"     2 0 "$J_WARN"
+caso "status con errores → 2"                 2 0 "$J_ERR"
+caso "ocr sale con 1 → 2"                     2 1 "$J_OK"
+caso "ocr no devuelve JSON → 2"               2 0 "esto no es json"
+# umbral configurable: con OCR_UMBRAL=low el nit ya cuenta
+printf '#!/bin/bash\nprintf %%s %q\n' "$J_LOW" > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" OCR_UMBRAL=low python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 1 ]; then echo "OK   umbral low cuenta el nit → 1"; else echo "FALLO umbral low → $rc (esperado 1)"; fallos=$((fallos+1)); fi
+# el falso tiene que haber sido llamado de verdad (el envoltorio deja .rompelo/ocr-ultimo.json)
+[ -s "$TMP/repo/.rompelo/ocr-ultimo.json" ] && grep -q '"falso"' "$TMP/repo/.rompelo/ocr-ultimo.json" && echo "OK   el envoltorio guardó la salida del instrumento" || { echo "FALLO no quedó ocr-ultimo.json con el modelo falso"; fallos=$((fallos+1)); }
+echo "$vistos casos, $fallos fallos"
+[ "$fallos" = 0 ]

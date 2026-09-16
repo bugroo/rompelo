@@ -132,5 +132,43 @@
       "corpus/**",
       "incidents/**"
     ]
+  },
+  "ocr.review": {
+    "argv": [
+      "ocr-rompelo"
+    ],
+    "cwd": "repo",
+    "triestado": true,
+    "min_lineas": 1,
+    "timeout": 1800,
+    "control_positivo": {
+      "argv": [
+        "python3",
+        "checks/ocr-control-positivo.py"
+      ],
+      "cwd": "rompelo"
+    },
+    "descripcion": "revisión LLM del diff de la tarea con ocr (alibaba/open-code-review) vía checks/ocr-review.py: 0 sin hallazgos >= OCR_UMBRAL (medium) · 1 hallazgos, cada uno con disposición · 2 no pudo mirar (sin ocr, sin ficheros, subagente caído). ocr solo devuelve 0, el código lo pone el envoltorio. ~/bin/ocr-rompelo → checks/ocr-review.py",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
+  },
+  "rompelo.ocr-review-tests": {
+    "argv": [
+      "bash",
+      "tests/ocr-review-test.sh"
+    ],
+    "cwd": "rompelo",
+    "min_lineas": 5,
+    "descripcion": "batería del envoltorio de ocr con un ocr falso (sin LLM); vista en rojo con dos mutantes el 16-09-2026",
+    "no_afecta": [
+      "docs/**",
+      "*.md",
+      "corpus/**",
+      "incidents/**"
+    ]
   }
 }
