@@ -1,4 +1,15 @@
-# Adaptador Codex (OpenAI) · hook Stop
+# Adaptador Codex (OpenAI) · hooks PreToolUse, UserPromptSubmit, Stop y PostToolUse
+
+**16-09-2026 · disparo `entrega`.** `hooks.json` de este directorio trae ahora cuatro eventos: `PreToolUse`
+(matcher `Bash`: deniega commit/push/deploy con el contrato sin cumplir), `UserPromptSubmit` (declara el cierre
+cuando el usuario lo pide y adelanta lo que falta), `Stop` (juzga solo con el cierre declarado) y `PostToolUse`
+(observador). Es el mismo `rompelo hook codex` para los tres primeros: decide por `hook_event_name`. Formato de
+deny leído en `developers.openai.com/codex/hooks` el 16-09-2026: `hookSpecificOutput.permissionDecision: deny`
+(Codex acepta también `{"decision":"block"}`); contexto: `hookSpecificOutput.additionalContext`. Campo del prompt en
+UserPromptSubmit: `prompt` (se acepta `user_prompt` por si acaso). **NO VERIFICADO desde un cliente Codex real**:
+lo cruza Codex (Parte 6 de `PROMPT-CODEX.md`). Fusionar las cuatro entradas en `~/.codex/hooks.json` y volver a
+confiar en `/hooks`. Detalle del disparo: `docs/disparo.md`.
+
 
 Contrato oficial leído el 04-09-2026 en `developers.openai.com/codex/hooks.md`:
 

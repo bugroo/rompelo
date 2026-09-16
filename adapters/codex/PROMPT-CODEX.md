@@ -247,6 +247,38 @@ permiso dentro de este repo) y un check puede declarar en el registro las rutas 
 
 Los mismos límites de la Parte 4: ni `bin/rompelo`, ni `tests/`, ni `~/.claude/`, ni el `hooks.json` global.
 
+## Parte 6 · Cruzar desde Codex el disparo `entrega` (16-09-2026, rama `friccion-y-mapa-2026-09-16`)
+
+Lee `docs/disparo.md` y `adapters/codex/LEEME.md` (cabecera del 16-09). Lo nuevo que solo tú puedes cruzar es
+que un cliente Codex REAL reciba el deny de PreToolUse, el contexto de UserPromptSubmit y el silencio de Stop.
+Trabaja en un worktree (`git -C ~/rompelo worktree add ~/rompelo-wt-codex-6 main` una vez fusionada la rama);
+abre tu contrato con `rompelo init --force --id ROMPELO-CODEX-06 --scope adapters/codex/** --scope docs/observacion.md
+--scope .rompelo/task.json --check rompelo.disparo-tests --check rompelo.observe-tests --junta`.
+
+1. **Instalar los hooks.** Fusiona en `~/.codex/hooks.json` las entradas `PreToolUse`, `UserPromptSubmit`, `Stop` y
+   `PostToolUse` de `adapters/codex/hooks.json` (guion de fusión del LEEME, ampliado a los cuatro eventos; no
+   sustituyas el fichero: otros hooks viven ahí). Confía los hooks en `/hooks`. `rompelo doctor` tiene que decir
+   `hooks Codex: … → PreToolUse, UserPromptSubmit, Stop, PostToolUse` sin el aviso de «faltan».
+2. **Ver denegar.** En un repo desechable alistado (`rompelo init --id CX --check rompelo.tests`), cambia un fichero y
+   pide a Codex que haga `git commit -am x`. Tiene que recibir el deny literal «[rompelo] Este comando ENTREGA …»
+   con la línea `Siguiente:`. Pega la salida literal. Después `ls` y `git status`: sin deny. Después
+   `git commit --dry-run`: sin deny.
+3. **Ver callar.** Termina un turno con el árbol cambiado y el contrato sin cumplir, sin pedir el cierre: el Stop
+   tiene que callar (antes bloqueaba). Anota el `codex --version`.
+4. **Ver el cierre declarado.** Escribe como usuario «termina y sube esto». Tiene que llegar el contexto
+   `[rompelo] El usuario pide cerrar o entregar la tarea CX …` (mira si Codex lo muestra o solo lo inyecta al
+   modelo: anótalo) y, al acabar ese turno, el Stop tiene que bloquear con los motivos. Cumple (`rompelo check`,
+   `rompelo close`) y el siguiente Stop tiene que callar; comprueba que la marca `~/rompelo/state/marcas/cerrando-*`
+   ha desaparecido.
+5. **Lo que solo Codex sabe.** (a) ¿Codex manda `hook_event_name` en PreToolUse y UserPromptSubmit? Si no, el binario
+   lo trata como Stop: captura la forma del payload (solo claves) con `ROMPELO_DEBUG_FORMA=1` como en la Parte 5 y
+   dilo. (b) ¿El nombre de la herramienta de shell en PreToolUse es `Bash` (así lo dice la doc) o `shell`/otro? El
+   binario acepta `Bash`, `bash`, `shell`, `PowerShell`; si es otro, anótalo: es un arreglo de una línea en
+   `hook_pretool`, de José. (c) ¿El campo del prompt es `prompt` o `user_prompt`?
+6. **Cierre.** `rompelo check`, `rompelo cruce -- bash tests/cruce-hooks-entrega.sh`, `rompelo close`. Anota en
+   `adapters/codex/LEEME.md`, sección «Estado», con fecha y versión: las salidas literales de 2, 3 y 4, las respuestas
+   de 5 y lo NO VERIFICADO. Los mismos límites de siempre: ni `bin/rompelo`, ni `tests/`, ni `~/.claude/`.
+
 ## Entrega
 
 Tres bloques, en este orden: qué queda hecho, qué falta, qué problemas tiene el trabajo.

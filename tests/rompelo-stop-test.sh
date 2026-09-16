@@ -8,6 +8,8 @@ ASSURE="$ROMPELO"; export ROMPELO_BIN_PARA_PY="$ROMPELO"
 [ -x "$ASSURE" ] || { echo "no existe $ASSURE"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
+printf '{"defecto":"turno"}' > "$ROMPELO_HOME/config/disparo.json"   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"   # y la segunda pasada de texto; el manifiesto tiene la suya (rompelo-revisar-test.sh)
 CANARY="$T/canario"
 cat > "$ROMPELO_HOME/checks/registry.json" <<J
 {"ok": {"argv": ["true"]}, "ko": {"argv": ["false"]}, "hay-a": {"argv": ["test", "-f", "src/a.txt"]},
@@ -116,6 +118,12 @@ contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresio
 espera_paso "confirmado con prueba del diff, rechazado con motivo, aceptado con nota: verde" s6i
 contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresion":"ok"}]'
 espera_paso "confirmado con un check del registro como regresión: verde" s6j
+contrato 'hallazgos=[{"id":"H6","texto":"inyección","categoria":"security","disposicion":"rechazado","motivo":"falso positivo"}]'
+espera_bloqueo "categoría protegida rechazada sin comprobado bloquea" s7c "hallazgo H6 (security) rechazado sin \`comprobado\`"
+contrato 'hallazgos=[{"id":"H6","texto":"inyección","categoria":"security","disposicion":"rechazado","motivo":"falso positivo","comprobado":"la entrada pasa por Prisma parametrizado (src/db.ts:12) y lo cubre tests/a.test.txt"}]'
+out="$(hook claude s7d "$R")"; printf '%s' "$out" | grep -q 'H6' && bad "protegida con comprobado aún bloquea" "$out" || ok "categoría protegida rechazada CON comprobado pasa"
+contrato 'hallazgos=[{"id":"H7","texto":"nombre feo","categoria":"style","disposicion":"rechazado","motivo":"es el estilo de la casa"}]'
+out="$(hook claude s7e "$R")"; printf '%s' "$out" | grep -q 'H7' && bad "categoría no protegida exigió comprobado" "$out" || ok "categoría no protegida se rechaza solo con motivo"
 contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado","motivo":"x"},{"id":"H2","disposicion":"aceptado","nota":"y"}]'
 
 echo "── mutación D: fichero fuera de scope"

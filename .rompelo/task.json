@@ -1,55 +1,57 @@
 {
   "schema": 1,
-  "id": "CODEX-INC0036-20260916",
+  "id": "FRICCION-Y-MAPA-2026-09-16",
   "estado": "cerrada",
-  "base": "d4c761f2a7a2fa16d1ae58e8c43a9af10276075d",
-  "descripcion": "Códigos de salida de Codex con procedencia y correlación exacta; compatibilidad Claude y pruebas nativas",
+  "base": "55705ee1b1c9137885e23eea20b3ef917dc1504e",
+  "descripcion": "disparo por entrega (PreToolUse commit/push/deploy + cierre declarado), afecta/obliga por ruta, categorías protegidas, presupuesto ocr, revisar",
   "scope_paths": [
-    "bin/rompelo",
-    "tests/codex-status-test.py",
-    "tests/codex-native-test.py",
-    "tests/rompelo-observe-test.sh",
-    "docs/observacion.md",
-    "adapters/codex/LEEME.md",
-    "incidents/INC-2026-0036.yaml",
-    ".rompelo/task.json"
+    "bin/**",
+    "checks/**",
+    "tests/**",
+    "adapters/**",
+    "config/**",
+    "docs/**",
+    "CHANGELOG.md",
+    "README.md",
+    ".rompelo/task.json",
+    "incidents/**",
+    "corpus/**",
+    ".gitignore"
   ],
   "checks": [
-    "rompelo.observe-tests",
     "rompelo.tests",
+    "rompelo.observe-tests",
     "rompelo.instrumento-tests",
     "rompelo.portabilidad-tests",
-    "rompelo.sin-var-pegada"
+    "rompelo.sin-var-pegada",
+    "rompelo.ocr-review-tests",
+    "rompelo.disparo-tests",
+    "rompelo.obliga-tests",
+    "rompelo.revisar-tests"
   ],
   "toca_junta": true,
-  "exige_prueba_en_diff": true,
+  "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisado el diff completo antes del commit: stdout no autoriza códigos de Codex; identidad completa, versión, rutas, límites, deduplicación, bloqueo por sesión y reconciliación en Stop. No se encontraron cambios ajenos al scope. Cinco checks repetidos en verde; cruce native-before-commit con 11 casos Codex y 9 Claude, un bloqueo real de Stop y cierre en cada cliente. Regresiones vistas en rojo y verde. GUI de Codex NO VERIFICADO por bloqueo de Computer Use. El problema de propiedad entre agentes queda registrado aparte para otro contrato.",
-  "afirmaciones": [
-    {
-      "texto": "Validación desde la app gráfica de Codex",
-      "estado": "no_verificado",
-      "falta": "Computer Use rechaza com.openai.codex por seguridad. Las sesiones nativas realizadas son de CLI; no se atribuyen a la interfaz gráfica."
-    }
-  ],
   "obligaciones_efectivas": {
-    "nivel": 2,
-    "perfiles": [
-      "auth",
-      "junta",
-      "secretos"
-    ],
+    "nivel": 0,
+    "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.observe-tests",
       "rompelo.tests",
+      "rompelo.observe-tests",
       "rompelo.instrumento-tests",
       "rompelo.portabilidad-tests",
-      "rompelo.sin-var-pegada"
+      "rompelo.sin-var-pegada",
+      "rompelo.ocr-review-tests",
+      "rompelo.disparo-tests",
+      "rompelo.obliga-tests",
+      "rompelo.revisar-tests"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T17:37:30+00:00"
+    "exige_prueba_en_diff": false,
+    "obliga": {},
+    "fecha": "2026-09-16T20:32:52+00:00"
   }
 }

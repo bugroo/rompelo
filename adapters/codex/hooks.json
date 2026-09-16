@@ -1,6 +1,30 @@
 {
-  "description": "rompelo · puerta de cierre por tarea. Mismo contrato que el hook Stop de Claude Code.",
+  "description": "rompelo · puerta de cierre por tarea. Mismo contrato que los hooks de Claude Code: PreToolUse (entrega), UserPromptSubmit (cierre declarado), Stop, PostToolUse.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/rompelo/bin/rompelo\" hook codex",
+            "timeout": 30,
+            "statusMessage": "rompelo: ¿se entrega con el contrato cumplido?"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/rompelo/bin/rompelo\" hook codex",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

@@ -15,6 +15,9 @@ Tope de tamaño: OCR_MAX_LINEAS (defecto 1500, 0 = sin tope) líneas añadidas+b
 sale con 2 ANTES de llamar a ocr. Medido el 16-09-2026: una pasada workspace sobre 1 800 líneas ajenas
 (el árbol lo había ensuciado otro agente) costó 1,3 M tokens sin que nadie lo pidiera.
 Cualquier argumento extra se pasa a `ocr review` (p. ej. --effort high, --background "...").
+Esfuerzo: OCR_EFFORT=auto|low|medium|high (auto: low hasta OCR_LINEAS_LOW=150 líneas, medium por encima).
+Presupuesto: OCR_PRESUPUESTO_TOKENS (600000; 0 = sin tope) → --max-tokens-budget; si ocr lo agota deja
+ficheros en `warnings` y aquí eso es 2 (no pudo mirarlo todo), nunca 0.
 Siempre excluye .rompelo/** y .opencodereview/**: medido el 16-09-2026, sin eso ocr revisaba su propia salida.
 """
 import json, os, shutil, subprocess, sys
@@ -115,9 +118,34 @@ def main():
                 salir(2, f"diff demasiado grande para ocr: {n} líneas en la pasada {etiqueta} > OCR_MAX_LINEAS={tope}; "
                          "pásalo por partes (commits más pequeños, árbol limpio de cambios ajenos) o sube el tope a sabiendas")
 
+    # Esfuerzo y presupuesto por pasada (ocr v1.12: --effort low|medium|high, --max-tokens-budget N). OCR_EFFORT=auto
+    # (defecto): low hasta OCR_LINEAS_LOW líneas (150), medium por encima; un valor fijo manda. OCR_PRESUPUESTO_TOKENS
+    # (defecto 600000; 0 = sin tope) corta la corrida antes de que un diff grande cueste una fortuna: ocr entonces
+    # marca ficheros como failed(budget) en `warnings` y el envoltorio lo lee como 2 (cobertura incompleta), nunca 0.
+    # Medido el 16-09-2026: una corrida entera de verify --ci con ocr en el contrato costó 1,3 M tokens (≈ 1,8 $).
+    esfuerzo = os.environ.get("OCR_EFFORT", "auto").strip().lower()
+    if esfuerzo not in ("auto", "low", "medium", "high"):
+        salir(2, f"OCR_EFFORT inválido: {esfuerzo!r} (auto | low | medium | high)")
+    try:
+        umbral_low = int(os.environ.get("OCR_LINEAS_LOW", "150") or 0)
+        presupuesto = int(os.environ.get("OCR_PRESUPUESTO_TOKENS", "600000") or 0)
+    except ValueError:
+        salir(2, "OCR_LINEAS_LOW / OCR_PRESUPUESTO_TOKENS tienen que ser enteros")
+
+    def ajustes(args, etiqueta):
+        out = []
+        if "--effort" not in extra:
+            e = esfuerzo
+            if e == "auto":
+                e = "low" if lineas_diff(root, [args[1], args[3]] if args else None) <= umbral_low else "medium"
+            out += ["--effort", e]
+        if presupuesto > 0 and "--max-tokens-budget" not in extra:
+            out += ["--max-tokens-budget", str(presupuesto)]
+        return out
+
     comentarios, ficheros, tokens, avisos, modelo = [], 0, 0, [], None
     for args, etiqueta in pasadas:
-        d = correr_ocr(args + extra, etiqueta)
+        d = correr_ocr(args + ajustes(args, etiqueta) + extra, etiqueta)
         modelo = (d.get("llm") or {}).get("model", modelo)
         if d.get("status") == "skipped":
             continue

@@ -15,11 +15,13 @@ Python 3.9 and git on macOS or Linux, no dependencies.
 git clone https://github.com/bugroo/rompelo ~/rompelo
 ```
 
-1. **Hooks.** Claude Code: add the `Stop`, `PostToolUse` and `PostToolUseFailure` entries from
+1. **Hooks.** Claude Code: add the `PreToolUse` (matcher `Bash`), `UserPromptSubmit`, `Stop`, `PostToolUse`
+   and `PostToolUseFailure` entries from
    [`adapters/claude/settings-fragment.json`](adapters/claude/settings-fragment.json) to
    `~/.claude/settings.json`. Codex: merge [`adapters/codex/hooks.json`](adapters/codex/hooks.json)
-   into `~/.codex/hooks.json` and trust the hook in `/hooks` (details in
-   [`adapters/codex/LEEME.md`](adapters/codex/LEEME.md), Spanish).
+   (same five events minus `PostToolUseFailure`) into `~/.codex/hooks.json` and trust the hook in `/hooks`
+   (details in [`adapters/codex/LEEME.md`](adapters/codex/LEEME.md), Spanish). `rompelo doctor` tells you
+   which events are missing.
 2. **Skill**, so the agent knows what to do when it reads `/rompelo`:
    ```bash
    mkdir -p ~/.claude/skills/rompelo && cp ~/rompelo/adapters/skill/SKILL.md ~/.claude/skills/rompelo/
@@ -56,9 +58,25 @@ rompelo close                                  # refuses if anything is missing;
 ```
 
 Every block ends with a `Next:` line carrying the exact commands that unblock, in order
-(`rompelo check --id …`, `rompelo cruce …`, `rompelo close`); `rompelo check` warns when a check itself
-changed the tree. Two sessions on the same root share one `.rompelo/task.json`: `init --force` replaces
-the other session's contract, so give each session its own worktree.
+(`rompelo check --id …`, `rompelo revisar …`, `rompelo cruce …`, `rompelo close`); `rompelo check` warns when a
+check itself changed the tree. Two sessions on the same root share one `.rompelo/task.json`: `init --force`
+replaces the other session's contract, so give each session its own worktree.
+
+## When the gate fires
+
+By default (`entrega`, since 2026-09-16) the gate stays silent while the agent works and fires when the work
+is **delivered**:
+
+- `PreToolUse` denies a `git commit`, `git push`, `gh pr create`, `wrangler deploy`, `scripts/desplegar.sh`…
+  while the contract is unmet, with the reasons and the `Next:` line. Any other command passes untouched.
+- `UserPromptSubmit` recognises the user asking to finish ("termina", "sube esto", "haz el commit", "ship it",
+  "to production"…), declares the close and tells the agent what is still missing before it starts.
+- `Stop` judges only once the close is declared (by the user, or by a failed `rompelo close`), and goes quiet
+  again once the task really closes.
+
+`turno` (the previous behaviour, judged at the end of every turn) is one line away: `"defecto": "turno"` in
+[`config/disparo.json`](config/disparo.json), per repo under `por_repo`, or `rompelo init --disparo turno`.
+Patterns for "delivers" and "asks to finish" live in the same file. [Details](docs/disparo.md) (Spanish).
 
 ## What the gate requires
 
@@ -66,9 +84,19 @@ the other session's contract, so give each session its own worktree.
   with no output is not green (`min_lineas`); a check that does not finish or start is an
   instrument failure, not a finding; a positive control that misses the known-bad case voids the green.
   A check may declare in the registry the paths that cannot change its verdict (`no_afecta`:
-  docs, images), so editing the README after the suite does not force a re-run; everything else does.
+  docs, images) and the only paths it looks at (`afecta`: a shell linter and `*.sh`): a check whose
+  paths did not change does not apply, neither required nor run, and does not go stale because of a `.ts`.
+- **The diff dictates the contract.** [`config/obliga.json`](config/obliga.json) (and `.rompelo/obliga.json`
+  in the repo, versioned so CI sees it) maps paths to obligations: `functions/api/**` → boundary crossing,
+  `*.sh` → the shell check, `src/**` → typecheck + test + a test in the diff. A changed path that matches adds
+  them to the effective contract whether the agent declared them or not.
 - If the task touches a boundary, a real crossing after the last change.
-- Every finding as `confirmado` (+ regression), `rechazado` (+ reason) or `aceptado` (+ note).
+- Every finding as `confirmado` (+ regression), `rechazado` (+ reason; for security, bug, concurrency, memory,
+  compat and data findings also `comprobado`: what was run or read that refutes it) or `aceptado` (+ note).
+- At observation level 2, a real second pass: `rompelo revisar` opens a manifest with every changed file,
+  its diff, the rules (`ocr delegate rule` when [open-code-review](https://github.com/alibaba/open-code-review)
+  is installed, no LLM call) and the criterion; `rompelo revisar --cerrar` requires every file reviewed or
+  skipped with a reason on the current fingerprint and moves the findings into the contract.
 - Every claim about the outside world as `verificado` (source + quote), `derivado` or `no_verificado`.
 - Nothing changed outside `scope_paths`; with `--prueba`, a test in the diff.
 - The observer raises the rigor on its own (second pass, crossing by profile, level-3 checks with

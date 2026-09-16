@@ -4,6 +4,7 @@
 . "$(dirname "$0")/lib.sh"
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
+printf '{"defecto":"turno"}' > "$ROMPELO_HOME/config/disparo.json"   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
 printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 
