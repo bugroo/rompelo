@@ -6,8 +6,8 @@ cuando el usuario lo pide y adelanta lo que falta), `Stop` (juzga solo con el ci
 (observador). Es el mismo `rompelo hook codex` para los tres primeros: decide por `hook_event_name`. Formato de
 deny leído en `developers.openai.com/codex/hooks` el 16-09-2026: `hookSpecificOutput.permissionDecision: deny`
 (Codex acepta también `{"decision":"block"}`); contexto: `hookSpecificOutput.additionalContext`. Campo del prompt en
-UserPromptSubmit: `prompt` (se acepta `user_prompt` por si acaso). **NO VERIFICADO desde un cliente Codex real**:
-lo cruza Codex (Parte 6 de `PROMPT-CODEX.md`). Fusionar las cuatro entradas en `~/.codex/hooks.json` y volver a
+UserPromptSubmit: `prompt` (se acepta `user_prompt` por si acaso). **Verificado desde Codex CLI 0.154.0 el 17-09-2026**:
+deny, contexto, Stop condicional y retirada de la marca; salidas y límites en «Estado · Parte 6». Fusionar las cuatro entradas en `~/.codex/hooks.json` y volver a
 confiar en `/hooks`. Detalle del disparo: `docs/disparo.md`.
 
 
@@ -32,26 +32,126 @@ Contrato oficial leído el 04-09-2026 en `developers.openai.com/codex/hooks.md`:
 ## Instalación global (la hace José o Codex, no Claude Code)
 
 `~/.codex/**` es territorio exclusivo de Codex por regla de casa. Claude Code no escribe ahí.
-Hay que **fusionar** con el `hooks.json` existente (no sustituirlo): añadir a su lista `Stop` la entrada de `hooks.json` de este directorio.
+Hay que **fusionar** con el `hooks.json` existente: añadir las entradas de los cuatro eventos y conservar los demás hooks.
+Este ejemplo hace una copia previa y evita duplicar los manejadores ya instalados:
 
 ```bash
 python3 - <<'PY'
-import json,os
-f=os.path.expanduser('~/.codex/hooks.json'); d=json.load(open(f))
-nuevo=json.load(open(os.path.expanduser('~/rompelo/adapters/codex/hooks.json')))['hooks']['Stop'][0]
-stop=d.setdefault('hooks',{}).setdefault('Stop',[])
-if not any('rompelo' in h.get('command','') for m in stop for h in m.get('hooks',[])):
-    stop.append(nuevo); json.dump(d,open(f,'w'),indent=2); print('añadido')
+import datetime, json, os, shutil, tempfile
+from pathlib import Path
+f = Path.home() / '.codex/hooks.json'
+d = json.loads(f.read_text()) if f.exists() else {'hooks': {}}
+nuevos = json.loads((Path.home() / 'rompelo/adapters/codex/hooks.json').read_text())['hooks']
+cambios = []
+for evento, grupos in nuevos.items():
+    actuales = d.setdefault('hooks', {}).setdefault(evento, [])
+    for grupo in grupos:
+        comando = grupo['hooks'][0]['command']
+        encontrados = [g for g in actuales if any(h.get('command') == comando for h in g.get('hooks', []))]
+        if encontrados:
+            if encontrados != [grupo]:
+                raise SystemExit(f'{evento}: entrada distinta; revisa su matcher y sus manejadores antes de fusionar')
+        else:
+            actuales.append(grupo)
+            cambios.append(evento)
+if cambios:
+    f.parent.mkdir(parents=True, exist_ok=True)
+    if f.exists():
+        fecha = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+        shutil.copy2(f, f.with_name(f.name + '.bak-' + fecha))
+    with tempfile.NamedTemporaryFile(mode='w', dir=f.parent, delete=False) as t:
+        json.dump(d, t, ensure_ascii=False, indent=2)
+        t.write('\n')
+    os.chmod(t.name, f.stat().st_mode & 0o777 if f.exists() else 0o600)
+    os.replace(t.name, f)
+print('añadidos: ' + ', '.join(cambios) if cambios else 'los cuatro eventos ya coinciden')
 PY
 ```
 
-Luego, en Codex, `/hooks` → revisar y confiar el hook nuevo.
+Luego, en Codex, `/hooks` → revisar y confiar las entradas nuevas. El script no modifica la confianza.
 
 ## Alcance en los lanzadores de este Mac (medido el 04-09-2026)
 
 `ai`, `ai-web`, `ai-build`, `ai-resume` (funciones de `.zshrc`) llaman a `command codex` sin `--profile` ni `-c`; `~/bin/clobs-codex` usa `--profile` con `clobs.config.toml` y hace `unset CODEX_HOME`. Todos leen `~/.codex/hooks.json`, así que el hook global los alcanza.
 
 ## Estado
+
+### 17-09-2026 · Parte 6: disparo `entrega` desde Codex real
+
+Cliente: `codex-cli 0.154.0`; binario de rompelo en `b03c55e`, después de fusionar PR #4 con CI verde.
+La instalación añadió únicamente `PreToolUse` y `UserPromptSubmit`: `Stop` y `PostToolUse` ya coincidían.
+Los otros diez manejadores del archivo global conservaron su configuración. La skill de Codex coincide
+con `adapters/skill/SKILL.md`. Se revisaron y confiaron las entradas nuevas en la interfaz `/hooks`, sin
+bypass ni escritura manual de hashes. `rompelo doctor` enumera los cuatro eventos.
+
+La prueba usó un repositorio desechable alistado, contrato `CX-CODEX-06`, un fichero modificado y el check
+real `rompelo.tests` pendiente. Se reanudó la misma sesión nativa en tres fases; no se invocó el hook a mano
+para acreditar esos resultados.
+
+**PreToolUse.** El primer comando fue `git commit -am x`. El resultado de herramienta nativo conservado
+en el transcript, no solo el relato del modelo, contiene literalmente:
+
+```text
+Command blocked by PreToolUse hook: [rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea CX-CODEX-06 no está verificada:
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+Siguiente: rompelo check
+Cumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.. Command: git commit -am x
+```
+
+El repositorio mantuvo un único commit. Las tres llamadas siguientes sí llegaron a ejecutarse:
+
+| Comando | Código del proceso | Denegado por el hook |
+|---|---|---|
+| `ls` | 0 | no |
+| `git status --short` | 0 | no |
+| `git commit --dry-run` | 1, sin cambios preparados | no |
+
+**Stop sin cierre declarado.** Ese turno terminó con código 0 y `VERIFICACION NATIVA PASO A`, sin
+`HookPrompt` de rompelo, sin marca de cierre y sin contador de bloqueo, aunque el contrato seguía pendiente.
+
+**UserPromptSubmit.** El mensaje de usuario exacto `termina y sube esto` produjo este contexto real:
+
+```text
+[rompelo] El usuario pide cerrar o entregar la tarea CX-CODEX-06: la puerta la juzgará al terminar este turno y no dejará commit ni push sin evidencia. Ahora mismo falta:
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+Siguiente: rompelo check
+```
+
+En esta ejecución de `codex exec --json` se observó como mensaje `developer` inyectado en el transcript;
+no hubo un evento separado con ese contexto en stdout JSON. La presentación visual en la app de escritorio
+queda **NO VERIFICADA**. El Stop posterior entregó un `HookPrompt` nativo con este contenido:
+
+```text
+[rompelo] La tarea CX-CODEX-06 NO puede darse por terminada (1/3):
+- check `rompelo.tests` sin ejecutar (usa `rompelo check`)
+Siguiente: rompelo check
+No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.
+```
+
+El controlador interrumpió la ejecución después de persistirse ese primer `HookPrompt`; el contador quedó
+en 1 y la marca de cierre existía. Después ejecutó la batería real: check código 0, control positivo código 1,
+`rompelo close` código 0 y `rompelo verify --json` con `{"ok": true, "motivos": [], "siguiente": ""}`.
+Una nueva reanudación devolvió `VERIFICACION NATIVA PASO C`, código 0, cero bloqueos nuevos, marca ausente
+y contador todavía en 1. El silencio final no procede del tope de tres bloqueos.
+
+**Forma medida.** Una sonda temporal de proyecto, revisada y confiada en `/hooks`, registró únicamente
+nombres de campos y metadatos de evento, nunca el contenido del prompt ni de los comandos:
+
+- ambos eventos traen `hook_event_name`;
+- `PreToolUse` identifica el shell como `Bash` y su entrada lleva `tool_input.command`;
+- `UserPromptSubmit` trae `prompt` de tipo string; no trae `user_prompt`.
+
+| Batería | Antes | Después |
+|---|---|---|
+| `tests/rompelo-disparo-test.sh` | `PASS=54 FAIL=0 ROTOS=0` | `PASS=54 FAIL=0 ROTOS=0` |
+| `tests/rompelo-observe-test.sh` | `PASS=112 FAIL=0 ROTOS=0` | `PASS=112 FAIL=0 ROTOS=0` |
+
+`rompelo check` también ejecutó ambas: código 0; el control positivo de `rompelo.disparo-tests` devolvió 1.
+
+No fue necesario modificar `bin/rompelo`, `tests/` ni la configuración de Claude. El cruce
+`tests/cruce-hooks-entrega.sh` sigue siendo una prueba directa del adaptador de Claude hacia el binario;
+complementa esta evidencia nativa de Codex y no la sustituye. El check `rompelo.observe-tests` no tiene
+un control positivo separado registrado; su resultado no acredita uno inexistente.
 
 ### 11-09-2026 · Parte 5: PR #2 medido desde este Codex
 

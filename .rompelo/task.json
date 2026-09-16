@@ -1,49 +1,35 @@
 {
   "schema": 1,
-  "id": "INTEGRACION-ENTREGA-20260917",
+  "id": "ROMPELO-CODEX-06",
   "estado": "cerrada",
-  "base": "e45d9506088645260b2db3872ec86e357a189375",
-  "descripcion": "Integrar main cerrado con PR 4 conservando OCR solo_local y las nueve baterías de entrega",
+  "base": "b03c55e2f83bb4d8606c313c8403048642deaf8a",
+  "descripcion": "Cruzar el disparo entrega desde Codex real y actualizar su adaptador",
   "scope_paths": [
-    "checks/registry.json",
-    "docs/OCR.md",
+    "adapters/codex/**",
+    "docs/observacion.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.tests",
-    "rompelo.observe-tests",
-    "rompelo.instrumento-tests",
-    "rompelo.portabilidad-tests",
-    "rompelo.sin-var-pegada",
-    "rompelo.ocr-review-tests",
     "rompelo.disparo-tests",
-    "rompelo.obliga-tests",
-    "rompelo.revisar-tests"
+    "rompelo.observe-tests"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:9e98e72595f888d8: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
+  "segunda_pasada": "revisión con manifiesto sobre v2:9973908a37e66696: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 0,
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.tests",
-      "rompelo.observe-tests",
-      "rompelo.instrumento-tests",
-      "rompelo.portabilidad-tests",
-      "rompelo.sin-var-pegada",
-      "rompelo.ocr-review-tests",
       "rompelo.disparo-tests",
-      "rompelo.obliga-tests",
-      "rompelo.revisar-tests"
+      "rompelo.observe-tests"
     ],
     "toca_junta": true,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-16T22:04:20+00:00"
+    "fecha": "2026-09-16T22:23:18+00:00"
   }
 }
