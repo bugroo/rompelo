@@ -1,33 +1,55 @@
 {
   "schema": 1,
-  "id": "OCR-TOPE-CP-2026-09-16",
+  "id": "CODEX-INC0036-20260916",
   "estado": "cerrada",
-  "base": "2c934e1a695d2b7352742f663d7aa3f676ad17aa",
-  "descripcion": "control positivo registrado para rompelo.ocr-review-tests: la batería contra el envoltorio con el tope anulado tiene que fallar exactamente en el caso del tope",
+  "base": "d4c761f2a7a2fa16d1ae58e8c43a9af10276075d",
+  "descripcion": "Códigos de salida de Codex con procedencia y correlación exacta; compatibilidad Claude y pruebas nativas",
   "scope_paths": [
-    "tests/control-positivo.py",
-    "checks/registry.json"
+    "bin/rompelo",
+    "tests/codex-status-test.py",
+    "tests/codex-native-test.py",
+    "tests/rompelo-observe-test.sh",
+    "docs/observacion.md",
+    "adapters/codex/LEEME.md",
+    "incidents/INC-2026-0036.yaml",
+    ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.ocr-review-tests",
+    "rompelo.observe-tests",
     "rompelo.tests",
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests",
     "rompelo.sin-var-pegada"
   ],
-  "toca_junta": false,
-  "exige_prueba_en_diff": false,
+  "toca_junta": true,
+  "exige_prueba_en_diff": true,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "Revisado el diff completo antes del commit: stdout no autoriza códigos de Codex; identidad completa, versión, rutas, límites, deduplicación, bloqueo por sesión y reconciliación en Stop. No se encontraron cambios ajenos al scope. Cinco checks repetidos en verde; cruce native-before-commit con 11 casos Codex y 9 Claude, un bloqueo real de Stop y cierre en cada cliente. Regresiones vistas en rojo y verde. GUI de Codex NO VERIFICADO por bloqueo de Computer Use. El problema de propiedad entre agentes queda registrado aparte para otro contrato.",
+  "afirmaciones": [
+    {
+      "texto": "Validación desde la app gráfica de Codex",
+      "estado": "no_verificado",
+      "falta": "Computer Use rechaza com.openai.codex por seguridad. Las sesiones nativas realizadas son de CLI; no se atribuyen a la interfaz gráfica."
+    }
+  ],
   "obligaciones_efectivas": {
-    "nivel": 0,
-    "perfiles": [],
+    "nivel": 2,
+    "perfiles": [
+      "auth",
+      "junta",
+      "secretos"
+    ],
     "permisos": [],
     "checks": [
-      "rompelo.ocr-review-tests",
+      "rompelo.observe-tests",
       "rompelo.tests",
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests",
       "rompelo.sin-var-pegada"
     ],
-    "toca_junta": false,
+    "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T18:57:06+00:00"
+    "fecha": "2026-09-16T17:37:30+00:00"
   }
 }
