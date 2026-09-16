@@ -66,10 +66,44 @@ def gate(tmp):
     return 2
 
 
+def ocr_review(tmp):
+    """El mismo instrumento (tests/ocr-review-test.sh) contra un envoltorio con el tope de tamaño anulado:
+    tiene que fallar solo en el caso del tope. Copia la batería a un árbol temporal porque la batería
+    localiza el envoltorio por su propia ruta (dirname/..)."""
+    original = RAIZ / "checks/ocr-review.py"
+    texto = original.read_text(encoding="utf-8")
+    antes, despues = "    if tope > 0:\n", "    if False:  # mutación de control positivo: tope anulado\n"
+    if texto.count(antes) != 1:
+        print("no pude aplicar exactamente una mutación del tope; no cuenta como hallazgo")
+        return 2
+    (tmp / "checks").mkdir()
+    (tmp / "tests").mkdir()
+    mutante = tmp / "checks/ocr-review.py"
+    mutante.write_text(texto.replace(antes, despues, 1), encoding="utf-8")
+    aplicado = mutante.read_text(encoding="utf-8")
+    assert antes not in aplicado and aplicado.count(despues) == 1 and aplicado != texto
+    for f in ("checks/ocr-control-positivo.py", "tests/ocr-review-test.sh"):
+        (tmp / f).write_text((RAIZ / f).read_text(encoding="utf-8"), encoding="utf-8")
+    r = correr(["bash", str(tmp / "tests/ocr-review-test.sh")], cwd=str(tmp))
+    resumen = re.findall(r"^(\d+) casos, (\d+) fallos$", r.stdout, re.M)
+    if len(resumen) != 1:
+        print("la batería no completó su recuento; instrumento no verificado")
+        return 2
+    vistos, fallos = map(int, resumen[0])
+    lineas_fallo = [l for l in r.stdout.splitlines() if l.startswith("FALLO")]
+    print(f"1 mutación del tope confirmada; batería {vistos} casos, {fallos} fallos")
+    if r.returncode == 0 and fallos == 0 and vistos > 0:
+        return 0
+    if r.returncode == 1 and fallos == 1 and len(lineas_fallo) == 1 and lineas_fallo[0].startswith("FALLO tope:"):
+        return 1
+    print("el fallo no es exclusivamente el del tope esperado; no cuenta como control detectado")
+    return 2
+
+
 def main():
-    modos = {"sin-var-pegada": variable_pegada, "gate": gate}
+    modos = {"sin-var-pegada": variable_pegada, "gate": gate, "ocr-review": ocr_review}
     if len(sys.argv) != 2 or sys.argv[1] not in modos:
-        print("uso: control-positivo.py sin-var-pegada|gate", file=sys.stderr)
+        print("uso: control-positivo.py sin-var-pegada|gate|ocr-review", file=sys.stderr)
         return 2
     try:
         with tempfile.TemporaryDirectory(prefix="rompelo-positivo-") as d:

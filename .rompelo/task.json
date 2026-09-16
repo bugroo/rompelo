@@ -1,13 +1,12 @@
 {
   "schema": 1,
-  "id": "OCR-TOPE-2026-09-16",
+  "id": "OCR-TOPE-CP-2026-09-16",
   "estado": "cerrada",
-  "base": "b0b0d0cd3a550eff1d0a211b4fff0107d7b5219b",
-  "descripcion": "checks/ocr-review.py: tope OCR_MAX_LINEAS (1500) antes de lanzar ocr; una pasada workspace de 1 800 líneas gastó 1,3 M tokens el 16-09",
+  "base": "2c934e1a695d2b7352742f663d7aa3f676ad17aa",
+  "descripcion": "control positivo registrado para rompelo.ocr-review-tests: la batería contra el envoltorio con el tope anulado tiene que fallar exactamente en el caso del tope",
   "scope_paths": [
-    "checks/ocr-review.py",
-    "tests/ocr-review-test.sh",
-    "docs/OCR.md"
+    "tests/control-positivo.py",
+    "checks/registry.json"
   ],
   "checks": [
     "rompelo.ocr-review-tests",
@@ -15,7 +14,7 @@
     "rompelo.sin-var-pegada"
   ],
   "toca_junta": false,
-  "exige_prueba_en_diff": true,
+  "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
   "obligaciones_efectivas": {
@@ -29,6 +28,6 @@
     ],
     "toca_junta": false,
     "toca_exterior": false,
-    "fecha": "2026-09-16T18:50:59+00:00"
+    "fecha": "2026-09-16T18:57:06+00:00"
   }
 }
