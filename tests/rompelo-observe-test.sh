@@ -6,6 +6,8 @@
 [ -x "$ROMPELO" ] || { echo "no existe $ROMPELO"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
+printf '{"defecto":"turno"}' > "$ROMPELO_HOME/config/disparo.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"   # esta batería usa el campo de texto; el manifiesto tiene la suya (rompelo-revisar-test.sh)   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
 export CODEX_HOME="$T/codex"; mkdir -p "$CODEX_HOME/sessions"
 printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
 R="$T/repo"; mkdir -p "$R/src" "$R/functions/api"; cd "$R" || exit 2
@@ -122,11 +124,11 @@ bash_ev $SID 'grep -rn foo src' 0 '' '' >/dev/null
 o="$(bash_ev $SID 'grep -rn bar src' 0 '' '')"; printf '%s' "$o" | grep -q 'sin salida' && ok "dos grep vacíos: aviso" || bad "verde ambiguo" "$o"
 
 echo "── umbrales: se leen de config/observacion.json (mutación 1 y 99)"
-reset_estado; nueva_sesion; printf '{"firma_repetida": 1}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "firma_repetida": 1}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1')"; printf '%s' "$o" | grep -q 'mismo error 1 veces' && ok "umbral 1: salta a la primera" || bad "umbral 1" "$o"
-reset_estado; nueva_sesion; printf '{"firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
 bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1' >/dev/null; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 2')"; [ -z "$o" ] && ok "umbral 99: no salta" || bad "umbral 99" "$o"
-rm "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── Claude Code de verdad: el fallo llega por PostToolUseFailure, no por PostToolUse (INC-0031)"
 reset_estado; nueva_sesion
@@ -179,14 +181,14 @@ o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
 printf '%s' "$o" | grep -q 'toca `auth`' && ok "escribir en src/auth dos veces sí dispara" || bad "sed auth" "$o"
 
 echo "── toques por perfil: se leen de config/observacion.json (mutación a 1 y a 3)"
-reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 1: salta al primer toque" || bad "toques 1" "$o"
-reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
 edit_ev $SID functions/api/x.ts >/dev/null; o="$(edit_ev $SID functions/api/x.ts)"; [ -z "$o" ] && ok "umbral 3: el segundo toque calla" || bad "toques 3" "$o"
 o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 3: el tercero salta" || bad "toques 3 tercero" "$o"
-reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(bash_ev $SID 'pnpm add left-pad' 0 'added 1 package' '')"; printf '%s' "$o" | grep -q 'toca `exterior`' && ok "excepción por perfil: exterior a un toque" || bad "excepción exterior" "$o"
-rm "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── Codex: una cadena JSON en stdout no proporciona un código de salida"
 reset_estado; nueva_sesion
@@ -341,11 +343,11 @@ R3="$T/otro-proyecto"; mkdir -p "$R3/src"; (cd "$R3" && git init -q && git confi
 (cd "$R3" && "$ROMPELO" init --id OTRO --check ok >/dev/null 2>&1)
 o="$(observar claude "$(python3 -c 'import json,sys;print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stdout":"","stderr":"Error: ajeno 1","exit_code":1}}))' $SA "$R3")")"
 nueva_sesion; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: ajeno 2')"; [ -z "$o" ] && ok "el fallo de OTRO proyecto no contamina: una sola vez aquí, silencio" || bad "contaminación entre proyectos" "$o"
-printf '{"ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto", "ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
 reset_estado; nueva_sesion; SA=$SID; nueva_sesion; SB=$SID
 bash_ev $SA 'pnpm test' 1 '' 'Error: sinventana 1' >/dev/null; o="$(bash_ev $SB 'pnpm test' 1 '' 'Error: sinventana 2')"
 [ -z "$o" ] && ok "ventana_horas: 0 apaga la mirada entre sesiones (configurable por instalación)" || bad "ventana 0" "$o"
-rm "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── state prune (RMP-013): retención comprobable, con previsualización y sin tocar evidencia ni estado del repo"
 reset_estado; nueva_sesion; bash_ev $SID 'git status' 0 'ok' '' >/dev/null

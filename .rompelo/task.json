@@ -1,30 +1,49 @@
 {
   "schema": 1,
-  "id": "CORPUS-PUBLICACION-20260916",
+  "id": "INTEGRACION-ENTREGA-20260917",
   "estado": "cerrada",
-  "base": "bad1fc22a4f4fdaa37f176e3461434078525bf75",
-  "descripcion": "Sincronizar las dos líneas derivadas de INC-0036 para publicar el cierre OCR con CI verde antes de PR 4",
+  "base": "e45d9506088645260b2db3872ec86e357a189375",
+  "descripcion": "Integrar main cerrado con PR 4 conservando OCR solo_local y las nueve baterías de entrega",
   "scope_paths": [
-    "corpus/TABLA.md",
+    "checks/registry.json",
+    "docs/OCR.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.sin-var-pegada"
+    "rompelo.tests",
+    "rompelo.observe-tests",
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests",
+    "rompelo.sin-var-pegada",
+    "rompelo.ocr-review-tests",
+    "rompelo.disparo-tests",
+    "rompelo.obliga-tests",
+    "rompelo.revisar-tests"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
-  "segunda_pasada": "Revisadas las dos líneas generadas de INC-0036 contra incidents/INC-2026-0036.yaml y contra el commit e45d950 de PR #4: corpus/TABLA.md coincide exactamente. El generador real procesa 48 incidentes y una segunda ejecución no altera el fichero preparado. Ningún cambio funcional ni de configuración; OCR-SOLO-LOCAL permanece cerrado en el commit padre bad1fc2 y sus evidencias originales. Este contrato independiente resuelve el hallazgo del corpus fuera del scope de OCR, conforme a la orden de publicar main en verde antes de PR #4.",
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "revisión con manifiesto sobre v2:9e98e72595f888d8: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 0,
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.sin-var-pegada"
+      "rompelo.tests",
+      "rompelo.observe-tests",
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests",
+      "rompelo.sin-var-pegada",
+      "rompelo.ocr-review-tests",
+      "rompelo.disparo-tests",
+      "rompelo.obliga-tests",
+      "rompelo.revisar-tests"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T21:56:46+00:00"
+    "exige_prueba_en_diff": false,
+    "obliga": {},
+    "fecha": "2026-09-16T22:04:20+00:00"
   }
 }

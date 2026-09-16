@@ -65,6 +65,15 @@ in two lines) and does not ask; spending on external checks (level 3) does: `rom
 <pattern> si|no --recordar` records your answer so you are asked once. Design and limits in
 [docs/observacion.md](observacion.md).
 
+## When the gate fires (2026-09-16)
+
+By default the gate is silent while the agent works and fires on delivery: `PreToolUse` denies commit, push
+and deploy commands while the contract is unmet, `UserPromptSubmit` declares the close when the user asks to
+finish, and `Stop` judges only once the close is declared. The previous per-turn behaviour is `turno`. Paths
+add obligations on their own (`config/obliga.json`, `.rompelo/obliga.json`), checks apply only to their paths
+(`afecta`), the level-2 second pass is a manifest (`rompelo revisar`), and security/bug/concurrency/memory/
+compat/data findings cannot be rejected from memory. All of it in [docs/disparo.md](disparo.md) (Spanish).
+
 ## What the gate enforces
 
 A repo opts in with `rompelo init`, which writes `.rompelo/task.json` and adds the repo to a local

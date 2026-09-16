@@ -58,7 +58,24 @@ posiciones 5/22/39, `--effort low`: 3/3, 0 falsos positivos, 35 s, 122k tokens.
 Coste estimado por corrida del banco a tarifas de Sonnet 5 (2/10 $ por millón, caché 0,2/2,5):
 0,4–0,5 $. Control positivo (`checks/ocr-control-positivo.py`, inyección SQL, effort low): 11 s.
 
+## Esfuerzo, presupuesto y tope (16-09-2026)
+
+- `OCR_EFFORT=auto|low|medium|high` (auto: `low` hasta `OCR_LINEAS_LOW=150` líneas cambiadas, `medium` por encima). Un
+  `--effort` pasado a mano al envoltorio manda.
+- `OCR_PRESUPUESTO_TOKENS` (600000; 0 = sin tope) → `--max-tokens-budget`. Si ocr lo agota deja ficheros en `warnings` y
+  el envoltorio devuelve 2 (cobertura incompleta), nunca 0.
+- `OCR_MAX_LINEAS` (1500; 0 = sin tope): por encima el envoltorio sale con 2 sin llamar a ocr.
+- `rompelo revisar` usa `ocr delegate rule` (sin LLM, 0 $) para poner las reglas por fichero en el manifiesto de la
+  segunda pasada; no sustituye a `ocr.review`, que es el par de ojos independiente.
+
 ## Límites
+
+- Tope de tamaño: `OCR_MAX_LINEAS` (1500 por defecto, `0` = sin tope) líneas añadidas+borradas por
+  pasada; por encima el envoltorio sale con 2 **antes** de llamar a ocr. Motivo medido el 16-09-2026: un
+  `verify --ci` en local con `ocr.review` en el contrato revisó en modo workspace 1 800 líneas que otro
+  agente había dejado en el árbol (45 llamadas, 1,3 M tokens, ~1,8 $) sin que nadie lo pidiera. Dos
+  lecciones más de ese día: `solo_local` en `ocr.review` para que `verify --ci` no lo repita, y un solo
+  agente por árbol de trabajo (el otro, en un worktree).
 
 - Recall no determinista: es un par de ojos más, no la prueba. Los checks de tests y el cruce de junta
   siguen siendo obligatorios.

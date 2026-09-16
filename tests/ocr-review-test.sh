@@ -50,6 +50,29 @@ printf '#!/bin/bash\nprintf %%s %q\n' "$J_OK" > "$TMP/bin/ocr"; chmod +x "$TMP/b
 pasadas="$(python3 -c "import json;print(' '.join(json.load(open('$TMP/repo/.rompelo/ocr-ultimo.json'))['pasadas']))")"
 case "$pasadas" in rango*) [ "$rc" = 0 ] && [[ "$pasadas" != *workspace* ]] && echo "OK   base != HEAD → solo pasada rango ($pasadas)" || { echo "FALLO rango: rc=$rc pasadas='$pasadas'"; fallos=$((fallos+1)); } ;;
   *) echo "FALLO no hubo pasada rango: '$pasadas'"; fallos=$((fallos+1)) ;; esac
+# tope de tamaño (OCR-9): 2000 líneas sin seguimiento no llegan a ocr → 2, y el falso NO se ejecuta
+seq 1 2000 > "$TMP/repo/grande.ts"
+printf '#!/bin/bash\ntouch %q\nprintf %%s %q\n' "$TMP/llamado" "$J_OK" > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
+rm -f "$TMP/llamado"; salida="$(cd "$TMP/repo" && PATH="$TMP/bin:$PATH" python3 "$RAIZ/checks/ocr-review.py" 2>&1)"; rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 2 ] && [ ! -e "$TMP/llamado" ] && [[ "$salida" == *"demasiado grande"* ]]; then echo "OK   2000 líneas > tope → 2 sin llamar a ocr"; else echo "FALLO tope: rc=$rc llamado=$([ -e "$TMP/llamado" ] && echo sí || echo no): $salida"; fallos=$((fallos+1)); fi
+# el tope se sube a sabiendas: OCR_MAX_LINEAS=0 lo quita y ocr sí corre
+rm -f "$TMP/llamado"; ( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" OCR_MAX_LINEAS=0 python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 0 ] && [ -e "$TMP/llamado" ]; then echo "OK   OCR_MAX_LINEAS=0 → sin tope, ocr llamado → 0"; else echo "FALLO sin tope: rc=$rc llamado=$([ -e "$TMP/llamado" ] && echo sí || echo no)"; fallos=$((fallos+1)); fi
+rm -f "$TMP/repo/grande.ts" "$TMP/llamado"
+# esfuerzo y presupuesto: el falso apunta su argv; diff pequeño → --effort low y --max-tokens-budget 600000
+printf '#!/bin/bash\nprintf %%s "$*" > %q\nprintf %%s %q\n' "$TMP/args" "$J_OK" > "$TMP/bin/ocr"; chmod +x "$TMP/bin/ocr"
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 0 ] && grep -q -- '--effort low' "$TMP/args" && grep -q -- '--max-tokens-budget 600000' "$TMP/args"; then echo "OK   diff pequeño → --effort low + presupuesto 600000"; else echo "FALLO ajustes por defecto: rc=$rc argv=$(cat "$TMP/args" 2>/dev/null)"; fallos=$((fallos+1)); fi
+seq 1 200 > "$TMP/repo/mediano.ts"
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 0 ] && grep -q -- '--effort medium' "$TMP/args"; then echo "OK   200 líneas → --effort medium"; else echo "FALLO effort auto mediano: rc=$rc argv=$(cat "$TMP/args" 2>/dev/null)"; fallos=$((fallos+1)); fi
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" OCR_EFFORT=high OCR_PRESUPUESTO_TOKENS=0 python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 0 ] && grep -q -- '--effort high' "$TMP/args" && ! grep -q -- '--max-tokens-budget' "$TMP/args"; then echo "OK   OCR_EFFORT=high y presupuesto 0 → sin --max-tokens-budget"; else echo "FALLO effort fijo / sin presupuesto: rc=$rc argv=$(cat "$TMP/args" 2>/dev/null)"; fallos=$((fallos+1)); fi
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" python3 "$RAIZ/checks/ocr-review.py" --effort medium >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+if [ "$rc" = 0 ] && [ "$(grep -o -- '--effort' "$TMP/args" | wc -l | tr -d ' ')" = 1 ]; then echo "OK   --effort pasado a mano no se duplica"; else echo "FALLO effort duplicado: rc=$rc argv=$(cat "$TMP/args" 2>/dev/null)"; fallos=$((fallos+1)); fi
+( cd "$TMP/repo" && PATH="$TMP/bin:$PATH" OCR_EFFORT=turbo python3 "$RAIZ/checks/ocr-review.py" >/dev/null 2>&1 ); rc=$?; vistos=$((vistos+1))
+[ "$rc" = 2 ] && echo "OK   OCR_EFFORT inválido → 2" || { echo "FALLO OCR_EFFORT inválido → $rc"; fallos=$((fallos+1)); }
+rm -f "$TMP/repo/mediano.ts" "$TMP/args"
 # comments: null explícito no revienta (OCR-5)
 caso "comments null → 0, no TypeError" 0 0 '{"status":"complete","llm":{"model":"falso"},"summary":{"files_reviewed":1,"total_tokens":1},"comments":null}'
 # hallazgo grave sin path ni content → sigue siendo 1, no 2 por KeyError (OCR-8)

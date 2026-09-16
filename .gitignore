@@ -7,3 +7,5 @@ config/riesgo.local.json
 *.lock
 config/permisos.json
 .rompelo/ocr-ultimo.json
+config/disparo.local.json
+config/obliga.local.json

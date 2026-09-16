@@ -1,175 +1,255 @@
 {
-  "_ayuda": "Único sitio con comandos. El contrato solo lleva ids. argv se ejecuta sin shell; cwd: repo | rompelo. Tus checks propios van en registry.local.json (sin versionar), mismo formato.",
-  "rompelo.tests": {
-    "argv": [
-      "bash",
-      "tests/rompelo-stop-test.sh"
-    ],
-    "cwd": "rompelo",
-    "descripcion": "batería del gate, vista en rojo y en verde",
-    "min_lineas": 10,
-    "triestado": true,
-    "control_positivo": {
-      "argv": [
-        "python3",
-        "tests/control-positivo.py",
-        "gate"
-      ],
-      "cwd": "rompelo"
-    },
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+ "_ayuda": "Único sitio con comandos. El contrato solo lleva ids. argv se ejecuta sin shell; cwd: repo | rompelo. Tus checks propios van en registry.local.json (sin versionar), mismo formato.",
+ "rompelo.tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-stop-test.sh"
+  ],
+  "cwd": "rompelo",
+  "descripcion": "batería del gate, vista en rojo y en verde",
+  "min_lineas": 10,
+  "triestado": true,
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "gate"
+   ],
+   "cwd": "rompelo"
   },
-  "rompelo.cruce-settings-claude": {
-    "argv": [
-      "bash",
-      "tests/cruce-settings-claude.sh"
-    ],
-    "cwd": "rompelo",
-    "descripcion": "ejecuta la línea Stop tal cual está en settings.json",
-    "min_lineas": 1,
-    "solo_local": true,
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.cruce-settings-claude": {
+  "argv": [
+   "bash",
+   "tests/cruce-settings-claude.sh"
+  ],
+  "cwd": "rompelo",
+  "descripcion": "ejecuta la línea Stop tal cual está en settings.json",
+  "min_lineas": 1,
+  "solo_local": true,
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.sin-var-pegada": {
+  "argv": [
+   "bash",
+   "tests/sin-var-pegada.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 1,
+  "triestado": true,
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "sin-var-pegada"
+   ],
+   "cwd": "rompelo"
   },
-  "rompelo.sin-var-pegada": {
-    "argv": [
-      "bash",
-      "tests/sin-var-pegada.sh"
-    ],
-    "cwd": "rompelo",
-    "min_lineas": 1,
-    "triestado": true,
-    "control_positivo": {
-      "argv": [
-        "python3",
-        "tests/control-positivo.py",
-        "sin-var-pegada"
-      ],
-      "cwd": "rompelo"
-    },
-    "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+  "descripcion": "variable pegada a multibyte en guiones; triestado (INC-0021)",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.observe-tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-observe-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "descripcion": "batería de la capa de observación",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.control-negativo-sesiones": {
+  "argv": [
+   "python3",
+   "tests/control-negativo-sesiones.py",
+   "--sesiones",
+   "5",
+   "--max-eventos",
+   "600",
+   "--ids",
+   "49be3266,7ae11a81,9b2dd868,22029fbd,26f64f68",
+   "--alarmas-esperadas",
+   "2"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "solo_local": true,
+  "_nota": "control negativo del observador con 5 sesiones reales de esta máquina (transcripts locales); las 2 alarmas esperadas son verdaderas (dos grep vacíos; un .astro editado 4 veces sin check). Solo local: en CI no hay transcripts.",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.instrumento-tests": {
+  "argv": [
+   "bash",
+   "tests/instrumento-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.portabilidad-tests": {
+  "argv": [
+   "bash",
+   "tests/portabilidad-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "ocr.review": {
+  "argv": [
+   "ocr-rompelo"
+  ],
+  "cwd": "repo",
+  "triestado": true,
+  "min_lineas": 1,
+  "timeout": 1800,
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "checks/ocr-control-positivo.py"
+   ],
+   "cwd": "rompelo"
   },
-  "rompelo.observe-tests": {
-    "argv": [
-      "bash",
-      "tests/rompelo-observe-test.sh"
-    ],
-    "cwd": "rompelo",
-    "min_lineas": 10,
-    "descripcion": "batería de la capa de observación",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+  "descripcion": "revisión LLM del diff de la tarea con ocr (alibaba/open-code-review) vía checks/ocr-review.py: 0 sin hallazgos >= OCR_UMBRAL (medium) · 1 hallazgos, cada uno con disposición · 2 no pudo mirar (sin ocr, sin ficheros, subagente caído). ocr solo devuelve 0, el código lo pone el envoltorio. ~/bin/ocr-rompelo → checks/ocr-review.py",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ],
+  "solo_local": true
+ },
+ "rompelo.ocr-review-tests": {
+  "argv": [
+   "bash",
+   "tests/ocr-review-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 5,
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "ocr-review"
+   ],
+   "cwd": "rompelo"
   },
-  "rompelo.control-negativo-sesiones": {
-    "argv": [
-      "python3",
-      "tests/control-negativo-sesiones.py",
-      "--sesiones",
-      "5",
-      "--max-eventos",
-      "600",
-      "--ids",
-      "49be3266,7ae11a81,9b2dd868,22029fbd,26f64f68",
-      "--alarmas-esperadas",
-      "2"
-    ],
-    "cwd": "rompelo",
-    "min_lineas": 10,
-    "solo_local": true,
-    "_nota": "control negativo del observador con 5 sesiones reales de esta máquina (transcripts locales); las 2 alarmas esperadas son verdaderas (dos grep vacíos; un .astro editado 4 veces sin check). Solo local: en CI no hay transcripts.",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+  "descripcion": "batería del envoltorio de ocr con un ocr falso (sin LLM); vista en rojo con dos mutantes el 16-09-2026",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.disparo-tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-disparo-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "triestado": true,
+  "descripcion": "batería del disparo: PreToolUse deniega commit/push/deploy con el contrato sin cumplir; Stop solo con cierre declarado (entrega) o en cada turno (turno); vista en rojo y en verde",
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "disparo"
+   ],
+   "cwd": "rompelo"
   },
-  "rompelo.instrumento-tests": {
-    "argv": [
-      "bash",
-      "tests/instrumento-test.sh"
-    ],
-    "cwd": "rompelo",
-    "min_lineas": 10,
-    "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.obliga-tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-obliga-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "triestado": true,
+  "descripcion": "batería de afecta (un check solo aplica y solo caduca por sus rutas) y obliga (las rutas cambiadas añaden checks, junta y prueba al contrato efectivo); vista en rojo y en verde",
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "obliga"
+   ],
+   "cwd": "rompelo"
   },
-  "rompelo.portabilidad-tests": {
-    "argv": [
-      "bash",
-      "tests/portabilidad-test.sh"
-    ],
-    "cwd": "rompelo",
-    "min_lineas": 10,
-    "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
+ "rompelo.revisar-tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-revisar-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "triestado": true,
+  "descripcion": "batería de `rompelo revisar`: a nivel ≥ 2 el gate exige un manifiesto cerrado sobre la huella actual (cobertura completa, hallazgos al contrato); vista en rojo y en verde",
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "revisar"
+   ],
+   "cwd": "rompelo"
   },
-  "ocr.review": {
-    "argv": [
-      "ocr-rompelo"
-    ],
-    "cwd": "repo",
-    "solo_local": true,
-    "triestado": true,
-    "min_lineas": 1,
-    "timeout": 1800,
-    "control_positivo": {
-      "argv": [
-        "python3",
-        "checks/ocr-control-positivo.py"
-      ],
-      "cwd": "rompelo"
-    },
-    "descripcion": "revisión LLM del diff de la tarea con ocr (alibaba/open-code-review) vía checks/ocr-review.py: 0 sin hallazgos >= OCR_UMBRAL (medium) · 1 hallazgos, cada uno con disposición · 2 no pudo mirar (sin ocr, sin ficheros, subagente caído). ocr solo devuelve 0, el código lo pone el envoltorio. ~/bin/ocr-rompelo → checks/ocr-review.py",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
-  },
-  "rompelo.ocr-review-tests": {
-    "argv": [
-      "bash",
-      "tests/ocr-review-test.sh"
-    ],
-    "cwd": "rompelo",
-    "min_lineas": 5,
-    "descripcion": "batería del envoltorio de ocr con un ocr falso (sin LLM); vista en rojo con dos mutantes el 16-09-2026",
-    "no_afecta": [
-      "docs/**",
-      "*.md",
-      "corpus/**",
-      "incidents/**"
-    ]
-  }
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ }
 }
