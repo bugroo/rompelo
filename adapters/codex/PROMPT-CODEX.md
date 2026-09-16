@@ -251,8 +251,9 @@ Los mismos límites de la Parte 4: ni `bin/rompelo`, ni `tests/`, ni `~/.claude/
 
 Lee `docs/disparo.md` y `adapters/codex/LEEME.md` (cabecera del 16-09). Lo nuevo que solo tú puedes cruzar es
 que un cliente Codex REAL reciba el deny de PreToolUse, el contexto de UserPromptSubmit y el silencio de Stop.
-Trabaja en un worktree (`git -C ~/rompelo worktree add ~/rompelo-wt-codex-6 main` una vez fusionada la rama);
-abre tu contrato con `rompelo init --force --id ROMPELO-CODEX-06 --scope adapters/codex/** --scope docs/observacion.md
+Trabaja en un worktree (`git -C ~/rompelo worktree add -b codex/rompelo-codex-06 ~/rompelo-wt-codex-6 main` una vez fusionada la rama;
+usa otro nombre de rama si ya existe, porque `main` está ocupado por el checkout principal);
+abre tu contrato con `rompelo init --force --id ROMPELO-CODEX-06 --scope 'adapters/codex/**' --scope docs/observacion.md
 --scope .rompelo/task.json --check rompelo.disparo-tests --check rompelo.observe-tests --junta`.
 
 1. **Instalar los hooks.** Fusiona en `~/.codex/hooks.json` las entradas `PreToolUse`, `UserPromptSubmit`, `Stop` y
