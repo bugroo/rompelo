@@ -163,6 +163,14 @@
     ],
     "cwd": "rompelo",
     "min_lineas": 5,
+    "control_positivo": {
+      "argv": [
+        "python3",
+        "tests/control-positivo.py",
+        "ocr-review"
+      ],
+      "cwd": "rompelo"
+    },
     "descripcion": "batería del envoltorio de ocr con un ocr falso (sin LLM); vista en rojo con dos mutantes el 16-09-2026",
     "no_afecta": [
       "docs/**",

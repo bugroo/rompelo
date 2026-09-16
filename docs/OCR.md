@@ -58,6 +58,13 @@ Coste estimado por corrida del banco a tarifas de Sonnet 5 (2/10 $ por millón, 
 
 ## Límites
 
+- Tope de tamaño: `OCR_MAX_LINEAS` (1500 por defecto, `0` = sin tope) líneas añadidas+borradas por
+  pasada; por encima el envoltorio sale con 2 **antes** de llamar a ocr. Motivo medido el 16-09-2026: un
+  `verify --ci` en local con `ocr.review` en el contrato revisó en modo workspace 1 800 líneas que otro
+  agente había dejado en el árbol (45 llamadas, 1,3 M tokens, ~1,8 $) sin que nadie lo pidiera. Dos
+  lecciones más de ese día: `solo_local` en `ocr.review` para que `verify --ci` no lo repita, y un solo
+  agente por árbol de trabajo (el otro, en un worktree).
+
 - Recall no determinista: es un par de ojos más, no la prueba. Los checks de tests y el cruce de junta
   siguen siendo obligatorios.
 - Tests excluidos por defecto (`**/*.test.ts`, `*_test.go`…): `include` en `rule.json` si se quieren.

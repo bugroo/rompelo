@@ -11,6 +11,9 @@ check incapaz de fallar. Este envoltorio lee su JSON y decide:
 Qué revisa: lo que difiere de la base del contrato (.rompelo/task.json → base). Si la base no es
 HEAD, rango base..HEAD; si el árbol tiene cambios sin commitear, además modo workspace. Sin
 contrato: solo workspace. Umbral: OCR_UMBRAL=critical|high|medium|low (defecto medium).
+Tope de tamaño: OCR_MAX_LINEAS (defecto 1500, 0 = sin tope) líneas añadidas+borradas por pasada; por encima
+sale con 2 ANTES de llamar a ocr. Medido el 16-09-2026: una pasada workspace sobre 1 800 líneas ajenas
+(el árbol lo había ensuciado otro agente) costó 1,3 M tokens sin que nadie lo pidiera.
 Cualquier argumento extra se pasa a `ocr review` (p. ej. --effort high, --background "...").
 Siempre excluye .rompelo/** y .opencodereview/**: medido el 16-09-2026, sin eso ocr revisaba su propia salida.
 """
@@ -32,6 +35,26 @@ def git(*a):
 def salir(codigo, msg):
     print(msg)
     sys.exit(codigo)
+
+
+def lineas_diff(root, rango):
+    """Líneas añadidas+borradas que ocr va a leer en una pasada. rango=[base, head] o None para
+    workspace (HEAD..árbol más los ficheros sin seguimiento). .rompelo/ y .opencodereview/ no cuentan."""
+    n = 0
+    out = git("diff", "--numstat", *(rango or ["HEAD"]), "--", ".", ":(exclude).rompelo", ":(exclude).opencodereview").stdout
+    for l in out.splitlines():
+        p = l.split("\t")
+        if len(p) >= 3 and p[0].isdigit() and p[1].isdigit():  # binarios salen como "-\t-": no cuentan
+            n += int(p[0]) + int(p[1])
+    if not rango:
+        for l in git("status", "--porcelain", "--untracked-files=all").stdout.splitlines():
+            if l.startswith("??") and not l[3:].startswith((".rompelo/", ".opencodereview/")):
+                try:
+                    with open(os.path.join(root, l[3:]), "rb") as f:
+                        n += sum(1 for _ in f)
+                except OSError:
+                    pass
+    return n
 
 
 def correr_ocr(args, etiqueta):
@@ -80,6 +103,17 @@ def main():
         pasadas.append((["--from", base, "--to", head], f"rango {base[:7]}..{head[:7]}"))
     if sucio or not pasadas:
         pasadas.append(([], "workspace"))
+
+    try:
+        tope = int(os.environ.get("OCR_MAX_LINEAS", "1500") or 0)
+    except ValueError:
+        salir(2, f"OCR_MAX_LINEAS inválido: {os.environ.get('OCR_MAX_LINEAS')!r}")
+    if tope > 0:
+        for args, etiqueta in pasadas:
+            n = lineas_diff(root, [args[1], args[3]] if args else None)
+            if n > tope:
+                salir(2, f"diff demasiado grande para ocr: {n} líneas en la pasada {etiqueta} > OCR_MAX_LINEAS={tope}; "
+                         "pásalo por partes (commits más pequeños, árbol limpio de cambios ajenos) o sube el tope a sabiendas")
 
     comentarios, ficheros, tokens, avisos, modelo = [], 0, 0, [], None
     for args, etiqueta in pasadas:
