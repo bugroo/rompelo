@@ -1,0 +1,28 @@
+{
+  "_ayuda": "Cuándo juzga la puerta (docs/disparo.md). `defecto`: entrega | turno. entrega = la puerta salta al ENTREGAR: en PreToolUse cuando el comando casa con `entrega` (commit, push, deploy…), y en Stop solo cuando el cierre está declarado (el usuario lo pidió con una frase de `cierre`, o `rompelo close` falló). turno = la puerta salta al final de cada turno (comportamiento hasta el 16-09-2026). Las expresiones son regulares de Python sobre el comando entero o sobre el prompt del usuario, sin distinguir mayúsculas. `por_repo`: ruta real del repo → {defecto, entrega, cierre} que sustituyen a los globales para ese repo. El contrato puede fijar `disparo` y manda sobre todo esto.",
+  "defecto": "entrega",
+  "entrega": [
+    "(^|[;&|(]\\s*)git\\s+(-C\\s+\\S+\\s+)?(commit|push|merge)\\b",
+    "(^|[;&|(]\\s*)gh\\s+pr\\s+(create|merge)\\b",
+    "\\bwrangler\\s+(deploy|publish|pages\\s+deploy|versions\\s+upload)\\b",
+    "scripts?/desplegar",
+    "(^|[;&|(]\\s*)(bash|sh)\\s+\\S*deploy",
+    "\\b(pnpm|npm|yarn)\\s+(run\\s+)?(deploy|publish|release)\\b",
+    "\\bcargo\\s+publish\\b",
+    "docker\\s+compose\\s+up\\b",
+    "\\bsystemctl\\s+(restart|reload)\\b",
+    "\\bkubectl\\s+apply\\b",
+    "\\bterraform\\s+apply\\b",
+    "\\bfly\\s+deploy\\b",
+    "\\bvercel\\s+(deploy|--prod)\\b",
+    "\\bnetlify\\s+deploy\\b"
+  ],
+  "cierre": [
+    "^\\s*(termina|terminar|terminamos|cierra|cerrar|cerramos|finaliza|finalizar|entrega|entregar|despliega|desplegar|sube|subir|súbelo|publica|publicar|commitea|commit|push|deploy|ship|finish|finalize|wrap\\s+up|close\\s+(it|this|the\\s+task)|release)\\b",
+    "\\b(haz|hacer|dale|dame)\\s+(el\\s+|un\\s+)?(commit|push|deploy|merge)\\b",
+    "\\b(a|para)\\s+(producci[oó]n|prod)\\b",
+    "\\b(cierra|cerrar|termina|terminar)\\s+(la\\s+)?tarea\\b",
+    "\\brompelo\\s+close\\b"
+  ],
+  "por_repo": {}
+}

@@ -6,6 +6,9 @@
 [ -x "$ROMPELO" ] || { echo "no existe $ROMPELO"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
+printf '{"defecto":"turno"}' > "$ROMPELO_HOME/config/disparo.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"   # esta batería usa el campo de texto; el manifiesto tiene la suya (rompelo-revisar-test.sh)   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
+export CODEX_HOME="$T/codex"; mkdir -p "$CODEX_HOME/sessions"
 printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
 R="$T/repo"; mkdir -p "$R/src" "$R/functions/api"; cd "$R" || exit 2
 git init -q && git config user.email t@t && git config user.name t && echo a > src/a.txt && git add -A && git commit -qm base
@@ -14,9 +17,18 @@ SES=0
 nueva_sesion() { SES=$((SES+1)); SID="s$SES"; }
 # bash <sid> <comando> <codigo> <stdout> <stderr>  → salida del hook
 bash_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" "$3" "$4" "$5" <<'PY'
-import json,sys
+import json,sys,os,uuid
 sid,cwd,cmd,code,out,err=sys.argv[1:7]
-print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"exit_code":int(code)}}))
+ev={"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":cmd},"tool_response":{"stdout":out,"stderr":err,"exit_code":int(code)}}
+if os.environ.get('AGENTE') == 'codex':
+    ident='exec-'+str(uuid.uuid4()); path=os.path.realpath(os.path.join(os.environ['CODEX_HOME'],'sessions',sid+'.jsonl'))
+    rows=[] if os.path.exists(path) else [{'type':'session_meta','payload':{'id':sid,'cli_version':'0.154.0'}}]
+    rows.append({'type':'event_msg','payload':{'type':'item_completed','thread_id':sid,'turn_id':'turn-test',
+            'item':{'type':'CommandExecution','id':ident,'status':'failed' if int(code) else 'completed','exit_code':int(code)}}})
+    with open(path,'a') as f:
+        for row in rows: f.write(json.dumps(row)+'\n')
+    ev.update(tool_response=out+err,tool_use_id=ident,turn_id='turn-test',transcript_path=path)
+print(json.dumps(ev))
 PY
 )"; }
 edit_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" <<'PY'
@@ -62,6 +74,7 @@ o1="$(bash_ev $SID 'pnpm test' 1 '' 'Error: expected 200 got 500 at line 41')"
 o2="$(bash_ev $SID 'pnpm test' 1 '' 'Error: expected 200 got 503 at line 97')"
 printf '%s' "$o2" | grep -q 'el mismo error 2 veces' && printf '%s' "$o2" | grep -q additionalContext && ok "segundo fallo con la misma firma: aviso" || bad "firma repetida" "$o2"
 [ "$(nivel)" = 2 ] && ok "nivel del repo = 2" || bad "nivel" "$(nivel)"
+python3 -c "import json,glob;d=json.load(open(glob.glob('$ROMPELO_HOME/state/repos/*.json')[0]));assert d.get('nivel_desde','')[:2]=='20',d" && ok "al subir a 2 el estado deja escrito desde cuándo (nivel_desde)" || bad "nivel_desde al subir"
 o3="$(bash_ev $SID 'pnpm test' 1 '' 'Error: expected 200 got 500 at line 41')"
 [ -z "$o3" ] && ok "tercer fallo: el aviso no se repite en la sesión" || bad "aviso repetido" "$o3"
 o4="$(bash_ev $SID 'git push' 1 '' 'fatal: could not read from remote')"
@@ -112,11 +125,11 @@ bash_ev $SID 'grep -rn foo src' 0 '' '' >/dev/null
 o="$(bash_ev $SID 'grep -rn bar src' 0 '' '')"; printf '%s' "$o" | grep -q 'sin salida' && ok "dos grep vacíos: aviso" || bad "verde ambiguo" "$o"
 
 echo "── umbrales: se leen de config/observacion.json (mutación 1 y 99)"
-reset_estado; nueva_sesion; printf '{"firma_repetida": 1}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "firma_repetida": 1}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1')"; printf '%s' "$o" | grep -q 'mismo error 1 veces' && ok "umbral 1: salta a la primera" || bad "umbral 1" "$o"
-reset_estado; nueva_sesion; printf '{"firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
 bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1' >/dev/null; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 2')"; [ -z "$o" ] && ok "umbral 99: no salta" || bad "umbral 99" "$o"
-rm "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── Claude Code de verdad: el fallo llega por PostToolUseFailure, no por PostToolUse (INC-0031)"
 reset_estado; nueva_sesion
@@ -169,16 +182,16 @@ o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
 printf '%s' "$o" | grep -q 'toca `auth`' && ok "escribir en src/auth dos veces sí dispara" || bad "sed auth" "$o"
 
 echo "── toques por perfil: se leen de config/observacion.json (mutación a 1 y a 3)"
-reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 1: salta al primer toque" || bad "toques 1" "$o"
-reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
 edit_ev $SID functions/api/x.ts >/dev/null; o="$(edit_ev $SID functions/api/x.ts)"; [ -z "$o" ] && ok "umbral 3: el segundo toque calla" || bad "toques 3" "$o"
 o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 3: el tercero salta" || bad "toques 3 tercero" "$o"
-reset_estado; nueva_sesion; printf '{"toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(bash_ev $SID 'pnpm add left-pad' 0 'added 1 package' '')"; printf '%s' "$o" | grep -q 'toca `exterior`' && ok "excepción por perfil: exterior a un toque" || bad "excepción exterior" "$o"
-rm "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
 
-echo "── Codex: si tool_response fuera una cadena JSON {output, metadata:{exit_code}}, se abre (forma admitida, no la medida)"
+echo "── Codex: una cadena JSON en stdout no proporciona un código de salida"
 reset_estado; nueva_sesion
 observar codex "$(python3 - $SID "$R" <<'PY'
 import json,sys
@@ -187,7 +200,7 @@ resp=json.dumps({"output":"ls: /no-existe: No such file or directory","metadata"
 print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls /no-existe"},"tool_response":resp}))
 PY
 )" >/dev/null
-tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 1' && ok "el código sale de metadata.exit_code dentro de la cadena JSON" || bad "codex str json" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": null' && ok "metadata.exit_code dentro de stdout no es un código fiable" || bad "codex str json"
 observar codex "$(python3 - $SID "$R" <<'PY'
 import json,sys
 sid,cwd=sys.argv[1:3]
@@ -195,9 +208,9 @@ resp=json.dumps({"output":"hola\n","metadata":{"exit_code":0,"duration_seconds":
 print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"echo hola"},"tool_response":resp}))
 PY
 )" >/dev/null
-tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": 0' && tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"stdout_vacio": false' && ok "y con 0 la salida cuenta como salida (no como cadena opaca)" || bad "codex str json 0" "$(tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl")"
+tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"codigo": null' && tail -1 "$ROMPELO_HOME/state/sesiones/codex-$SID.jsonl" | grep -q '"stdout_vacio": false' && ok "el JSON sigue siendo salida; su cero no autoriza un verde" || bad "codex str json 0"
 
-echo "── Codex de verdad (medido con codex exec, 05-09): tool_response es SOLO el texto que el modelo imprimió, sin código de salida"
+echo "── Codex: tool_response contiene salida del proceso; sin transcript el código es desconocido"
 reset_estado; nueva_sesion
 codex_txt() { observar codex "$(python3 - "$1" "$R" "$2" "$3" <<'PY'
 import json,sys
@@ -331,11 +344,11 @@ R3="$T/otro-proyecto"; mkdir -p "$R3/src"; (cd "$R3" && git init -q && git confi
 (cd "$R3" && "$ROMPELO" init --id OTRO --check ok >/dev/null 2>&1)
 o="$(observar claude "$(python3 -c 'import json,sys;print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stdout":"","stderr":"Error: ajeno 1","exit_code":1}}))' $SA "$R3")")"
 nueva_sesion; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: ajeno 2')"; [ -z "$o" ] && ok "el fallo de OTRO proyecto no contamina: una sola vez aquí, silencio" || bad "contaminación entre proyectos" "$o"
-printf '{"ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto", "ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
 reset_estado; nueva_sesion; SA=$SID; nueva_sesion; SB=$SID
 bash_ev $SA 'pnpm test' 1 '' 'Error: sinventana 1' >/dev/null; o="$(bash_ev $SB 'pnpm test' 1 '' 'Error: sinventana 2')"
 [ -z "$o" ] && ok "ventana_horas: 0 apaga la mirada entre sesiones (configurable por instalación)" || bad "ventana 0" "$o"
-rm "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── state prune (RMP-013): retención comprobable, con previsualización y sin tocar evidencia ni estado del repo"
 reset_estado; nueva_sesion; bash_ev $SID 'git status' 0 'ok' '' >/dev/null
@@ -373,7 +386,7 @@ reset_estado; nueva_sesion; "$ROMPELO" permiso herramientas-externas si >/dev/nu
 python3 - <<'PY'
 import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='';json.dump(c,open(f,'w'))
 PY
-out="$(hook $SID)"; printf '%s' "$out" | grep -q 'observación: nivel 3 (por permiso' && ! printf '%s' "$out" | grep -q 'nivel 2 ()' && ok "nivel 3 por permiso sin patrones: el motivo dice nivel 3 y por qué, no «nivel 2 ()»" || bad "motivo nivel por permiso" "$out"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'el repo está en nivel 3 desde [0-9][0-9]-[0-9][0-9]-20[0-9][0-9] (sin perfiles; por permiso, sin patrones)' && ! printf '%s' "$out" | grep -q 'nivel 2 ()\|desde una tarea anterior' && ok "nivel 3 por permiso sin patrones: el motivo dice nivel 3 y por qué, no «nivel 2 ()»" || bad "motivo nivel por permiso" "$out"
 python3 - <<'PY'
 import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='revisado';json.dump(c,open(f,'w'))
 PY
@@ -445,4 +458,5 @@ for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
 bash_ev $SID 'uv pip list' 0 'ok' '' >/dev/null
 o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "control: «uv pip list» no es un check y el aviso salta" || bad "uv pip list contó como check" "$o"
 
+python3 "$LIB_DIR/codex-status-test.py" && ok "INC-0036: procedencia, correlación, concurrencia y Stop" || bad "INC-0036"
 rm -rf "$T"; resumen

@@ -8,6 +8,8 @@ ASSURE="$ROMPELO"; export ROMPELO_BIN_PARA_PY="$ROMPELO"
 [ -x "$ASSURE" ] || { echo "no existe $ASSURE"; exit 2; }
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
+printf '{"defecto":"turno"}' > "$ROMPELO_HOME/config/disparo.json"   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
+printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"   # y la segunda pasada de texto; el manifiesto tiene la suya (rompelo-revisar-test.sh)
 CANARY="$T/canario"
 cat > "$ROMPELO_HOME/checks/registry.json" <<J
 {"ok": {"argv": ["true"]}, "ko": {"argv": ["false"]}, "hay-a": {"argv": ["test", "-f", "src/a.txt"]},
@@ -116,6 +118,12 @@ contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresio
 espera_paso "confirmado con prueba del diff, rechazado con motivo, aceptado con nota: verde" s6i
 contrato 'hallazgos=[{"id":"H3","texto":"z","disposicion":"confirmado","regresion":"ok"}]'
 espera_paso "confirmado con un check del registro como regresión: verde" s6j
+contrato 'hallazgos=[{"id":"H6","texto":"inyección","categoria":"security","disposicion":"rechazado","motivo":"falso positivo"}]'
+espera_bloqueo "categoría protegida rechazada sin comprobado bloquea" s7c "hallazgo H6 (security) rechazado sin \`comprobado\`"
+contrato 'hallazgos=[{"id":"H6","texto":"inyección","categoria":"security","disposicion":"rechazado","motivo":"falso positivo","comprobado":"la entrada pasa por Prisma parametrizado (src/db.ts:12) y lo cubre tests/a.test.txt"}]'
+out="$(hook claude s7d "$R")"; printf '%s' "$out" | grep -q 'H6' && bad "protegida con comprobado aún bloquea" "$out" || ok "categoría protegida rechazada CON comprobado pasa"
+contrato 'hallazgos=[{"id":"H7","texto":"nombre feo","categoria":"style","disposicion":"rechazado","motivo":"es el estilo de la casa"}]'
+out="$(hook claude s7e "$R")"; printf '%s' "$out" | grep -q 'H7' && bad "categoría no protegida exigió comprobado" "$out" || ok "categoría no protegida se rechaza solo con motivo"
 contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado","motivo":"x"},{"id":"H2","disposicion":"aceptado","nota":"y"}]'
 
 echo "── mutación D: fichero fuera de scope"
@@ -652,6 +660,19 @@ contrato 'estado="abierta"' 'checks=["escribe"]' 'toca_junta=false'
 espera_bloqueo "y el Stop lo ve sobre otro árbol: la evidencia es de ANTES del check" n14 'sobre otro árbol'
 contrato 'checks=["ok"]'
 "$ASSURE" check > "$T/esc.txt" 2>&1; grep -q 'cambió el árbol' "$T/esc.txt" && bad "aviso sin motivo" "$(cat "$T/esc.txt")" || ok "un check que no toca nada: sin aviso"
+
+echo "── los motivos que salen del estado del repo dicen de dónde vienen y desde cuándo, no «la tarea» (17-09)"
+contrato 'estado="abierta"' 'checks=["ok"]' 'toca_junta=false' 'segunda_pasada=""'
+printf '{"nivel": 2, "perfiles": ["auth", "junta", "secretos"], "patrones": ["firma-repetida", "verde-ambiguo"], "nivel_desde": "2026-09-04T10:00:00+00:00", "fecha": "2026-09-16T13:21:10+00:00"}' > "$EST"   # $EST es el estado de $R5, el repo actual
+"$ASSURE" check >/dev/null; rm -f .rompelo/evidence/T1/cruce.json
+out="$(hook claude me1 "$R")"
+es_bloqueo "$out" 'el repo está en nivel 2 desde 04-09-2026 (perfiles auth, junta, secretos; patrones firma-repetida, verde-ambiguo): hace falta segunda pasada' && ok "nivel 2: el motivo dice que es el repo, desde cuándo, perfiles y patrones" || bad "motivo de nivel" "$out"
+es_bloqueo "$out" 'el repo tiene perfil `junta` desde 04-09-2026: hace falta cruce real aunque el contrato diga toca_junta: false' && ok "perfil junta: el motivo dice que es el repo y desde cuándo, no la tarea" || bad "motivo de junta" "$out"
+es_bloqueo "$out" 'toca_junta: false' && ! printf '%s' "$(razon "$out")" | grep -q 'la tarea tocó rutas de junta\|observación: nivel 2 (' && ok "bloquea y el texto viejo («la tarea tocó rutas de junta», «observación: nivel 2 (») ya no sale" || bad "sigue atribuyendo a la tarea lo que es del repo, o calla" "$out"
+printf '{"nivel": 2, "perfiles": ["junta"], "patrones": []}' > "$EST"
+espera_bloqueo "estado de formato anterior, sin fecha: «desde una tarea anterior»" me2 'el repo tiene perfil `junta` desde una tarea anterior'
+r="$(razon "$(ROMPELO_LANG=en hook claude me3 "$R")")"; printf '%s' "$r" | grep -q 'the repo has had the `junta` profile since an earlier task' && ! printf '%s' "$r" | grep -q 'desde\|el repo' && ok "en inglés: since an earlier task, sin restos" || bad "EN motivos del estado" "$r"
+rm -f "$EST"; contrato 'segunda_pasada="revisado"'; "$ASSURE" check >/dev/null; "$ASSURE" close >/dev/null
 
 rm -rf "$T"
 resumen

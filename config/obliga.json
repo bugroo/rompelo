@@ -1,0 +1,13 @@
+{
+  "_ayuda": "El diff dicta el contrato (docs/disparo.md §obliga). `reglas`: glob relativo → {checks: [ids del registro], junta: bool, prueba: bool}. Si una ruta cambiada casa, esas obligaciones entran en el contrato EFECTIVO de la tarea aunque el agente no las declarara (el contrato escrito no cambia; `rompelo close` las deja en obligaciones_efectivas). `por_repo`: ruta real del repo → {reglas}. Lo de esta máquina va en config/obliga.local.json (sin versionar), y lo de cada repo en su .rompelo/obliga.json (versionado: CI lo ve). Las reglas de aquí son las del propio rompelo.",
+  "reglas": {
+    "bin/rompelo": {"checks": ["rompelo.tests", "rompelo.observe-tests", "rompelo.disparo-tests", "rompelo.obliga-tests", "rompelo.revisar-tests"]},
+    "checks/ocr-review.py": {"checks": ["rompelo.ocr-review-tests"]},
+    "checks/ocr-control-positivo.py": {"checks": ["rompelo.ocr-review-tests"]},
+    "tests/lib.sh": {"checks": ["rompelo.instrumento-tests"]},
+    "tests/invocar.py": {"checks": ["rompelo.instrumento-tests"]},
+    "adapters/claude/**": {"junta": true},
+    "adapters/codex/hooks.json": {"junta": true}
+  },
+  "por_repo": {}
+}

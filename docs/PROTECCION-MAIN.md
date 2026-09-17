@@ -4,6 +4,7 @@ El 16-09-2026 se activó la protección de rama de `bugroo/rompelo`, al retomar 
 Mac y GitHub por encargo de José. Una lectura nueva de la API confirmó `gate` obligatorio,
 rama actualizada, PR obligatorio, aplicación a administradores y bloqueo de force-push y borrado.
 Se usa protección de rama clásica; no se creó un ruleset adicional.
+La configuración se releyó el 17-09-2026 y conserva esos requisitos.
 
 ## Qué exige
 

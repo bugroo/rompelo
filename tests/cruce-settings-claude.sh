@@ -18,6 +18,8 @@ T=$(mktemp -d); export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 git -C "$T" init -q && git -C "$T" config user.email t@t && git -C "$T" config user.name t
 echo a > "$T/a" && git -C "$T" add -A && git -C "$T" commit -qm base
 ( cd "$T" && "$HOME/rompelo/bin/rompelo" init --id CRUCE --check rompelo.tests --junta >/dev/null ) || { echo "init falló"; exit 2; }
+# Con disparo `entrega` (defecto desde el 16-09-2026) el Stop solo juzga con el cierre declarado: un `close` en rojo lo declara.
+( cd "$T" && "$HOME/rompelo/bin/rompelo" close >/dev/null 2>&1 )
 OUT=$(printf '{"session_id":"cruce-%s","cwd":"%s","stop_hook_active":false,"hook_event_name":"Stop"}' "$$" "$T" | sh -c "$CMD")
 python3 - "$HOME/rompelo/config/repos.json" "$T" <<'PY'
 import json,os,sys
@@ -26,6 +28,7 @@ d=json.load(open(f)); d["repos"]=[r for r in d["repos"] if os.path.realpath(r)!=
 json.dump(d,open(f,"w"),indent=2); open(f,"a").write("\n")
 PY
 rm -rf "$T"
+rm -f "$HOME/rompelo/state/marcas/cerrando-$(python3 -c 'import hashlib,os,sys;print(hashlib.sha256(os.path.realpath(sys.argv[1]).encode()).hexdigest()[:16])' "$T")"
 if printf '%s' "$OUT" | grep -q '"decision": *"block"' && printf '%s' "$OUT" | grep -q 'sin ejecutar'; then
   echo "junta OK: la línea configurada «${CMD}» bloquea con motivo"; exit 0
 fi

@@ -1,74 +1,36 @@
 {
   "schema": 1,
-  "id": "ROMPELO-MAC-GITHUB-20260916-PR",
-  "estado": "abierta",
-  "base": "56a32c72a923372aab9f24ace492c737bd5990d7",
-  "descripcion": "Actualización documental de instalación Mac y protección de main (PR #3). Se heredan la base, hallazgos y todas las obligaciones del contrato OCR publicado, sin omitir checks ni el cruce.",
+  "id": "PR3-DOCS-CIERRE-20260917",
+  "estado": "cerrada",
+  "base": "7986f947f72d081e8f298e665f624610bed4568f",
+  "descripcion": "Integrar la documentación pendiente del Mac y de protección de main con el estado verificado tras OCR y Parte 6",
   "scope_paths": [
-    "checks/ocr-review.py",
-    "tests/ocr-review-test.sh",
-    ".gitignore",
-    ".rompelo/task.json",
-    "adapters/codex/LEEME.md",
-    "tests/rompelo-stop-test.sh",
     "docs/PROTECCION-MAIN.md",
-    "docs/auditoria-2026-09-07/SEGUIMIENTO.md"
+    "docs/auditoria-2026-09-07/SEGUIMIENTO.md",
+    ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.ocr-review-tests",
-    "rompelo.tests",
-    "rompelo.sin-var-pegada",
-    "ocr.review"
+    "rompelo.portabilidad-tests",
+    "rompelo.sin-var-pegada"
   ],
   "toca_junta": true,
   "exige_prueba_en_diff": false,
-  "hallazgos": [
-    {
-      "id": "OCR-8",
-      "texto": "ocr-review.py: x['path'] / x['content'] reventaban con KeyError si un comentario grave venía sin esos campos (rc 2 en vez de 1)",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.ocr-review-tests",
-      "nota": "caso «grave sin path/content → 1, no KeyError»; visto en rojo contra el código anterior (rc 2, KeyError: 'path')"
-    },
-    {
-      "id": "OCR-9",
-      "texto": "ocr-review-test.sh: trap 'rm -rf \"$TMP\"' sin guarda ${TMP:?}",
-      "disposicion": "confirmado",
-      "regresion": "tests/ocr-review-test.sh",
-      "nota": "la guarda vive en el prólogo de la propia batería; visto con bash -c: con TMP vacío aborta «parameter null or not set», sin guarda pasa en silencio"
-    },
-    {
-      "id": "H-1",
-      "texto": "tests/rompelo-stop-test.sh: el caso «quedan hijos vivos» hacía pgrep -f 'sleep 30' sobre toda la máquina y pescó el bucle de espera del backup R2 de otra sesión (PID 31823); rompelo.tests en rojo y su control positivo en «no pudo mirar» sin regresión real",
-      "disposicion": "confirmado",
-      "regresion": "rompelo.tests",
-      "nota": "duración única 30.71; visto en rojo con un sleep 30.71 plantado (FAIL=1) y en verde con el sleep 30 ajeno todavía vivo (PID 34743)"
-    },
-    {
-      "id": "OCR-RUN",
-      "texto": "ocr.review sobre el diff real: 2 corridas + cruce, sonnet-5, 3–4 ficheros, 25k/47k tokens, 0 comentarios de cualquier severidad; control positivo (inyección SQL) detectado en las 2 corridas",
-      "disposicion": "aceptado",
-      "nota": "cero hallazgos con diff de 4 líneas es creíble pero no lo he visto sucio en ESTA tarea salvo por el control positivo; el umbral medium no metió ruido, así que no hay dato todavía para OCR_UMBRAL. Riesgo asumido hasta la primera tarea con diff grande en ClaveON_B2C/claveon-admin"
-    }
-  ],
+  "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "Revisados los dos documentos de la PR #3 contra las comprobaciones del Mac y la API de GitHub. El contrato local OCR-SOLO-LOCAL-2026-09-16 y su evidencia permanecen intactos. Se conservan la base y las obligaciones OCR del contrato publicado anterior; los hallazgos y su evidencia descrita son históricos y no demuestran OCR ejecutado en esta PR. OCR y el cruce heredado NO VERIFICADOS para este contrato nuevo. La ampliación de scope enumera únicamente los dos documentos de esta PR.",
+  "segunda_pasada": "revisión con manifiesto sobre v2:da10a4ccff816a2e: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
-    "nivel": 2,
-    "perfiles": [
-      "auth",
-      "junta",
-      "secretos"
-    ],
+    "nivel": 0,
+    "nivel_desde": null,
+    "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.ocr-review-tests",
-      "rompelo.tests",
-      "rompelo.sin-var-pegada",
-      "ocr.review"
+      "rompelo.portabilidad-tests",
+      "rompelo.sin-var-pegada"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "fecha": "2026-09-16T16:18:41+00:00"
+    "exige_prueba_en_diff": false,
+    "obliga": {},
+    "fecha": "2026-09-17T06:34:37+00:00"
   }
 }

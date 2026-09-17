@@ -27,14 +27,25 @@ TOPE_BLOQUEOS = 3
 # Idioma de los mensajes del gate y del observador: ROMPELO_LANG=en, o "idioma": "en" en config/observacion.json.
 # Las claves son las plantillas en español; el informe de cierre sigue en español.
 EN = {
+    "[rompelo · Codex] {n} ejecuciones con código NO VERIFICADO; cobertura del observador incompleta. No cuentan como checks verdes.": "[rompelo · Codex] {n} executions have UNVERIFIED exit status; observer coverage is incomplete. They do not count as green checks.",
+    "[rompelo · Codex] No se pudo reconciliar el observador; códigos NO VERIFICADOS.": "[rompelo · Codex] Observer reconciliation failed; exit statuses are UNVERIFIED.",
     "[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n": "[rompelo] Task {tid} cannot be marked done ({n}/{tope}):\n",
     "\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.":
         "\nDo not declare the task done. Resolve each point (rompelo check / rompelo cruce / finding disposition) and try again. If something cannot be met, say so as NOT VERIFIED and write it in the contract.",
     "[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ": "[rompelo] limit of {tope} blocks reached: task {tid} is left UNVERIFIED. ",
     "rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.": "rompelo could not evaluate the contract ({exc}). An enrolled repo without a readable contract cannot close.",
-    "observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
-        "observation: level {nivel} ({patrones}). An explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
+        "the repo is at level {nivel} {desde} ({detalle}): an explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "desde {fecha}": "since {fecha}",
+    "desde una tarea anterior": "since an earlier task",
+    "perfiles {p}": "profiles {p}",
+    "sin perfiles": "no profiles",
+    "sin patrones": "no patterns",
+    "patrones {p}": "patterns {p}",
     "por permiso, sin patrones": "by permission, no patterns",
+    "el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`":
+        "the repo is at level {nivel} {desde} ({detalle}): a second pass with a manifest over the current tree is required: `rompelo revisar`, review every file (or skip it with a reason), `rompelo revisar --cerrar`",
+    "rompelo revisar && <revisa cada fichero y rellena el manifiesto> && rompelo revisar --cerrar": "rompelo revisar && <review every file and fill the manifest> && rompelo revisar --cerrar",
     "estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but the contract changed after closing. Run `rompelo check` and `rompelo close` again.",
     "estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but there are changes after closing (different fingerprint). Run `rompelo check` and `rompelo close` again.",
     "fuera de scope_paths: {lista}": "outside scope_paths: {lista}",
@@ -65,10 +76,11 @@ EN = {
     "check `{cid}`: control positivo no pudo ejecutarse o no terminó (instrumento, no hallazgo)": "check `{cid}`: positive control could not run or did not finish (instrument, not a finding)",
     "no puedo leer la allowlist ({exc}): no sé si este repo está alistado. Arréglala o quítala; hasta entonces no doy ninguna tarea por terminada.": "I cannot read the allowlist ({exc}): I do not know whether this repo is enrolled. Fix it or remove it; until then no task is marked done.",
     "el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio": "the real crossing predates the last change; cross AFTER deploying the last change",
-    "observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false": "observation: the task touched boundary paths (`junta` profile), so a real crossing is required even though the contract says toca_junta: false",
+    "el repo tiene perfil `junta` {desde}: hace falta cruce real aunque el contrato diga toca_junta: false": "the repo has had the `junta` profile {desde}: a real crossing is required even though the contract says toca_junta: false",
     "hallazgo sin disposición: {h}": "finding without disposition: {h}",
     "hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)": "finding {h}: disposition \"{d}\" is not valid (confirmado | rechazado | aceptado)",
     "hallazgo {h} rechazado sin motivo": "finding {h} rejected without a reason",
+    "hallazgo {h} ({cat}) rechazado sin `comprobado`: una categoría protegida no se descarta de memoria; di qué ejecutaste o leíste que lo refuta": "finding {h} ({cat}) rejected without `comprobado`: a protected category is not dismissed from memory; say what you ran or read that refutes it",
     "hallazgo {h} aceptado sin nota (qué riesgo se asume y hasta cuándo)": "finding {h} accepted without a note (which risk is taken and until when)",
     "hallazgo {h} confirmado sin regresión (un check del registro o una prueba de este diff)": "finding {h} confirmed without a regression (a registry check or a test in this diff)",
     "hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff": "finding {h}: regression \"{r}\" is neither a registry check nor a test changed in this diff",
@@ -93,6 +105,15 @@ EN = {
     " Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.": " For internet searches or external tools (level 3) ask for permission and record it with `rompelo permiso <patron> si|no [--recordar]`.",
     "Siguiente: {cmd}": "Next: {cmd}",
     "rompelo cruce --nota '<qué cruzas>' -- <comando real>": "rompelo cruce --nota '<what you cross>' -- <real command>",
+    "obliga: la tarea cambia rutas de junta ({globs}), así que hace falta cruce real aunque el contrato diga toca_junta: false": "obliga: the task changes boundary paths ({globs}), so a real crossing is required even though the contract says toca_junta: false",
+    " Lo exige obliga: {globs}": " Required by obliga: {globs}",
+    "[rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea {tid} no está verificada:\n": "[rompelo] This command DELIVERS (commit/push/deploy) and task {tid} is not verified:\n",
+    "\nCumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.": "\nMeet what is missing and run the command again. Whatever cannot be met is declared in the contract as NOT VERIFIED, not skipped.",
+    "no sé cuándo tiene que saltar la puerta ({exc}); hasta arreglarlo no dejo entregar": "I do not know when the gate must fire ({exc}); until that is fixed I do not allow delivery",
+    "disparo del contrato inválido ({exc})": "invalid contract trigger ({exc})",
+    "disparo inválido ({exc}): hasta arreglarlo la puerta juzga en cada turno": "invalid trigger ({exc}): until it is fixed the gate judges every turn",
+    "[rompelo] El usuario pide cerrar o entregar; la tarea {tid} no tiene nada pendiente ahora mismo. Si cambias algo, vuelve a `rompelo check` (y `rompelo cruce` si hay junta) y `rompelo close` antes de entregar.": "[rompelo] The user asks to close or deliver; task {tid} has nothing pending right now. If you change anything, run `rompelo check` (and `rompelo cruce` if there is a boundary) and `rompelo close` again before delivering.",
+    "[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará commit ni push sin evidencia. Ahora mismo falta:\n": "[rompelo] The user asks to close or deliver task {tid}: the gate will judge it at the end of this turn and will not allow commit or push without evidence. Missing right now:\n",
 }
 _IDIOMA = None
 
@@ -121,6 +142,10 @@ REGISTRO = os.path.join(ROMPELO_HOME, "checks", "registry.json")
 REGISTRO_LOCAL = os.path.join(ROMPELO_HOME, "checks", "registry.local.json")
 ALLOWLIST = os.path.join(ROMPELO_HOME, "config", "repos.json")
 PRUEBAS_POR_DEFECTO = ["tests/**", "test/**", "**/*.test.*", "**/*.spec.*", "**/*_test.*"]
+# Categorías de hallazgo que no se rechazan de memoria (criterio del filtro de open-code-review, leído el 16-09-2026: donde
+# descartar un acierto cuesta más que conservar un fallo, y donde la confianza propia es menos fiable): `rechazado` exige
+# `comprobado` (qué se ejecutó o leyó que lo refuta), además del motivo.
+PROTEGIDAS = {"security", "seguridad", "bug", "concurrency", "concurrencia", "memory", "memoria", "compat", "compatibilidad", "data", "datos"}
 ID_OK = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 EXCL = [".", ":(exclude).rompelo"]
 
@@ -254,16 +279,19 @@ def sujetos(root, base=None, cambiados=None):
     return {p: sujeto(root, p) for p in cambiados}
 
 
-def huella_de(suj, excluir=()):
+def huella_de(suj, excluir=(), incluir=()):
     """Huella versionada del SUJETO de la tarea: para cada ruta que difiere de la base (rastreada o no), su
     nombre real y su `sujeto`. No depende de HEAD ni del índice: preparar o commitear el mismo contenido no la
     cambia; cambiar contenido, modo, destino de enlace, borrar o añadir sí. Una evidencia con huella de otra
     versión (o sin versión: v1, hasta 07-09-2026) no vale y hay que volver a ejecutar; no se migra.
     `excluir`: patrones (`no_afecta` de un check en el registro) cuyas rutas no entran en la huella de ESE check:
-    editar el README después de la suite no obliga a repetirla. Sin exclusiones la huella es la de siempre."""
+    editar el README después de la suite no obliga a repetirla. `incluir`: patrones (`afecta`) y SOLO esas rutas
+    entran: un check de shell no caduca por un .ts. Sin ninguno de los dos la huella es la de siempre."""
     h = hashlib.sha256()
     for p in sorted(suj):
         if excluir and any(casa(p, g) for g in excluir):
+            continue
+        if incluir and not any(casa(p, g) for g in incluir):
             continue
         h.update(p.encode("utf-8", "surrogateescape") + b"\0" + suj[p].encode() + b"\n")
     return f"{HUELLA_VERSION}:{h.hexdigest()[:16]}"
@@ -330,12 +358,23 @@ def escribir_json_atomico(f, datos):
 
 
 @contextlib.contextmanager
-def cerrojo(f):
+def cerrojo(f, espera=None):
     """flock sobre <f>.lock: serializa leer-modificar-escribir entre procesos. Reemplazar atómicamente no
     evita que dos observadores (dos sesiones sobre el mismo repo) se pisen la actualización."""
     os.makedirs(os.path.dirname(f), exist_ok=True)
     with open(f + ".lock", "w") as lk:
-        fcntl.flock(lk, fcntl.LOCK_EX)
+        if espera is None:
+            fcntl.flock(lk, fcntl.LOCK_EX)
+        else:
+            fin = time.monotonic() + espera
+            while True:
+                try:
+                    fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= fin:
+                        raise TimeoutError("cerrojo ocupado")
+                    time.sleep(0.005)
         try:
             yield
         finally:
@@ -414,7 +453,83 @@ def resolver_check(cid, root):
     na = e.get("no_afecta", [])
     if not isinstance(na, list) or not all(ruta_limpia(g) for g in na):
         raise ValueError(f"registro: {cid}.no_afecta tiene que ser una lista de patrones relativos (sin '..' ni absolutos)")
+    af = e.get("afecta", [])
+    if not isinstance(af, list) or not all(ruta_limpia(g) for g in af):
+        raise ValueError(f"registro: {cid}.afecta tiene que ser una lista de patrones relativos (sin '..' ni absolutos)")
     return argv, cwd
+
+
+def aplica(reg_e, cambiados, forzado=()):
+    """Un check con `afecta` solo aplica si alguna ruta cambiada casa con alguno de sus patrones (o con los globs de
+    obliga que lo exigen: `forzado`). Sin `afecta` aplica siempre. Un check que no aplica ni se exige ni se ejecuta:
+    el diff dicta qué se comprueba."""
+    af = list(reg_e.get("afecta") or ()) + list(forzado)
+    return not reg_e.get("afecta") or any(casa(p, g) for p in cambiados for g in af)
+
+
+def huella_check(suj, reg_e, forzado=()):
+    """La huella de ESE check: sin `no_afecta`, y solo `afecta` (más los globs de obliga que lo exigen) si lo hay."""
+    incluir = list(reg_e.get("afecta") or ()) + list(forzado) if reg_e.get("afecta") else ()
+    return huella_de(suj, reg_e.get("no_afecta") or (), incluir)
+
+
+# ── obliga: el diff dicta el contrato (docs/disparo.md §obliga) ──────────────
+OBLIGA_CONF = os.path.join(ROMPELO_HOME, "config", "obliga.json")
+OBLIGA_LOCAL = os.path.join(ROMPELO_HOME, "config", "obliga.local.json")  # sin versionar: reglas y por_repo de esta máquina
+
+
+def _reglas_obliga_de(d, origen):
+    if not isinstance(d, dict):
+        raise ValueError(f"{origen} tiene que ser un objeto {{\"reglas\": {{glob: {{checks, junta, prueba}}}}}}")
+    reglas = d.get("reglas", {})
+    if not isinstance(reglas, dict):
+        raise ValueError(f"{origen}: `reglas` tiene que ser un objeto glob → {{checks, junta, prueba}}")
+    out = {}
+    for glob, ob in reglas.items():
+        if not ruta_limpia(glob):
+            raise ValueError(f"{origen}: glob inválido {glob!r} (relativo, sin '..')")
+        if not isinstance(ob, dict):
+            raise ValueError(f"{origen}: la regla de {glob!r} tiene que ser un objeto")
+        checks = ob.get("checks", [])
+        if not isinstance(checks, list) or not all(isinstance(x, str) and ID_OK.match(x) for x in checks):
+            raise ValueError(f"{origen}: {glob!r}.checks tiene que ser una lista de ids del registro")
+        for k in ("junta", "prueba"):
+            if not isinstance(ob.get(k, False), bool):
+                raise ValueError(f"{origen}: {glob!r}.{k} tiene que ser true/false")
+        out[glob] = {"checks": checks, "junta": bool(ob.get("junta")), "prueba": bool(ob.get("prueba"))}
+    return out
+
+
+def reglas_obliga(root):
+    """glob → {checks, junta, prueba}. Se suman la config global (config/obliga.json, con `por_repo` por ruta real)
+    y la del repo (.rompelo/obliga.json, versionado: CI la ve). Ilegible o malformado: ValueError (bloqueo)."""
+    reglas = {}
+    for fconf in (OBLIGA_CONF, OBLIGA_LOCAL):
+        d = leer_json_estricto(fconf, {})
+        reglas.update(_reglas_obliga_de(d, fconf))
+        pr = d.get("por_repo") if isinstance(d, dict) else None
+        if isinstance(pr, dict):
+            for ruta, sub in pr.items():
+                if isinstance(ruta, str) and os.path.realpath(os.path.expanduser(ruta)) == root:
+                    reglas.update(_reglas_obliga_de(sub, f"{fconf} por_repo[{ruta}]"))
+    f = os.path.join(root, ".rompelo", "obliga.json")
+    reglas.update(_reglas_obliga_de(leer_json_estricto(f, {}), f))
+    return reglas
+
+
+def obligaciones_por_ruta(root, cambiados):
+    """Lo que las rutas cambiadas obligan: {checks: {cid: [globs]}, junta: [globs], prueba: [globs]}."""
+    out = {"checks": {}, "junta": [], "prueba": []}
+    for glob, ob in reglas_obliga(root).items():
+        if not any(casa(p, glob) for p in cambiados):
+            continue
+        for cid in ob["checks"]:
+            out["checks"].setdefault(cid, []).append(glob)
+        if ob["junta"]:
+            out["junta"].append(glob)
+        if ob["prueba"]:
+            out["prueba"].append(glob)
+    return out
 
 
 def resolver_argv(e, nombre, root):
@@ -435,6 +550,8 @@ def hash_check(e):
          ("min_lineas", 0), ("triestado", False), ("control_positivo", None))}
     if e.get("no_afecta"):
         d["no_afecta"] = e["no_afecta"]  # solo cuando existe: los hashes de los checks sin él siguen valiendo
+    if e.get("afecta"):
+        d["afecta"] = e["afecta"]
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -482,6 +599,8 @@ def leer_contrato(root):
     oe = c.get("obligaciones_efectivas")
     if oe is not None and not isinstance(oe, dict):
         raise ValueError("obligaciones_efectivas tiene que ser un objeto (lo escribe `rompelo close`)")
+    if c.get("disparo") is not None and c.get("disparo") not in DISPAROS:
+        raise ValueError(f"disparo: tiene que ser {' | '.join(DISPAROS)}, no {c.get('disparo')!r}")
     return c
 
 
@@ -506,13 +625,48 @@ def nivel_efectivo(est, tarea):
     return 3 if permisos_de(est, tarea)[0] else base
 
 
-def contrato_efectivo(root, ci=False):
+def fecha_corta(iso):
+    """'2026-09-04T10:00:00+00:00' → '04-09-2026'. Sin fecha válida, cadena vacía."""
+    p = str(iso or "")[:10].split("-")
+    return f"{p[2]}-{p[1]}-{p[0]}" if len(p) == 3 and all(x.isdigit() for x in p) else ""
+
+
+def desde_texto(fuente, tarea, nivel):
+    """Desde cuándo está el repo en su nivel, para que el motivo no se lo atribuya a la tarea (17-09-2026: «la tarea
+    tocó rutas de junta» salía por un estado del 16-09 en una tarea que solo tocó README.md). Nivel 3: la fecha del
+    permiso activo más reciente; si no, `nivel_desde` (lo escribe `subir_nivel` al pasar a 2) o `fecha` del estado;
+    un estado de formato anterior sin ninguna dice «desde una tarea anterior»."""
+    f = ""
+    if nivel >= 3:
+        activos = permisos_de(fuente, tarea)[0]
+        fechas = [str(p.get("fecha") or "") for p in fuente.get("permisos") or []
+                  if isinstance(p, dict) and not p.get("revocado") and str(p.get("patron")) in activos]
+        f = max(fechas) if fechas else ""
+    fc = fecha_corta(f or fuente.get("nivel_desde") or fuente.get("fecha"))
+    return _("desde {fecha}", fecha=fc) if fc else _("desde una tarea anterior")
+
+
+def subir_nivel(est):
+    """Sube el repo a nivel 2 y deja escrito desde cuándo (`nivel_desde`), que es lo que citan los motivos del gate.
+    Un estado que ya estaba en 2 sin la fecha (formato anterior) toma la de su última escritura, no la de hoy."""
+    if int(est.get("nivel", 0) or 0) < 2:
+        est["nivel_desde"] = ahora()
+    elif not est.get("nivel_desde"):
+        est["nivel_desde"] = est.get("fecha") or ahora()
+    est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+
+
+def contrato_efectivo(root, ci=False, cambiados=None):
     """Lo que de verdad se exige, en un solo sitio: el contrato escrito más lo que impone la observación
-    (nivel ≥ 2: perfiles `junta`/`exterior` y segunda pasada; nivel 3: `checks_nivel3`) y más las
-    `obligaciones_efectivas` con las que se cerró la última vez (viajan en el contrato: un runner de CI sin
-    estado local exige lo mismo). check, verify, close, hook e informe consumen ESTO (RMP-008/014).
+    (nivel ≥ 2: perfiles `junta`/`exterior` y segunda pasada; nivel 3: `checks_nivel3`), más lo que OBLIGAN las
+    rutas cambiadas (config/obliga.json y .rompelo/obliga.json: checks, junta, prueba; info.origen dice qué glob)
+    y más las `obligaciones_efectivas` con las que se cerró la última vez (viajan en el contrato: un runner de CI
+    sin estado local exige lo mismo). check, verify, close, hook e informe consumen ESTO (RMP-008/014).
     Devuelve (contrato efectivo, info) con info.hash = hash del contrato ESCRITO, que es lo que firma close."""
     c = leer_contrato(root)
+    if cambiados is None:
+        cambiados = ficheros_cambiados(root, c.get("base"))
+    ob = obligaciones_por_ruta(root, cambiados)
     tarea = str(c["id"])
     # En local manda el estado del observador (y `rompelo nivel bajar` lo baja de verdad). En CI no hay estado:
     # mandan las obligaciones_efectivas que escribió el último close, que van en el contrato y pasan por revisión.
@@ -526,6 +680,7 @@ def contrato_efectivo(root, ci=False):
         activos, revocados = permisos_de(fuente, tarea)
     ef = dict(c)
     info = {"hash": hash_contrato(c), "nivel": nivel, "perfiles": sorted(perfiles), "patrones": list(fuente.get("patrones") or []),
+            "desde": desde_texto(fuente, tarea, nivel), "nivel_desde": fuente.get("nivel_desde"),
             "junta_por_perfil": False, "exterior_por_perfil": False, "segunda_pasada": nivel >= 2}
     if nivel >= 2:
         if "junta" in perfiles and not c["toca_junta"]:
@@ -545,6 +700,18 @@ def contrato_efectivo(root, ci=False):
         extra += [x for x in (oe.get("checks") or []) if x not in extra]
     info["pendientes"] = [] if ci else [x for x in n3 if x not in extra and (x in revocados or generales_revocados)]
     checks += [(cid, True) for cid in extra if cid not in c["checks"] and ID_OK.match(str(cid))]
+    info["origen"], info["globs_obliga"] = {}, {}
+    for cid, globs in ob["checks"].items():
+        info["globs_obliga"][cid] = globs  # un check con `afecta` exigido por obliga aplica también a estas rutas
+        if cid not in [x for x, _n in checks]:
+            checks.append((cid, False))
+            info["origen"][cid] = "obliga: " + ", ".join(globs)
+    if ob["junta"] and not ef["toca_junta"]:
+        ef["toca_junta"] = True
+        info["junta_por_obliga"] = ob["junta"]
+    if ob["prueba"] and not ef.get("exige_prueba_en_diff"):
+        ef["exige_prueba_en_diff"] = True
+        info["prueba_por_obliga"] = ob["prueba"]
     info["checks"] = checks
     info["permisos"] = sorted(activos)
     return ef, info
@@ -603,18 +770,30 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     acciones: dict que se rellena con lo que un comando desbloquea ({"check": [ids], "cruce": bool,
     "close": bool}); de ahí sale la línea «Siguiente:» (`siguiente_paso`). Lo que no resuelve un comando
     (un hallazgo sin disposición, una ruta fuera de scope) no entra."""
-    c, info = contrato_efectivo(root, ci=bool(ci))
+    cambiados = ficheros_cambiados(root, leer_contrato(root).get("base"))  # una vez: dos procesos git y un hash por fichero
+    c, info = contrato_efectivo(root, ci=bool(ci), cambiados=cambiados)
     ev = dir_evidencia(root, c)
     acc = acciones if acciones is not None else {}
-    cambiados = ficheros_cambiados(root, c.get("base"))  # una vez: dos procesos git y un hash por fichero
     suj = sujetos(root, cambiados=cambiados)
+    origen = info.get("origen") or {}
     hu = huella_de(suj)
     m = []
     junta_por_perfil = info["junta_por_perfil"]
     exc = {str(x.get("que")): x for x in (c.get("excepciones") or [])}
-    if info["segunda_pasada"] and not str(c.get("segunda_pasada") or "").strip():
-        m.append(_("observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
-                   nivel=info["nivel"], patrones=", ".join(sorted(info["patrones"])) or _("por permiso, sin patrones")))
+    if info["segunda_pasada"]:
+        # El nivel es del REPO (estado del observador, con fecha), no de esta tarea: el motivo lo dice así.
+        perf = _("perfiles {p}", p=", ".join(info["perfiles"])) if info["perfiles"] else _("sin perfiles")
+        pats = (_("patrones {p}", p=", ".join(sorted(info["patrones"]))) if info["patrones"]
+                else _("por permiso, sin patrones") if info["nivel"] >= 3 else _("sin patrones"))
+        detalle = f"{perf}; {pats}"
+        if modo_segunda_pasada() == "revision":
+            if not revision_vigente(ev, hu):
+                acc["revisar"] = True
+                m.append(_("el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`",
+                           nivel=info["nivel"], desde=info["desde"], detalle=detalle))
+        elif not str(c.get("segunda_pasada") or "").strip():
+            m.append(_("el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
+                       nivel=info["nivel"], desde=info["desde"], detalle=detalle))
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
@@ -639,12 +818,18 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     reg = registro(root)
     for cid, n3 in info["checks"]:
         pre = _("nivel 3: ") if n3 else ""
+        if cid in origen:
+            pre += "(" + origen[cid] + ") "
         if cid not in reg:
             m.append(pre + _("check `{cid}` no está en el registro ({reg}); no se ejecuta ni cuenta", cid=cid, reg=" / ".join(fuentes_registro(root))))
             if ci:
                 ci["resultados"][cid] = "ERROR"
             continue
         resolver_check(cid, root)  # también rechaza un control malformado antes de creer evidencia
+        if not aplica(reg[cid], cambiados, info["globs_obliga"].get(cid, ())):
+            if ci:
+                ci["resultados"][cid] = "N/A"  # ninguna ruta cambiada casa con `afecta`: ni se exige ni se ejecuta
+            continue
         e = ci["evidencias"].get(cid) if ci else leer_evidencia(ev, f"check-{cid}.json")
         if ci and e and e.get("saltado"):
             if cid in exc:
@@ -657,7 +842,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
             continue
         if ci:
             ci["resultados"][cid] = "PASS"  # se corrige abajo si hay motivo
-        hu_c = huella_de(suj, reg[cid]["no_afecta"]) if reg[cid].get("no_afecta") else hu
+        hu_c = huella_check(suj, reg[cid], info["globs_obliga"].get(cid, ()))
         n_m = len(m)
         if e is None:
             m.append(pre + _("check `{cid}` sin ejecutar (usa `rompelo check`)", cid=cid))
@@ -707,7 +892,9 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
         elif cr.get("huella") != hu:
             mc.append(_("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio"))
         if mc and junta_por_perfil:
-            m.append(_("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false"))
+            m.append(_("el repo tiene perfil `junta` {desde}: hace falta cruce real aunque el contrato diga toca_junta: false", desde=info["desde"]))
+        if mc and info.get("junta_por_obliga"):
+            m.append(_("obliga: la tarea cambia rutas de junta ({globs}), así que hace falta cruce real aunque el contrato diga toca_junta: false", globs=", ".join(info["junta_por_obliga"])))
         if mc:
             acc["cruce"] = True
         m += mc
@@ -726,6 +913,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
             m.append(_("hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)", h=hid, d=d))
         elif d == "rechazado" and not str(h.get("motivo") or "").strip():
             m.append(_("hallazgo {h} rechazado sin motivo", h=hid))
+        elif d == "rechazado" and str(h.get("categoria") or "").strip().lower() in PROTEGIDAS and not str(h.get("comprobado") or "").strip():
+            m.append(_("hallazgo {h} ({cat}) rechazado sin `comprobado`: una categoría protegida no se descarta de memoria; di qué ejecutaste o leíste que lo refuta", h=hid, cat=h.get("categoria")))
         elif d == "aceptado" and not str(h.get("nota") or "").strip():
             m.append(_("hallazgo {h} aceptado sin nota (qué riesgo se asume y hasta cuándo)", h=hid))
         elif d == "confirmado":
@@ -760,7 +949,8 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
         globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
         prueba = [p for p in cambiados if any(casa(p, g) for g in globs) and suj[p] != "D"]  # borrar un test no es cubrir
         if [p for p in cambiados if p not in prueba] and not prueba:
-            m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto."))
+            m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto.")
+                     + (_(" Lo exige obliga: {globs}", globs=", ".join(info["prueba_por_obliga"])) if info.get("prueba_por_obliga") else ""))
     return m
 
 
@@ -1050,11 +1240,17 @@ def cmd_init(root, args):
         "hallazgos": [],
         "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
     }
+    disparo = valor(args, "--disparo")
+    if disparo is not None:
+        if disparo not in DISPAROS:
+            sys.exit(f"--disparo: tiene que ser {' | '.join(DISPAROS)}, no {disparo!r}")
+        c["disparo"] = disparo  # sin --disparo el campo no se escribe: manda config/disparo.json
     with open(f, "w") as fh:
         json.dump(c, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
     dir_evidencia(root, c)  # crea .rompelo/evidence/.gitignore
     permitir_repo(root)
+    retirar_cierre(root)  # tarea nueva: el cierre declarado de la anterior ya no vale
     print(f"contrato creado: {f}\nrepo alistado en {ALLOWLIST}")
 
 
@@ -1081,13 +1277,18 @@ def cmd_check(root, args):
             sys.exit(f"rompelo check: {', '.join(desconocidos)} no está entre los checks exigidos por el contrato "
                      f"({', '.join(sorted(conocidos)) or 'ninguno'})")
         exigidos = [(cid, n3) for cid, n3 in exigidos if cid in pedidos]
+    origen = info.get("origen") or {}
     for i, (cid, n3) in enumerate(exigidos, 1):
         argv, cwd = resolver_check(cid, root)
         reg = registro(root)[cid]
-        print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}: {' '.join(argv)}")
         antes = sujetos(root, c.get("base"))
+        forzado = info["globs_obliga"].get(cid, ())
+        if not aplica(reg, antes, forzado):
+            print(f"[{i}/{len(exigidos)}] {cid}: no aplica (ninguna ruta cambiada casa con afecta {reg['afecta']}); no se ejecuta")
+            continue
+        print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}{' (' + origen[cid] + ')' if cid in origen else ''}: {' '.join(argv)}")
         e = ejecutar_check(cid, root)
-        e["huella"] = huella_de(antes, reg.get("no_afecta") or ())  # la huella de ANTES: lo que el check miró
+        e["huella"] = huella_check(antes, reg, forzado)  # la huella de ANTES: lo que el check miró
         escribir_evidencia(ev, f"check-{cid}.json", e)
         motivo = motivo_check(cid, reg, e)
         if motivo:
@@ -1143,8 +1344,11 @@ def cmd_verify(root, args):
                 if not any(str(x.get("que")) == cid for x in (c.get("excepciones") or [])):
                     ci["advertencias"].append(f"check `{cid}` es solo_local: no se ejecuta en CI (necesita algo de la máquina de quien lo cruza)")
                 continue
+            forzado = info["globs_obliga"].get(cid, ())
+            if not aplica(registro(root)[cid], list(suj), forzado):
+                continue  # motivos_bloqueo lo marca N/A: ninguna ruta cambiada casa con `afecta`
             e = ejecutar_check(cid, root)
-            e["huella"] = huella_de(suj, registro(root)[cid].get("no_afecta") or ())
+            e["huella"] = huella_check(suj, registro(root)[cid], forzado)
             ci["evidencias"][cid] = e
             if "--json" not in args:
                 print(f"[ci] {cid}: " + resumen_check(registro(root)[cid], e))
@@ -1194,6 +1398,8 @@ def siguiente_paso(acciones, exigidos):
     if pend:
         todos = sorted(cid for cid, _n3 in exigidos)
         partes.append("rompelo check" + ("" if sorted(pend) == todos else "".join(f" --id {cid}" for cid in pend)))
+    if acciones.get("revisar"):
+        partes.append(_("rompelo revisar && <revisa cada fichero y rellena el manifiesto> && rompelo revisar --cerrar"))
     if acciones.get("cruce"):
         partes.append(_("rompelo cruce --nota '<qué cruzas>' -- <comando real>"))
     if acciones.get("close"):
@@ -1211,6 +1417,12 @@ def cmd_close(root, args):
         sig = siguiente_paso(acc, checks_exigidos(root))
         if sig:
             print("  " + sig)
+        # Intentar cerrar y no poder ES declarar el cierre: con disparo `entrega` la puerta juzga desde ahora en
+        # cada Stop hasta que la tarea cierre de verdad (o llegue el tope), para que no se pueda soltar a medias.
+        try:
+            declarar_cierre(root, str(leer_contrato(root)["id"]), "close")
+        except Exception:
+            pass
         return 1
     ef, info = contrato_efectivo(root)
     c = leer_contrato(root)
@@ -1218,9 +1430,10 @@ def cmd_close(root, args):
     hu = huella_arbol(root, c.get("base"))
     # Las obligaciones con las que se cierra viajan en el contrato (versionado y revisado): un runner de CI
     # sin estado local exige lo mismo, y rebajarlas a mano cambia el hash del contrato e invalida el cierre.
-    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "perfiles": info["perfiles"], "permisos": info["permisos"],
+    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "nivel_desde": info.get("nivel_desde"), "perfiles": info["perfiles"], "permisos": info["permisos"],
                                    "checks": [cid for cid, _n3 in info["checks"]], "toca_junta": bool(ef["toca_junta"]),
-                                   "toca_exterior": bool(ef.get("toca_exterior")), "fecha": ahora()}
+                                   "toca_exterior": bool(ef.get("toca_exterior")), "exige_prueba_en_diff": bool(ef.get("exige_prueba_en_diff")),
+                                   "obliga": info.get("origen") or {}, "fecha": ahora()}
     c["estado"] = "cerrada"
     escribir_evidencia(ev, "cerrada.json", {"huella": hu, "contrato": hash_contrato(c),
                                           "registro": hash_registro(root, info["checks"]), "fecha": ahora(),
@@ -1231,6 +1444,7 @@ def cmd_close(root, args):
         os.remove(os.path.join(ev, "SIN-VERIFICAR.json"))  # un cierre de verdad borra la marca del tope
     except FileNotFoundError:
         pass
+    retirar_cierre(root)  # entregada: la puerta vuelve a callar hasta la próxima entrega o cierre declarado
     informe = informe_llano(root, c, ev)
     with open(os.path.join(ev, "INFORME.md"), "w") as fh:
         fh.write(informe)
@@ -1245,17 +1459,26 @@ def informe_llano(root, c, ev):
     reg = registro(root)
     c, info = contrato_efectivo(root)
     comprobado, no_pudo, a_cargo = [], [], []
+    cambiados = ficheros_cambiados(root, c.get("base"))
     for cid, n3 in info["checks"]:
+        if cid in reg and not aplica(reg[cid], cambiados, info["globs_obliga"].get(cid, ())):
+            comprobado.append(f"{cid}: no aplicaba (ninguna ruta cambiada casa con afecta {reg[cid]['afecta']})")
+            continue
         e = leer_evidencia(ev, f"check-{cid}.json") or {}
         nota = " (solo en esta máquina; CI no lo repite)" if reg.get(cid, {}).get("solo_local") else ""
         if n3:
             nota += " (check de nivel 3, exigido por permiso)"
+        if cid in (info.get("origen") or {}):
+            nota += f" (exigido por {info['origen'][cid]})"
         comprobado.append(f"{cid}: código {e.get('codigo')} en {e.get('segundos')} s, {e.get('lineas_salida')} líneas de salida{nota}")
         cp = e.get("control_positivo")
         if cp:
             comprobado.append(f"{cid}: control positivo vio el caso malo (código {cp['codigo']}, {cp['lineas_salida']} líneas)")
         else:
             no_pudo.append(f"{cid}: sin control positivo registrado; no se registró una ejecución separada del caso malo")
+    rv = revision_vigente(ev, huella_de(sujetos(root, cambiados=cambiados)))
+    if rv:
+        comprobado.append(f"segunda pasada con manifiesto: {rv.get('n_revisados')} fichero(s) revisado(s), {rv.get('n_saltados')} saltado(s), {rv.get('n_hallazgos')} hallazgo(s) (evidence/revision.json)")
     if c["toca_junta"]:
         cr = leer_evidencia(ev, "cruce.json") or {}
         comprobado.append(f"cruce real de la junta{' (exigida por el perfil junta, no por el contrato)' if info['junta_por_perfil'] else ''}: "
@@ -1297,6 +1520,217 @@ def informe_llano(root, c, ev):
     lineas += ["- " + x for x in obs]
     lineas += ["", "Un verde aquí significa «no encontré los de mi clase», no «está bien». Un control positivo solo acredita el caso malo que ejercita.", ""]
     return "\n".join(lineas)
+
+
+# ── segunda pasada con manifiesto: `rompelo revisar` (docs/disparo.md §revisar) ─────────────────
+MODOS_SEGUNDA = ("revision", "texto")
+CATEGORIAS = ("bug", "security", "performance", "maintainability", "test", "style", "documentation", "other")
+SEVERIDADES = ("critical", "high", "medium", "low")
+
+
+def modo_segunda_pasada():
+    """`segunda_pasada` en config/observacion.json: revision (defecto; exige `rompelo revisar` con manifiesto sobre el
+    árbol actual) o texto (basta el campo `segunda_pasada` del contrato, comportamiento hasta el 16-09-2026)."""
+    v = leer_json_o(OBS_CONF, {}).get("segunda_pasada", "revision")
+    if v not in MODOS_SEGUNDA:
+        raise ValueError(f"{OBS_CONF}: `segunda_pasada` tiene que ser {' | '.join(MODOS_SEGUNDA)}, no {v!r}")
+    return v
+
+
+def revision_vigente(ev, hu):
+    rv = leer_evidencia(ev, "revision.json")
+    return rv if (rv and rv.get("cerrada") and rv.get("huella") == hu) else None
+
+
+def numstat(root, base, cambiados):
+    """{ruta: (+, -)} de lo rastreado; los ficheros sin seguimiento cuentan sus líneas como añadidas."""
+    out = {}
+    try:
+        txt = git_ok(root, "diff", "--numstat", "-z", "--no-renames", ref_base(root, base), "--", *EXCL)
+    except GitError:
+        txt = b""
+    if isinstance(txt, bytes):
+        txt = txt.decode("utf-8", "surrogateescape")
+    partes = txt.split("\0")
+    i = 0
+    while i + 1 < len(partes):
+        campos = partes[i].split("\t")
+        if len(campos) >= 3:
+            a, b, p = campos[0], campos[1], "\t".join(campos[2:])
+            out[p] = (int(a) if a.isdigit() else 0, int(b) if b.isdigit() else 0)
+            i += 1
+        else:
+            i += 2  # forma rara (renombrado con -z lleva dos entradas); aquí no debería darse con --no-renames
+    for p in cambiados:
+        if p not in out:
+            try:
+                with open(os.path.join(root, p), "rb") as fh:
+                    out[p] = (sum(1 for _ in fh), 0)
+            except OSError:
+                out[p] = (0, 0)
+    return out
+
+
+def reglas_para(root, cambiados):
+    """Las reglas de revisión por fichero: si `ocr` está en PATH, `ocr delegate rule --format json` (sin LLM: solo
+    selección y reglas, doc oficial leída 16-09-2026) agrupa los ficheros por regla. Si no, las rutas de reglas de la
+    casa que existan. Nunca falla: devuelve texto para el manifiesto."""
+    lineas = []
+    ocr = None
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        if os.path.isfile(os.path.join(d, "ocr")) and os.access(os.path.join(d, "ocr"), os.X_OK):
+            ocr = os.path.join(d, "ocr")
+            break
+    if ocr and cambiados:
+        try:
+            r = _sp().run([ocr, "delegate", "rule", "--format", "json", *cambiados], cwd=root, capture_output=True, text=True, timeout=60)
+            d = json.loads(r.stdout) if r.returncode == 0 else None
+        except (OSError, ValueError, _sp().TimeoutExpired):
+            d = None
+        if isinstance(d, dict) and isinstance(d.get("groups"), list):
+            for g in d["groups"]:
+                lineas.append(f"── reglas ({g.get('source')}: {g.get('pattern')}) para: " + ", ".join(g.get("files") or []))
+                lineas.append(str(g.get("rule") or "").rstrip())
+            return "\n".join(lineas)
+        lineas.append("ocr delegate rule no respondió; reglas de la casa a mano:")
+    else:
+        lineas.append("ocr no está en PATH (alibaba/open-code-review, opcional): reglas de la casa a mano:")
+    for f in (os.path.join(os.path.expanduser("~"), ".opencodereview", "rule.json"), os.path.join(root, ".opencodereview", "rule.json")):
+        lineas.append(("  " + f) if os.path.isfile(f) else f"  ({f} no existe)")
+    return "\n".join(lineas)
+
+
+CRITERIO_REVISION = """criterio (destilado de open-code-review, 16-09-2026):
+  - solo el código nuevo o cambiado; lo borrado es contexto; no comentes lo que está bien
+  - cada fichero por separado Y las relaciones entre ficheros (un contrato roto, una llamada que no se actualizó, i18n a medias)
+  - lee el código de verdad cuando el diff no baste (git diff <base> -- <ruta>; el fichero entero; quién lo llama)
+  - un hallazgo dice ruta, línea, categoría (bug|security|performance|maintainability|test|style|documentation|other),
+    severidad (critical|high|medium|low) y qué falla; precisión antes que volumen
+  - después, cada hallazgo necesita disposición en el contrato; security, bug, concurrency, memory, compat y data no se
+    rechazan sin `comprobado` (qué ejecutaste o leíste que lo refuta)"""
+
+
+def cmd_revisar(root, args):
+    """Segunda pasada REAL: un manifiesto con cada fichero cambiado (revisado o saltado con motivo) y los hallazgos, ligado a
+    la huella del árbol. `rompelo revisar` lo abre (y da diffs, reglas y criterio); `rompelo revisar --cerrar` lo valida:
+    cobertura completa, misma huella, hallazgos al contrato sin disposición (bloquean hasta tenerla). Sustituye al campo
+    `segunda_pasada` de texto libre, que se ponía el propio agente sin mirar nada."""
+    c = leer_contrato(root)
+    ev = dir_evidencia(root, c)
+    cambiados = ficheros_cambiados(root, c.get("base"))
+    suj = sujetos(root, cambiados=cambiados)
+    hu = huella_de(suj)
+    f = os.path.join(ev, "revision.json")
+    sobrantes = [a for a in args if a != "--cerrar"]
+    if sobrantes:
+        sys.exit(f"rompelo revisar: argumento(s) no reconocido(s): {' '.join(sobrantes)}\nuso: rompelo revisar [--cerrar]")
+    if "--cerrar" in args:
+        return cerrar_revision(root, c, ev, f, cambiados, hu)
+    if not cambiados:
+        print(f"nada que revisar: el árbol no difiere de la base ({str(c.get('base'))[:7]})")
+        return 0
+    viejo = leer_evidencia(ev, "revision.json") or {}
+    # El esqueleto se reconstruye SIEMPRE desde el diff actual; de un manifiesto anterior con la misma huella se
+    # conservan los estados ya puestos y los hallazgos (rellenarlo a medias y volver a abrirlo no pierde nada).
+    previos = {str(x.get("path")): x for x in (viejo.get("ficheros") or []) if isinstance(x, dict)} if viejo.get("huella") == hu else {}
+    rv = {"huella": hu, "base": c.get("base"), "cerrada": False, "abierta": ahora(),
+          "ficheros": [{"path": p, "estado": str(previos.get(p, {}).get("estado") or ""), "motivo": str(previos.get(p, {}).get("motivo") or "")} for p in cambiados],
+          "hallazgos": list(viejo.get("hallazgos") or []) if previos else [],
+          "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`."}
+    escribir_evidencia(ev, "revision.json", rv)
+    ns = numstat(root, c.get("base"), cambiados)
+    ob = obligaciones_por_ruta(root, cambiados)
+    print(f"revisión de la tarea {c['id']} · huella {hu} · {len(cambiados)} fichero(s) respecto a {str(c.get('base'))[:7]}"
+          + (" · manifiesto ya empezado para esta huella (se conservan los estados puestos)" if any(x.get("estado") for x in rv["ficheros"]) else ""))
+    for p in cambiados:
+        mas, menos = ns.get(p, (0, 0))
+        tipo = "borrado" if suj[p] == "D" else ("nuevo" if git(root, "cat-file", "-e", f"{ref_base(root, c.get('base'))}:{p}").returncode != 0 else "modificado")
+        extra = []
+        if any(casa(p, g) for g in ob["junta"]):
+            extra.append("junta (obliga)")
+        for cid, globs in ob["checks"].items():
+            if any(casa(p, g) for g in globs):
+                extra.append(f"check {cid} (obliga)")
+        print(f"  {tipo:10} {p}  +{mas}/-{menos}" + (f"  [{', '.join(extra)}]" if extra else ""))
+    print(f"diff: git diff {str(c.get('base'))[:12]} -- <ruta>   (fichero nuevo: léelo entero)")
+    print(reglas_para(root, cambiados))
+    print(CRITERIO_REVISION)
+    print(f"manifiesto: {f}\n  rellena `estado` (revisado | saltado + motivo) en cada fichero y `hallazgos`; después: rompelo revisar --cerrar")
+    return 0
+
+
+def cerrar_revision(root, c, ev, f, cambiados, hu):
+    rv = leer_evidencia(ev, "revision.json")
+    if not isinstance(rv, dict):
+        print("no hay manifiesto de revisión: abre uno con `rompelo revisar`")
+        return 1
+    if rv.get("huella") != hu:
+        print(f"el manifiesto es de otro árbol ({rv.get('huella')} ≠ {hu}): cambiaste algo después de abrirlo. Vuelve a `rompelo revisar` y revisa lo que cambió")
+        return 1
+    fich = rv.get("ficheros")
+    errores = []
+    if not isinstance(fich, list) or not all(isinstance(x, dict) for x in fich):
+        errores.append("`ficheros` tiene que ser una lista de {path, estado, motivo}")
+        fich = []
+    vistos = {str(x.get("path")) for x in fich}
+    faltan = sorted(set(cambiados) - vistos)
+    sobran = sorted(vistos - set(cambiados))
+    if faltan:
+        errores.append("faltan en el manifiesto: " + ", ".join(faltan))
+    if sobran:
+        errores.append("en el manifiesto pero no en el diff: " + ", ".join(sobran))
+    n_rev = n_salt = 0
+    saltados = []
+    for x in fich:
+        est = str(x.get("estado") or "").strip()
+        if est == "revisado":
+            n_rev += 1
+        elif est == "saltado":
+            if not str(x.get("motivo") or "").strip():
+                errores.append(f"{x.get('path')}: saltado sin motivo")
+            n_salt += 1
+            saltados.append(str(x.get("path")))
+        else:
+            errores.append(f"{x.get('path')}: estado «{est}» no vale (revisado | saltado)")
+    hall = rv.get("hallazgos")
+    if not isinstance(hall, list):
+        errores.append("`hallazgos` tiene que ser una lista")
+        hall = []
+    ids = set()
+    for h in hall:
+        if not isinstance(h, dict) or not str(h.get("id") or "").strip() or not str(h.get("texto") or "").strip():
+            errores.append(f"hallazgo sin id o sin texto: {h!r}"[:200])
+            continue
+        if h["id"] in ids:
+            errores.append(f"hallazgo repetido: {h['id']}")
+        ids.add(h["id"])
+        if h.get("categoria") and str(h["categoria"]).lower() not in CATEGORIAS:
+            errores.append(f"hallazgo {h['id']}: categoría «{h['categoria']}» no vale ({' | '.join(CATEGORIAS)})")
+        if h.get("severidad") and str(h["severidad"]).lower() not in SEVERIDADES:
+            errores.append(f"hallazgo {h['id']}: severidad «{h['severidad']}» no vale ({' | '.join(SEVERIDADES)})")
+    if errores:
+        print("no se puede cerrar la revisión:")
+        for e in errores:
+            print("  - " + e)
+        return 1
+    rv.update({"cerrada": True, "fecha": ahora(), "n_revisados": n_rev, "n_saltados": n_salt, "n_hallazgos": len(hall)})
+    escribir_evidencia(ev, "revision.json", rv)
+    c = leer_contrato(root)
+    existentes = {str(h.get("id")) for h in (c.get("hallazgos") or []) if isinstance(h, dict)}
+    nuevos = 0
+    for h in hall:
+        if h["id"] in existentes:
+            continue
+        c.setdefault("hallazgos", []).append({k: h.get(k) for k in ("id", "texto", "path", "linea", "categoria", "severidad") if h.get(k) is not None})
+        nuevos += 1
+    c["segunda_pasada"] = (f"revisión con manifiesto sobre {hu}: {n_rev} revisado(s), {n_salt} saltado(s)"
+                           + (f" ({', '.join(saltados)})" if saltados else "") + f", {len(hall)} hallazgo(s) (evidence/revision.json)")
+    _, tf = rutas(root)
+    escribir_json_atomico(tf, c)
+    print(f"revisión cerrada sobre {hu}: {n_rev} revisado(s), {n_salt} saltado(s), {len(hall)} hallazgo(s) ({nuevos} nuevo(s) en el contrato)")
+    if nuevos:
+        print("Siguiente: cada hallazgo nuevo del contrato necesita disposición (confirmado + regresión | rechazado + motivo [+ comprobado] | aceptado + nota); después rompelo check (si tocaste código) y rompelo close")
+    return 0
 
 
 def cmd_status(root, args):
@@ -1527,14 +1961,14 @@ def codigo_de_texto(texto):
     return int(mo.group(1)) if mo else None
 
 
-def evento_desde_hook(ent):
+def evento_desde_hook(ent, agente="claude"):
     """Traduce el PostToolUse / PostToolUseFailure de Claude Code o Codex a la línea del libro. Sin
     texto de comandos ni de salidas: solo programa, hash, código, recuentos, firma y rutas.
 
     Claude Code (doc oficial, leída 05-09-2026): PostToolUse «fires after a tool has already executed
     successfully»; un comando con salida != 0 llega por PostToolUseFailure con `error` = "Exit code N\n…"
-    (INC-0031). Codex: PostToolUse «also runs after commands that exit with a non-zero status»; la forma
-    de tool_response para Bash NO está verificada, se aceptan campos de código y la primera línea."""
+    (INC-0031). Codex Bash: stdout es dato; el estado procede exclusivamente del evento de ejecución
+    correlacionado en un transcript de versión comprobada (INC-0036, 16-09-2026)."""
     evento = str(ent.get("hook_event_name") or "PostToolUse")
     tool = str(ent.get("tool_name") or "")
     ti = ent.get("tool_input") or {}
@@ -1550,7 +1984,13 @@ def evento_desde_hook(ent):
     stdout, stderr, codigo = "", "", None
     sin_codigo = False  # el agente no manda código de salida (Codex): la firma sale del texto, por heurística
     fallo = evento == "PostToolUseFailure"
-    if fallo:
+    if agente == "codex" and es_shell:
+        # INC-0036: exec_command envía stdout crudo, independientemente de text(r.output).
+        # Incluso una cadena JSON o «Exit code 0» es salida, nunca metadatos del proceso.
+        resp = ent.get("tool_response")
+        stdout = resp if isinstance(resp, str) else ""
+        sin_codigo = True
+    elif fallo:
         err = ent.get("error") if isinstance(ent.get("error"), str) else ""
         codigo = codigo_de_texto(err)
         # tras la línea de código viene la salida con stdout y stderr entrelazados: vale como stderr para la firma
@@ -1558,8 +1998,7 @@ def evento_desde_hook(ent):
     else:
         resp = ent.get("tool_response")
         if isinstance(resp, str) and resp.lstrip().startswith("{"):
-            # Codex manda la salida de Bash como CADENA JSON {"output": …, "metadata": {"exit_code": N, …}}
-            # (medido con `codex exec` el 05-09-2026, INC-2026-0036). Se abre y se trata como dict.
+            # Compatibilidad del adaptador legado. Codex Bash no entra en esta rama.
             try:
                 abierto = json.loads(resp)
                 if isinstance(abierto, dict):
@@ -1573,10 +2012,10 @@ def evento_desde_hook(ent):
             stderr = resp.get("stderr") if isinstance(resp.get("stderr"), str) else ""
             meta = resp.get("metadata") if isinstance(resp.get("metadata"), dict) else {}
             for k in ("exit_code", "exitCode", "code", "returncode"):
-                if isinstance(resp.get(k), int):
+                if type(resp.get(k)) is int:
                     codigo = resp[k]
                     break
-                if isinstance(meta.get(k), int):
+                if type(meta.get(k)) is int:
                     codigo = meta[k]
                     break
             if codigo is None:
@@ -1584,9 +2023,7 @@ def evento_desde_hook(ent):
             if codigo is None and es_shell:
                 codigo = 0  # PostToolUse solo llega tras éxito (Claude Code); el texto de stdout no cuenta
         elif isinstance(resp, str):
-            # Codex (medido con `codex exec`, 05-09-2026): tool_response de Bash es SOLO el texto que el modelo
-            # imprimió (`text(r.output)`), sin código de salida. Se deja desconocido (None), no 0: un «ls» roto
-            # llegaba como verde y el observador estaba ciego a los fallos en Codex (INC-2026-0036).
+            # Cabecera del adaptador legado y apply_patch, nunca stdout de Codex Bash.
             codigo = codigo_de_texto(resp)
             stdout = resp.split("\n", 1)[1] if (codigo is not None and "\n" in resp) else resp
             if codigo is None and es_shell:
@@ -1613,7 +2050,7 @@ def evento_desde_hook(ent):
         firma = firma_error(stdout, prog, None)  # heurística sobre la última línea; documentada en docs/observacion.md §12.3
     else:
         firma = None  # un comando que salió bien no tiene firma de error, diga lo que diga stderr
-    return {
+    ev = {
         "t": ahora(), "tool": tool, "evento": evento, "prog": prog,
         "cmd_sha": hashlib.sha256(cmd.encode()).hexdigest()[:12] if cmd else None,
         "cmd_es_check": es_check(cmd),
@@ -1625,6 +2062,232 @@ def evento_desde_hook(ent):
         # documento que habla de functions/api no es tocar functions/api (falso positivo en vivo, 05-09).
         "riesgo_texto": (re.sub(r"<<-?\s*['\"]?(\w+)['\"]?.*?^\s*\1\s*$", "", cmd, flags=re.S | re.M) + "\n" + "\n".join(ficheros)),
     }
+    if agente == "codex" and es_shell:
+        ev.update(codigo=None, fuente_codigo=None, estado_ejecucion="desconocido",
+                  motivo_desconocido="sin_evento_correlacionado", firma_salida=firma_error(stdout, prog, None),
+                  firma_heuristica=firma, orden_ms=time.time_ns() // 1000000)
+        for key in ("session_id", "turn_id", "tool_use_id"):
+            val = ent.get(key)
+            # Identificadores técnicos completos; nunca contenido libre en el libro.
+            ev[key] = val if isinstance(val, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,160}", val) else None
+    return ev
+
+
+# Adaptador deliberadamente versionado: el rollout NO es una API estable de Codex.
+CODEX_VERSIONES = {"0.154.0"}
+CODEX_BYTES = 4 * 1024 * 1024
+CODEX_LINEA = 1024 * 1024
+CODEX_EVENTOS = 10000
+
+
+def codex_indice(ent, cache):
+    """Lee solo el transcript recibido. Cache sin comandos/salidas; IO acotado e incremental.
+    El llamador mantiene el cerrojo del libro. Ausencia/incompatibilidad nunca produce cero."""
+    sid = ent.get("session_id")
+    path = ent.get("transcript_path")
+    if not isinstance(path, str) or not path:
+        return {}, "sin_transcript"
+    base = os.path.realpath(os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex"))
+    absoluto = os.path.abspath(path)
+    real = os.path.realpath(path)
+    roots = [os.path.join(base, x) + os.sep for x in ("sessions", "archived_sessions")]
+    if absoluto != real or not real.endswith(".jsonl") or not any(real.startswith(x) for x in roots):
+        return {}, "ruta_no_admitida"
+    try:
+        fd = os.open(real, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as fh:
+            st = os.fstat(fh.fileno())
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid():
+                return {}, "archivo_no_admitido"
+            identidad = [st.st_dev, st.st_ino, hashlib.sha256(real.encode()).hexdigest()]
+            off = cache.get("offset", 0)
+            if cache.get("schema") != 3 or cache.get("archivo") != identidad or type(off) is not int or not 0 <= off <= st.st_size:
+                cache.clear()
+            elif off:
+                fh.seek(max(0, off - 128))
+                if hashlib.sha256(fh.read(min(128, off))).hexdigest() != cache.get("ancla"):
+                    cache.clear()  # truncamiento + crecimiento, incluso en el mismo inode
+            cache.setdefault("archivo", identidad)
+            cache.setdefault("schema", 3)
+            cache.setdefault("offset", 0)
+            cache.setdefault("items", {})
+            if cache.get("error"):
+                return {}, cache["error"]
+            fh.seek(cache["offset"])
+            leidos, registros = 0, 0
+            fin = time.monotonic() + 0.10
+            motivo = None
+            while leidos < CODEX_BYTES and registros < CODEX_EVENTOS and time.monotonic() < fin:
+                inicio = fh.tell()
+                line = fh.readline(min(CODEX_LINEA + 1, CODEX_BYTES - leidos))
+                if not line:
+                    break
+                leidos += len(line)
+                if cache.get("saltando"):
+                    cache["offset"] = fh.tell()
+                    if line.endswith(b"\n"):
+                        cache.pop("saltando", None)
+                    continue
+                if len(line) > CODEX_LINEA:
+                    # 0.154.0 serializa timestamp,ordinal opcional,type,payload. Solo estos envelopes
+                    # no autoritativos se pueden saltar por bloques sin materializar su texto.
+                    prefijo = rb'^\{"timestamp":\s*"[^"\\]*",\s*(?:"ordinal":\s*\d+,\s*)?"type":\s*"(?:response_item|compacted|turn_context)",\s*"payload":'
+                    if inicio > 0 and re.match(prefijo, line[:512]):
+                        cache["offset"] = fh.tell()
+                        if not line.endswith(b"\n"):
+                            cache["saltando"] = True
+                        continue
+                    cache["error"] = "linea_demasiado_grande"
+                    break
+                if not line.endswith(b"\n"):
+                    motivo = "registro_pendiente"
+                    break  # reintentar desde inicio, sin persistir el fragmento de texto
+                try:
+                    obj = json.loads(line)
+                    if not isinstance(obj, dict) or not isinstance(obj.get("payload"), dict):
+                        raise ValueError()
+                except (ValueError, UnicodeError, RecursionError):
+                    cache["error"] = "transcript_invalido"
+                    break
+                p = obj["payload"]
+                if inicio == 0:
+                    if obj.get("type") != "session_meta" or p.get("id") != sid or p.get("session_id", sid) != sid:
+                        cache["error"] = "sesion_distinta"
+                        break
+                    if not isinstance(p.get("cli_version"), str) or p["cli_version"] not in CODEX_VERSIONES:
+                        cache["error"] = "version_no_validada"
+                        break
+                    cache["session_id"] = sid
+                    cache["version"] = p["cli_version"]
+                elif obj.get("type") == "session_meta":
+                    cache["error"] = "cabecera_duplicada"
+                    break
+                if obj.get("type") == "event_msg" and p.get("type") == "item_completed":
+                    item = p.get("item")
+                    if isinstance(item, dict) and item.get("type") == "CommandExecution" and p.get("thread_id") == sid:
+                        turno, ident = p.get("turn_id"), item.get("id")
+                        if all(isinstance(x, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,160}", x) for x in (turno, ident)):
+                            key = turno + "/" + ident
+                            codigo, estado = item.get("exit_code"), item.get("status")
+                            valido = type(codigo) is int and 0 <= codigo <= 255
+                            valido = valido and estado in ("completed", "failed") and ((estado == "completed") == (codigo == 0))
+                            # Solo esquema/estado conocido: -1, interrupciones o null son desconocidos.
+                            value = {"codigo": codigo if valido else None,
+                                     "motivo": None if valido else "estado_o_codigo_invalido"}
+                            end = p.get("completed_at_ms")
+                            if type(end) is int and 0 < end <= time.time_ns() // 1000000 + 1000:
+                                value["orden_ms"] = end
+                            old = cache["items"].get(key)
+                            if old and (old.get("codigo"), old.get("motivo")) != (value["codigo"], value["motivo"]):
+                                value = {"codigo": None, "motivo": "eventos_contradictorios"}
+                            cache["items"][key] = value
+                            if len(cache["items"]) > CODEX_EVENTOS:
+                                cache["items"].clear()
+                                cache["error"] = "demasiados_eventos"
+                                break
+                cache["offset"] = fh.tell()
+                registros += 1
+            if cache["offset"]:
+                fh.seek(max(0, cache["offset"] - 128))
+                cache["ancla"] = hashlib.sha256(fh.read(min(128, cache["offset"]))).hexdigest()
+            cache["bytes_ultima_lectura"] = leidos
+            if cache.get("error"):
+                return {}, cache["error"]
+            if cache.get("session_id") != sid:
+                return {}, "cabecera_pendiente"
+            if cache.get("saltando"):
+                return {}, "registro_pendiente"
+            if cache["offset"] < st.st_size:
+                return {}, motivo or "lectura_pendiente"  # puede faltar un duplicado contradictorio
+            return cache["items"], None
+    except OSError:
+        return {}, "transcript_no_disponible"
+
+
+def codex_reconciliar(ent, libro, cache):
+    items, motivo = codex_indice(ent, cache)
+    for ev in libro:
+        if "estado_ejecucion" not in ev:
+            continue  # historia anterior sin procedencia: no reinterpretarla
+        identidad = (ev.get("session_id"), ev.get("turn_id"), ev.get("tool_use_id"))
+        resultado = items.get(str(identidad[1]) + "/" + str(identidad[2]), {})
+        razon = motivo or resultado.get("motivo")
+        if not all(identidad) or identidad[0] != ent.get("session_id"):
+            razon = "identidad_incompleta_o_distinta"
+        codigo = resultado.get("codigo") if not razon else None
+        ev.update(codigo=codigo, fuente_codigo="codex_rollout_0.154.0" if codigo is not None else None,
+                  estado_ejecucion="terminado" if codigo is not None else "desconocido",
+                  motivo_desconocido=razon or ("sin_evento_correlacionado" if codigo is None else None))
+        if ev["motivo_desconocido"] in ("sin_evento_correlacionado", "cabecera_pendiente", "registro_pendiente", "lectura_pendiente"):
+            ev["estado_ejecucion"] = "pendiente"
+        if codigo is not None:
+            ev["firma"] = (ev.get("firma_salida") or firma_error("", ev["prog"], codigo)) if codigo else None
+            if "orden_ms" in resultado:
+                ev["orden_ms"] = resultado["orden_ms"]
+        else:
+            ev["firma"] = ev.get("firma_heuristica")
+    # Reemplazar el resultado en su posición lógica; un verde tardío no limpia ediciones posteriores.
+    if all(type(e.get("orden_ms")) is int for e in libro):
+        libro.sort(key=lambda e: e["orden_ms"])
+
+
+def guardar_libro(f, libro):
+    tmp = f + f".{os.getpid()}.{time.monotonic_ns()}.tmp"
+    with open(tmp, "x", encoding="utf-8") as fh:
+        os.chmod(tmp, 0o600)
+        for ev in libro:
+            fh.write(json.dumps(ev, ensure_ascii=False) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, f)
+
+
+def observar_libro(agente, sid, ent, guardado=None):
+    """Un cerrojo para reconciliación + deduplicación + escritura del libro y caché."""
+    f = os.path.join(ESTADO, "sesiones", f"{agente}-{sid}.jsonl")
+    with cerrojo(f, espera=0.5):
+        try:
+            if os.path.getsize(f) > 8 * 1024 * 1024:
+                raise ValueError("libro demasiado grande")
+            with open(f) as fh:
+                libro = [json.loads(l) for l in fh if l.strip()]
+        except FileNotFoundError:
+            libro = []
+        if guardado is not None:
+            key = (guardado.get("turn_id"), guardado.get("tool_use_id"))
+            if agente != "codex" or not all(key) or not any((e.get("turn_id"), e.get("tool_use_id")) == key for e in libro):
+                libro.append(guardado)
+        if agente == "codex" and any("estado_ejecucion" in e for e in libro):
+            cache_f = os.path.join(ESTADO, "codex", sid + ".json")
+            cache = leer_json_estricto(cache_f, {})
+            codex_reconciliar(ent, libro, cache)
+            escribir_json_atomico(cache_f, cache)
+        guardar_libro(f, libro)
+        return f, libro
+
+
+def codex_al_stop(ent, sid, root):
+    """Reconciliar antes de juzgar el contrato, sin crear un éxito ni relajar el gate."""
+    f = os.path.join(ESTADO, "sesiones", f"codex-{sid}.jsonl")
+    if not os.path.isfile(f):
+        return None
+    _f, libro = observar_libro("codex", sid, ent)
+    pendientes = sum(1 for e in libro if e.get("repo") == root and e.get("estado_ejecucion") in ("pendiente", "desconocido"))
+    if root in repos_permitidos():
+        relevantes = [e for e in libro if e.get("repo") == root]
+        ventana = ventana_horas()
+        if ventana > 0:
+            relevantes = otras_sesiones(root, f, ventana) + relevantes
+        with cerrojo(ruta_estado_repo(root), espera=5.0):
+            est = estado_repo(root)
+            nuevos = set(patrones_de(relevantes, umbrales())) - set(est.get("patrones", []))
+            if nuevos:
+                est["patrones"] = sorted(set(est.get("patrones", [])) | nuevos)
+                subir_nivel(est)
+                guardar_estado_repo(root, est)
+    if pendientes:
+        return _("[rompelo · Codex] {n} ejecuciones con código NO VERIFICADO; cobertura del observador incompleta. No cuentan como checks verdes.", n=pendientes)
+    return None
 
 
 def perfiles_de(evento):
@@ -1682,6 +2345,7 @@ def patrones_de(libro, u):
 def cmd_observe(agente, args):
     """PostToolUse. Nunca bloquea; a lo sumo devuelve additionalContext. Fail-silent hacia
     state/observe.err para no romper la sesión."""
+    etapa = "entrada del observador"
     try:
         ent = json.load(sys.stdin)
         if not isinstance(ent, dict):
@@ -1689,14 +2353,23 @@ def cmd_observe(agente, args):
         sid = re.sub(r"[^A-Za-z0-9._-]", "_", str(ent.get("session_id") or "nosession"))
         cwd = ent.get("cwd") or os.getcwd()
         root = raiz_repo_rapida(cwd)  # sin proceso git: el observador corre tras cada herramienta
-        ev = evento_desde_hook(ent)
+        ev = evento_desde_hook(ent, agente)
         ev["repo"] = root
+        ev.setdefault("orden_ms", time.time_ns() // 1000000)
+        perfiles = perfiles_de(ev)
+        guardado = {k: v for k, v in ev.items() if k != "riesgo_texto"}
+        guardado["perfiles"] = sorted(perfiles)
+        libro_f, libro = observar_libro(agente, sid, ent, guardado)
+        if agente == "codex" and guardado.get("tool_use_id"):
+            ev = next((e for e in libro if (e.get("turn_id"), e.get("tool_use_id")) ==
+                       (guardado.get("turn_id"), guardado.get("tool_use_id"))), guardado)
         if os.environ.get("ROMPELO_DEBUG_FORMA"):
             # Solo la FORMA del payload (tipo y claves), nunca texto: sirve para verificar qué manda cada
             # agente en un comando que falla (NO VERIFICADO en Codex, docs/observacion.md §12.2).
             resp = ent.get("tool_response")
             forma = {"t": ahora(), "agente": agente, "evento": ev["evento"], "tool": ev["tool"], "codigo": ev["codigo"],
-                     "tool_use_id": str(ent.get("tool_use_id") or "")[:20], "transcript": bool(ent.get("transcript_path")),
+                     "tool_use_id": ev.get("tool_use_id"), "transcript": bool(ent.get("transcript_path")),
+                     "fuente_codigo": ev.get("fuente_codigo"), "motivo_desconocido": ev.get("motivo_desconocido"),
                      "tipo": type(resp).__name__, "claves": sorted(resp.keys())[:20] if isinstance(resp, dict) else None,
                      "claves_error": sorted(k for k in ent.keys() if k not in ("tool_input", "tool_response")),
                      "claves_input": sorted((ent.get("tool_input") or {}).keys())[:20] if isinstance(ent.get("tool_input"), dict) else type(ent.get("tool_input")).__name__,
@@ -1709,24 +2382,11 @@ def cmd_observe(agente, args):
             os.makedirs(ESTADO, exist_ok=True)
             with open(os.path.join(ESTADO, "forma.jsonl"), "a") as fh:
                 fh.write(json.dumps(forma, ensure_ascii=False) + "\n")
-        os.makedirs(os.path.join(ESTADO, "sesiones"), exist_ok=True)
-        libro_f = os.path.join(ESTADO, "sesiones", f"{agente}-{sid}.jsonl")
-        libro = []
-        try:
-            with open(libro_f) as fh:
-                libro = [json.loads(l) for l in fh if l.strip()]
-        except FileNotFoundError:
-            pass
-        perfiles = perfiles_de(ev)
-        guardado = {k: v for k, v in ev.items() if k != "riesgo_texto"}
-        guardado["perfiles"] = sorted(perfiles)
-        with open(libro_f, "a") as fh:
-            fh.write(json.dumps(guardado, ensure_ascii=False) + "\n")
-        libro.append(guardado)
         if not root or root not in repos_permitidos():
             return 0  # se observa, pero solo se escala en repos alistados
         u = umbrales()
-        with cerrojo(ruta_estado_repo(root)):  # dos sesiones sobre el mismo repo: leer-modificar-escribir en serie
+        etapa = "estado del repo"
+        with cerrojo(ruta_estado_repo(root), espera=5.0):  # dos sesiones sobre el mismo repo: leer-modificar-escribir en serie
             est = estado_repo(root)
             if os.environ.get("ROMPELO_RETARDO_ESTADO"):  # solo para la batería: ensancha la ventana de la carrera
                 time.sleep(float(os.environ["ROMPELO_RETARDO_ESTADO"]))
@@ -1750,7 +2410,7 @@ def cmd_observe(agente, args):
             if not nuevos:
                 guardar_estado_repo(root, est)
                 return 0
-            est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+            subir_nivel(est)
             clave = f"{agente}-{sid}"
             est["avisos"].setdefault(clave, [])
             pendientes = [n for n in nuevos if n[1] not in est["avisos"][clave]]
@@ -1783,7 +2443,7 @@ def cmd_observe(agente, args):
         try:
             os.makedirs(ESTADO, exist_ok=True)
             with open(os.path.join(ESTADO, "observe.err"), "a") as fh:
-                fh.write(f"{ahora()} {exc.__class__.__name__}: {exc}\n")
+                fh.write(f"{ahora()} {etapa}: {exc.__class__.__name__}\n")  # nunca datos/rutas del transcript
         except Exception:
             pass
         return 0
@@ -1824,6 +2484,7 @@ def cmd_nivel(root, args):
         motivo = valor(args, "--motivo")
         if not motivo:
             sys.exit("uso: rompelo nivel bajar --motivo 'por qué'")
+        est.pop("nivel_desde", None)
         est.update({"nivel": 0, "perfiles": [], "patrones": [], "permisos": [], "bajado": {"fecha": ahora(), "motivo": motivo}})
         guardar_estado_repo(root, est)
     try:
@@ -1845,7 +2506,7 @@ def cmd_state(args):
     limite = time.time() - int(dias) * 86400
     seco = "--dry-run" in args
     candidatos = []
-    for sub_, patron in (("sesiones", ".jsonl"), ("marcas", "")):
+    for sub_, patron in (("sesiones", ".jsonl"), ("marcas", ""), ("codex", ".json")):
         d = os.path.join(ESTADO, sub_)
         try:
             for n in sorted(os.listdir(d)):
@@ -1901,11 +2562,12 @@ def cmd_doctor(root, args):
         try:
             txt = open(f).read()
             eventos = []
-            for ev in ("Stop", "PostToolUse", "PostToolUseFailure"):
+            for ev in ("PreToolUse", "UserPromptSubmit", "Stop", "PostToolUse", "PostToolUseFailure"):
                 for m in (json.loads(txt).get("hooks") or {}).get(ev) or []:
                     if any("rompelo" in str(h.get("command", "")) for h in m.get("hooks") or []):
                         eventos.append(ev)
-            print(f"hooks {nombre}: {f} → " + (", ".join(eventos) if eventos else "sin hooks de rompelo"))
+            print(f"hooks {nombre}: {f} → " + (", ".join(eventos) if eventos else "sin hooks de rompelo")
+                  + ("" if "PreToolUse" in eventos and "UserPromptSubmit" in eventos else "  (faltan PreToolUse y/o UserPromptSubmit: con disparo `entrega` la puerta NO saltaría al commit ni al pedir el cierre; añade las entradas de adapters/)"))
         except FileNotFoundError:
             print(f"hooks {nombre}: {f} no existe")
         except (OSError, ValueError) as exc:
@@ -1922,40 +2584,282 @@ def cmd_repos(args):
     return 0
 
 
+# ── disparo: cuándo juzga la puerta (docs/disparo.md) ────────────────────────
+DISPARO_CONF = os.path.join(ROMPELO_HOME, "config", "disparo.json")
+DISPARO_LOCAL = os.path.join(ROMPELO_HOME, "config", "disparo.local.json")  # sin versionar: por_repo de esta máquina
+DISPAROS = ("entrega", "turno")
+ENTREGA_DEFECTO = [
+    r"(^|[;&|(]\s*)git\s+(-C\s+\S+\s+)?(commit|push|merge)\b", r"(^|[;&|(]\s*)gh\s+pr\s+(create|merge)\b",
+    r"\bwrangler\s+(deploy|publish|pages\s+deploy|versions\s+upload)\b", r"scripts?/desplegar", r"(^|[;&|(]\s*)(bash|sh)\s+\S*deploy",
+    r"\b(pnpm|npm|yarn)\s+(run\s+)?(deploy|publish|release)\b", r"\bcargo\s+publish\b", r"docker\s+compose\s+up\b",
+    r"\bsystemctl\s+(restart|reload)\b", r"\bkubectl\s+apply\b", r"\bterraform\s+apply\b", r"\bfly\s+deploy\b",
+    r"\bvercel\s+(deploy|--prod)\b", r"\bnetlify\s+deploy\b",
+]
+CIERRE_DEFECTO = [
+    r"^\s*(termina|terminar|terminamos|cierra|cerrar|cerramos|finaliza|finalizar|entrega|entregar|despliega|desplegar|sube|subir|súbelo|publica|publicar|commitea|commit|push|deploy|ship|finish|finalize|wrap\s+up|close\s+(it|this|the\s+task)|release)\b",
+    r"\b(haz|hacer|dale|dame)\s+(el\s+|un\s+)?(commit|push|deploy|merge)\b", r"\b(a|para)\s+(producci[oó]n|prod)\b",
+    r"\b(cierra|cerrar|termina|terminar)\s+(la\s+)?tarea\b", r"\brompelo\s+close\b",
+]
+
+
+def config_disparo(root):
+    """{defecto, entrega: [regex], cierre: [regex]} para este repo. Sin fichero: los valores del código. Fichero
+    ilegible o con un defecto que no es entrega|turno: ValueError (quien llama lo convierte en bloqueo o deny: la
+    puerta no adivina cuándo tiene que saltar)."""
+    conf, pr = {}, {}
+    for fconf in (DISPARO_CONF, DISPARO_LOCAL):  # el .local (sin versionar) pisa al versionado, clave a clave
+        d = leer_json_estricto(fconf, {})
+        if not isinstance(d, dict):
+            raise ValueError(f"{fconf} tiene que ser un objeto")
+        conf.update({k: v for k, v in d.items() if not k.startswith("_") and k != "por_repo"})
+        if isinstance(d.get("por_repo"), dict):
+            pr.update(d["por_repo"])
+    for ruta, sub in pr.items():
+        if isinstance(ruta, str) and isinstance(sub, dict) and os.path.realpath(os.path.expanduser(ruta)) == root:
+            conf.update({k: v for k, v in sub.items() if not k.startswith("_")})
+    defecto = conf.get("defecto", "entrega")
+    if defecto not in DISPAROS:
+        raise ValueError(f"{DISPARO_CONF}: `defecto` tiene que ser {' | '.join(DISPAROS)}, no {defecto!r}")
+    out = {"defecto": defecto}
+    for k, base in (("entrega", ENTREGA_DEFECTO), ("cierre", CIERRE_DEFECTO)):
+        v = conf.get(k, base)
+        if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+            raise ValueError(f"{DISPARO_CONF}: `{k}` tiene que ser una lista de expresiones regulares")
+        try:
+            out[k] = [re.compile(x, re.I) for x in v]
+        except re.error as exc:
+            raise ValueError(f"{DISPARO_CONF}: expresión inválida en `{k}`: {exc}")
+    return out
+
+
+def disparo_de(root, c=None):
+    """El disparo vigente: el campo `disparo` del contrato manda; si no, la config (por_repo, luego defecto)."""
+    if c is None:
+        c = leer_contrato(root)
+    v = c.get("disparo")
+    if v is not None:
+        if v not in DISPAROS:
+            raise ValueError(f"disparo: tiene que ser {' | '.join(DISPAROS)}, no {v!r}")
+        return v
+    return config_disparo(root)["defecto"]
+
+
+def es_entrega(cmd, conf):
+    """¿El comando entrega (commit, push, deploy…)? Un `--dry-run` no entrega nada."""
+    if not cmd or "--dry-run" in cmd:
+        return False
+    return any(p.search(cmd) for p in conf["entrega"])
+
+
+def ruta_marca_cierre(root):
+    os.makedirs(os.path.join(ESTADO, "marcas"), exist_ok=True)
+    return os.path.join(ESTADO, "marcas", "cerrando-" + hashlib.sha256(root.encode("utf-8", "surrogateescape")).hexdigest()[:16])
+
+
+def cierre_declarado(root, tid=None, cerrada=False):
+    """True si alguien declaró el cierre de la tarea de este repo (el usuario con una frase de cierre, o
+    `rompelo close` en rojo) y la marca sigue valiendo: es de hoy, es de ESTA tarea y el contrato está abierto.
+    Una de hace más de un día es de otra jornada; una a nombre de otra tarea es de un contrato que ya no está
+    (init --force desde otra sesión, `git checkout` de task.json); y un contrato cerrado no sostiene ninguna:
+    lo cerrado ya se entregó, y lo que cambie después lo frena el deny al entregar (incidente 17-09-2026: una
+    marca de una prueba en otra sesión bloqueó cada turno sobre un contrato ajeno y cerrado). En los tres casos
+    la marca se retira."""
+    f = ruta_marca_cierre(root)
+    try:
+        if (time.time() - os.path.getmtime(f)) >= 86400 or cerrada:
+            os.remove(f)
+            return False
+        if tid is not None:
+            try:
+                de = json.load(open(f, encoding="utf-8")).get("tarea")
+            except Exception:
+                de = None
+            if isinstance(de, str) and de != tid:
+                os.remove(f)
+                return False
+        return True
+    except OSError:
+        return False
+
+
+def contrato_cerrado(root):
+    """True solo si el contrato se lee y dice `cerrada`; un contrato ilegible no es «cerrado» (fail-closed)."""
+    try:
+        return str(leer_contrato(root).get("estado")) == "cerrada"
+    except Exception:
+        return False
+
+
+def declarar_cierre(root, tid, quien):
+    try:
+        escribir_json_atomico(ruta_marca_cierre(root), {"tarea": tid, "quien": quien, "fecha": ahora()})
+    except OSError:
+        pass
+
+
+def retirar_cierre(root):
+    try:
+        os.remove(ruta_marca_cierre(root))
+    except OSError:
+        pass
+
+
+def juicio(root, agente):
+    """(motivos, siguiente, tid): lo que hoy impide dar la tarea por entregada. Fail-closed: un contrato o una
+    allowlist ilegibles son motivo, no silencio. Solo se llama con el repo en la allowlist."""
+    tid, sig, acc = "sin-id", "", {}
+    try:
+        try:
+            tid = re.sub(r"[^A-Za-z0-9._-]", "_", str(leer_contrato(root)["id"]))
+        except Exception:
+            pass
+        m = motivos_bloqueo(root, acciones=acc)
+        sig = siguiente_paso(acc, checks_exigidos(root))
+    except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
+        m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
+    return m, sig, tid
+
+
+def alistado(root):
+    """(True/False, motivo si la allowlist no se puede leer)."""
+    try:
+        return root in repos_permitidos(), None
+    except ValueError as exc:
+        return None, _("no puedo leer la allowlist ({exc}): no sé si este repo está alistado. Arréglala o quítala; hasta entonces no doy ninguna tarea por terminada.", exc=str(exc))
+
+
+def salida_deny(texto):
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                             "permissionDecisionReason": texto}}, ensure_ascii=False))
+    return 0
+
+
+def hook_pretool(agente, ent, root):
+    """PreToolUse: solo mira comandos de shell que ENTREGAN (commit, push, deploy… según config/disparo.json). Con el
+    contrato sin cumplir los deniega con los motivos y la línea Siguiente; lo demás pasa en silencio y rápido.
+    Mismo JSON de respuesta en Claude Code y Codex (docs oficiales leídas 16-09-2026). Sin tope: denegar un commit
+    no atrapa al agente en un bucle, solo le impide guardar sin evidencia."""
+    tool = str(ent.get("tool_name") or "")
+    if tool not in ("Bash", "bash", "shell", "PowerShell"):
+        return 0
+    ti = ent.get("tool_input") if isinstance(ent.get("tool_input"), dict) else {}
+    cmd = str(ti.get("command") or "")
+    esta, motivo_lista = alistado(root)
+    if esta is False:
+        return 0
+    try:
+        conf = config_disparo(root)
+    except ValueError as exc:
+        conf = None
+        motivo_conf = _("no sé cuándo tiene que saltar la puerta ({exc}); hasta arreglarlo no dejo entregar", exc=str(exc))
+    if conf is not None and not es_entrega(cmd, conf):
+        return 0
+    if conf is None and not es_entrega(cmd, {"entrega": [re.compile(x, re.I) for x in ENTREGA_DEFECTO]}):
+        return 0
+    m = [motivo_lista] if motivo_lista else []
+    if conf is None:
+        m.append(motivo_conf)
+    sig, tid = "", "sin-id"
+    if not m:
+        try:
+            disparo_de(root)
+        except Exception as exc:
+            m.append(_("disparo del contrato inválido ({exc})", exc=str(exc)))
+        mj, sig, tid = juicio(root, agente)
+        m += mj
+    if not m:
+        return 0
+    texto = _("[rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea {tid} no está verificada:\n", tid=tid) + "\n".join("- " + x for x in m)
+    if sig:
+        texto += "\n" + sig
+    texto += _("\nCumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.")
+    return salida_deny(texto)
+
+
+def hook_prompt(agente, ent, root):
+    """UserPromptSubmit: si el usuario pide cerrar/entregar (frases de `cierre` en config/disparo.json) y el repo está
+    alistado, declara el cierre (la puerta juzgará al terminar el turno) y le dice al agente qué falta ya, antes de
+    que empiece. Un prompt corriente no produce nada."""
+    texto = ent.get("prompt")
+    if not isinstance(texto, str):
+        texto = ent.get("user_prompt") if isinstance(ent.get("user_prompt"), str) else ""
+    esta, motivo_lista = alistado(root)
+    if esta is False:
+        return 0
+    try:
+        conf = config_disparo(root)
+    except ValueError as exc:
+        conf = {"cierre": [re.compile(x, re.I) for x in CIERRE_DEFECTO]}
+        motivo_lista = (motivo_lista or "") + _("no sé cuándo tiene que saltar la puerta ({exc}); hasta arreglarlo no dejo entregar", exc=str(exc))
+    if not any(p.search(texto) for p in conf["cierre"]):
+        return 0
+    m, sig, tid = juicio(root, agente)
+    if motivo_lista:
+        m = [motivo_lista] + m
+    if not m:
+        ctx = _("[rompelo] El usuario pide cerrar o entregar; la tarea {tid} no tiene nada pendiente ahora mismo. Si cambias algo, vuelve a `rompelo check` (y `rompelo cruce` si hay junta) y `rompelo close` antes de entregar.", tid=tid)
+    elif contrato_cerrado(root):
+        # Un contrato cerrado ya se entregó: no se declara cierre sobre él (la marca quedaría huérfana y juzgaría
+        # cada turno un contrato que quizá cerró otra sesión en otro árbol). Lo que haya cambiado después lo frena
+        # el deny al entregar; el camino es un contrato nuevo, o repetir check y close si el cambio es de esta tarea.
+        ctx = (_("[rompelo] El usuario pide cerrar o entregar, pero la tarea {tid} ya está cerrada y hay cambios posteriores. El commit y el push se denegarán hasta resolverlo: abre un contrato nuevo para lo que has cambiado (`rompelo init --force --id … --scope …`) o, si es de esta misma tarea, vuelve a `rompelo check` y `rompelo close`. Ahora mismo falta:\n", tid=tid)
+               + "\n".join("- " + x for x in m))
+    else:
+        declarar_cierre(root, tid, f"{agente}:prompt")
+        ctx = (_("[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará commit ni push sin evidencia. Ahora mismo falta:\n", tid=tid)
+               + "\n".join("- " + x for x in m) + ("\n" + sig if sig else ""))
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": ctx}}, ensure_ascii=False))
+    return 0
+
+
 def cmd_hook(agente, args):
-    """Stop hook. Mismo contrato en Claude Code y Codex (docs oficiales leídas 04-09-2026):
-    stdin {session_id, cwd, stop_hook_active}; stdout {"decision":"block","reason":…} o nada."""
+    """Hooks de Claude Code y Codex por stdin (docs oficiales leídas 04-09 y 16-09-2026); se decide por
+    `hook_event_name`: PreToolUse (entrega), UserPromptSubmit (cierre declarado) y Stop. Stop: con disparo `turno`
+    juzga siempre; con `entrega` (defecto) solo cuando el cierre está declarado. Salida Stop:
+    {"decision":"block","reason":…} o nada."""
     try:
         ent = json.load(sys.stdin)
     except Exception:
+        ent = {}
+    if not isinstance(ent, dict):
         ent = {}
     cwd = ent.get("cwd") or os.getcwd()
     sid = re.sub(r"[^A-Za-z0-9._-]", "_", str(ent.get("session_id") or "nosession"))
     root = raiz_repo(cwd)
     if not root:
         return 0  # cwd sin git: no hay tarea que juzgar
-    tid = "sin-id"
-    m = None
-    sig = ""
-    try:
-        permitidos = repos_permitidos()
-    except ValueError as exc:
-        # allowlist ilegible: no sé si este repo está alistado. Ni autorizo ni callo: lo digo (con tope de 3).
-        m = [_("no puedo leer la allowlist ({exc}): no sé si este repo está alistado. Arréglala o quítala; hasta entonces no doy ninguna tarea por terminada.", exc=str(exc))]
-    if m is None:
-        if root not in permitidos:
-            return 0  # fuera de la allowlist: silencio, y no se ejecuta nada
+    evento = str(ent.get("hook_event_name") or "Stop")
+    if evento == "PreToolUse":
+        return hook_pretool(agente, ent, root)
+    if evento == "UserPromptSubmit":
+        return hook_prompt(agente, ent, root)
+    cobertura = None
+    if agente == "codex":
         try:
-            try:
-                tid = re.sub(r"[^A-Za-z0-9._-]", "_", str(leer_contrato(root)["id"]))
-            except Exception:
-                pass
-            acc = {}
-            m = motivos_bloqueo(root, acciones=acc)
-            sig = siguiente_paso(acc, checks_exigidos(root))
-        except Exception as exc:  # contrato ilegible o fallo propio: fail-closed
-            m = [_("rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.", exc=f"{exc.__class__.__name__}: {exc}")]
+            cobertura = codex_al_stop(ent, sid, root)
+        except Exception:
+            cobertura = _("[rompelo · Codex] No se pudo reconciliar el observador; códigos NO VERIFICADOS.")
+    esta, motivo_lista = alistado(root)
+    if esta is False:
+        return 0  # fuera de la allowlist: silencio, y no se ejecuta nada
+    if motivo_lista:
+        # allowlist ilegible: no sé si este repo está alistado. Ni autorizo ni callo: lo digo (con tope de 3).
+        m, sig, tid = [motivo_lista], "", "sin-id"
+    else:
+        m, sig, tid = juicio(root, agente)
+        try:
+            disparo = disparo_de(root)
+        except Exception as exc:
+            disparo = "turno"  # no sé cuándo saltar: salto (fail-closed) y lo digo
+            m = [_("disparo inválido ({exc}): hasta arreglarlo la puerta juzga en cada turno", exc=str(exc))] + m
+        if disparo == "entrega":
+            if not cierre_declarado(root, tid, contrato_cerrado(root)):
+                return 0  # se está trabajando: la puerta salta al entregar (PreToolUse) o al declarar el cierre
+            if not m:
+                retirar_cierre(root)  # cierre declarado y cumplido: la tarea está entregada
     if not m:
+        if cobertura:
+            print(json.dumps({"systemMessage": cobertura}, ensure_ascii=False))
         return 0
     # La marca del tope vive en el estado de rompelo, no en el tempdir: bajo el sandbox de Codex el
     # tempdir del hook no era escribible y el tope de 3 nunca llegaba (medido con codex exec, 05-09).
@@ -1984,23 +2888,31 @@ def cmd_hook(agente, args):
         print(json.dumps({"systemMessage": _("[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ", tope=TOPE_BLOQUEOS, tid=tid) + " | ".join(m + ([sig] if sig else []))}, ensure_ascii=False))
         return 0
     texto = _("[rompelo] La tarea {tid} NO puede darse por terminada ({n}/{tope}):\n", tid=tid, n=n, tope=TOPE_BLOQUEOS) + "\n".join("- " + x for x in m)
+    if cobertura:
+        texto += "\n" + cobertura
     if sig:
         texto += "\n" + sig
     print(json.dumps({"decision": "block", "reason": texto + _("\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.")}, ensure_ascii=False))
     return 0
 
-
 AYUDA = __doc__ + f"""
 uso:
-  rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar]
+  rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar] [--disparo entrega|turno]
       sin --check, detecta los checks del repo (package.json, pyproject, Cargo.toml, go.mod, Makefile) y los registra en registry.local.json
+      sin --disparo manda config/disparo.json (defecto `entrega`)
   rompelo status | verify [--json] [--ci [--estricto]] | close | repos
   rompelo check [--id ID]...     sin --id ejecuta todos los checks del contrato; con --id solo esos (para iterar);
                                  cualquier otro argumento es error. Una suite entera puede pasar de 120 s, el
                                  timeout por defecto de la herramienta Bash de Claude Code: lánzala con timeout
                                  ≥ 300000 o en segundo plano, o el agente creerá que falló
   rompelo cruce [--nota TXT] (--id ID | -- <argv>)
-  rompelo hook claude|codex      (lo llama el hook Stop; JSON por stdin)
+  rompelo revisar [--cerrar]     segunda pasada con manifiesto (nivel ≥ 2): abre el manifiesto con cada fichero cambiado, diffs,
+                                 reglas (ocr delegate si está) y criterio; --cerrar exige cobertura completa sobre la misma huella y
+                                 pasa los hallazgos al contrato sin disposición. `segunda_pasada: texto` en observacion.json vuelve al campo libre
+  rompelo hook claude|codex      (lo llaman los hooks PreToolUse, UserPromptSubmit y Stop; JSON por stdin; decide por hook_event_name)
+disparo:  `entrega` (defecto): la puerta salta al ENTREGAR (PreToolUse deniega commit/push/deploy con el contrato sin cumplir) y en
+          Stop solo con el cierre declarado (frase del usuario, o `rompelo close` en rojo); `turno`: Stop juzga en cada turno.
+          Patrones y defecto en config/disparo.json (`por_repo` por ruta); el contrato puede fijar `disparo`.
   rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)
   rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
   rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (nunca estado ni evidencia)
@@ -2033,7 +2945,7 @@ def main(argv):
     if not root:
         sys.exit("rompelo: no estás dentro de un repositorio git")
     tabla = {"init": cmd_init, "status": cmd_status, "verify": cmd_verify, "check": cmd_check,
-             "cruce": cmd_cruce, "close": cmd_close, "permiso": cmd_permiso, "nivel": cmd_nivel}
+             "cruce": cmd_cruce, "close": cmd_close, "permiso": cmd_permiso, "nivel": cmd_nivel, "revisar": cmd_revisar}
     if sub not in tabla:
         sys.exit(f"rompelo: subcomando desconocido '{sub}'\n{AYUDA}")
     try:

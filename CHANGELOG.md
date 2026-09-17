@@ -5,6 +5,46 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **La batería del observador tiene control positivo (17-09).** `tests/control-positivo.py observe` corre
+  `rompelo-observe-test.sh` contra un binario cuyo observador nunca sube el repo a nivel 2 y exige 4 fallos exactos
+  (nivel, segunda pasada, perfil junta, perfil exterior). Era la única batería del gate sin mutante: su verde no
+  se había visto rojo.
+- **Una marca de cierre no sobrevive a un contrato cerrado ni a otra tarea (17-09).** Con disparo `entrega`, Stop retira
+  en silencio la marca `cerrando-<repo>` si el contrato está `cerrada` o si la marca es de otra tarea (init --force
+  desde otra sesión, `git checkout` de `task.json`); y el prompt de cierre sobre un contrato cerrado ya no declara
+  cierre: dice que está cerrada, qué falta y que el camino es un contrato nuevo. Antes, una marca dejada por una prueba
+  en otra sesión bloqueaba cada turno de cualquier sesión sobre ese repo. Batería de disparo 54 → 62 casos; el control
+  positivo espera 6 fallos exactos.
+- **Los motivos que vienen del estado del repo lo dicen (17-09).** «el repo está en nivel 2 desde 04-09-2026 (perfiles auth,
+  junta, secretos; patrones firma-repetida, verde-ambiguo): hace falta segunda pasada…» y «el repo tiene perfil `junta`
+  desde 04-09-2026: hace falta cruce real…» sustituyen a «observación: nivel 2 (…)» y a «la tarea tocó rutas de junta»,
+  que atribuían a la tarea lo que era del repo. La fecha es `nivel_desde`, escrita al subir a 2 (y en
+  `obligaciones_efectivas` para CI); un estado anterior sin fecha dice «desde una tarea anterior». Cómo se baja y cuándo
+  no, en la skill.
+- **La puerta salta al entregar, no en cada turno (16-09).** Disparo `entrega` por defecto: `PreToolUse` deniega
+  `git commit`/`push`/`merge`, `gh pr`, `wrangler deploy`, `scripts/desplegar.sh`… con el contrato sin cumplir (motivos y
+  línea «Siguiente:», sin tope); `UserPromptSubmit` reconoce la petición de cerrar del usuario («termina», «sube esto»,
+  «haz el commit», «a producción»…), declara el cierre y adelanta lo que falta; `Stop` juzga solo con el cierre declarado
+  (o tras un `rompelo close` en rojo) y calla al cumplirse. `turno` (lo de antes) en `config/disparo.json`, por repo
+  o con `rompelo init --disparo turno`. Hooks nuevos en los dos adaptadores; `rompelo doctor` avisa si faltan.
+  Batería `rompelo-disparo-test.sh` (54) con control positivo; cruce `tests/cruce-hooks-entrega.sh` visto ROTO contra
+  el binario anterior. Detalle: `docs/disparo.md`.
+- **El diff dicta el contrato (16-09).** `config/obliga.json` (+ `.local`, + `.rompelo/obliga.json` del repo, que CI ve):
+  glob → {checks, junta, prueba}; una ruta cambiada que casa añade esas obligaciones al contrato efectivo (el escrito no
+  cambia; `close` las deja en `obligaciones_efectivas`). `afecta` por check en el registro: un check cuyas rutas no
+  cambiaron no aplica (ni se exige ni se ejecuta; `N/A` en CI) y su huella solo mira sus rutas. Batería
+  `rompelo-obliga-test.sh` (38) con control positivo.
+- **Segunda pasada con manifiesto (16-09).** `rompelo revisar` / `rompelo revisar --cerrar` sustituyen al campo de texto
+  `segunda_pasada` a nivel ≥ 2 (`segunda_pasada: texto` en observacion.json lo devuelve): cada fichero cambiado revisado
+  o saltado con motivo sobre la huella actual, reglas de `ocr delegate rule` si hay ocr (sin LLM), hallazgos al contrato
+  sin disposición. Batería `rompelo-revisar-test.sh` (32) con control positivo.
+- **Categorías protegidas (16-09).** Un hallazgo `security|bug|concurrency|memory|compat|data` no se rechaza sin
+  `comprobado` (qué se ejecutó o leyó que lo refuta). Tres casos en la batería del gate (222).
+- **ocr con esfuerzo y presupuesto (16-09).** `checks/ocr-review.py` pasa `--effort` (auto: low ≤ 150 líneas, medium
+  después) y `--max-tokens-budget` (600000; 0 = sin tope); presupuesto agotado = 2, nunca 0. Cinco casos más (22).
+- **Tope de tamaño para ocr (16-09, rama `ocr-max-lineas` fusionada).** `OCR_MAX_LINEAS` (1500; 0 = sin tope) sale con 2
+  antes de llamar a ocr; control positivo registrado para `rompelo.ocr-review-tests`.
+
 - **Más rápido en la ruta caliente (11-09).** El observador (`PostToolUse`, tras CADA herramienta) ya no lanza
   ningún proceso: la raíz del repo se halla subiendo hasta `.git` (igual que `git rev-parse --show-toplevel`
   en los casos corrientes, worktrees incluidos), y `subprocess` y `tempfile` no se importan. El hook Stop
