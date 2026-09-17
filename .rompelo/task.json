@@ -1,21 +1,17 @@
 {
   "schema": 1,
-  "id": "DENY-COMPUESTO-2026-09-17",
+  "id": "ROMPELO-CODEX-07",
   "estado": "cerrada",
-  "base": "7c750c87feb63543bd8c9c14f8be247f1d6b0cd0",
-  "descripcion": "el deny de un comando compuesto dice que separe la preparación del commit",
+  "base": "50b215df219b694a49f5ef88823b85450587b5df",
+  "descripcion": "Codex al día con main: skill, worktrees, cruce del deny por tramos",
   "scope_paths": [
-    "bin/rompelo",
-    "tests/rompelo-disparo-test.sh",
-    "docs/disparo.md",
-    "CHANGELOG.md",
-    "adapters/skill/SKILL.md",
+    "adapters/codex/**",
     ".rompelo/task.json"
   ],
   "checks": [
     "rompelo.disparo-tests"
   ],
-  "toca_junta": false,
+  "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
@@ -25,21 +21,12 @@
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.disparo-tests",
-      "rompelo.tests",
-      "rompelo.observe-tests",
-      "rompelo.obliga-tests",
-      "rompelo.revisar-tests"
+      "rompelo.disparo-tests"
     ],
-    "toca_junta": false,
+    "toca_junta": true,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
-    "obliga": {
-      "rompelo.tests": "obliga: bin/rompelo",
-      "rompelo.observe-tests": "obliga: bin/rompelo",
-      "rompelo.obliga-tests": "obliga: bin/rompelo",
-      "rompelo.revisar-tests": "obliga: bin/rompelo"
-    },
-    "fecha": "2026-09-17T09:53:13+00:00"
+    "obliga": {},
+    "fecha": "2026-09-17T10:31:56+00:00"
   }
 }
