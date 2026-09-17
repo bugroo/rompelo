@@ -5,6 +5,9 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Batería del disparo: un rótulo con comillas invertidas ejecutaba `rompelo close` (17-09).** `echo "… \`rompelo close\` …"`
+  intentaba correr el comando dentro del repo de prueba (visto por Codex como «rompelo: command not found»; con
+  `rompelo` en el PATH habría cerrado un contrato de verdad). Rótulo sin comillas invertidas; la batería sigue en 67.
 - **El deny de entrega se juzga por tramos (17-09).** Dos agujeros cerrados: `bash -c 'git commit …'` / `eval "git push"`
   pasaban (el patrón exigía un separador de shell delante de `git`), y un `--dry-run` en cualquier parte eximía al
   comando entero (`git push --dry-run && git push`). Ahora el comando se parte por `&&`, `||`, `;`, `|`, saltos,

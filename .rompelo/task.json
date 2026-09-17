@@ -1,17 +1,18 @@
 {
   "schema": 1,
-  "id": "ROMPELO-CODEX-07",
+  "id": "ECHO-COMILLAS-2026-09-17",
   "estado": "cerrada",
-  "base": "50b215df219b694a49f5ef88823b85450587b5df",
-  "descripcion": "Codex al día con main: skill, worktrees, cruce del deny por tramos",
+  "base": "033d16ab98e9ffa0eb22f97b4c90259db68dc827",
+  "descripcion": "un echo con comillas invertidas ejecutaba rompelo close dentro de la batería del disparo",
   "scope_paths": [
-    "adapters/codex/**",
+    "tests/rompelo-disparo-test.sh",
+    "CHANGELOG.md",
     ".rompelo/task.json"
   ],
   "checks": [
     "rompelo.disparo-tests"
   ],
-  "toca_junta": true,
+  "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
@@ -23,10 +24,10 @@
     "checks": [
       "rompelo.disparo-tests"
     ],
-    "toca_junta": true,
+    "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-17T10:31:56+00:00"
+    "fecha": "2026-09-17T11:05:50+00:00"
   }
 }

@@ -124,7 +124,7 @@ espera_paso "cumplido: Stop calla" e2
 echo d > src/a.txt
 espera_paso "cambio nuevo sin cierre declarado: silencio otra vez" e2
 
-echo "── cierre declarado por `rompelo close` en rojo"
+echo "── cierre declarado por rompelo close en rojo"
 "$ROMPELO" close >/dev/null 2>&1 && bad "close debía fallar (check caducado)" || ok "close en rojo"
 [ "$(marcas)" = "1" ] && ok "close en rojo deja la marca" || bad "close en rojo no dejó marca"
 espera_bloqueo "Stop tras close en rojo: bloquea" e3 'check `ok` se ejecutó sobre otro árbol'
