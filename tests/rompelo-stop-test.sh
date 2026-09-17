@@ -674,5 +674,29 @@ espera_bloqueo "estado de formato anterior, sin fecha: «desde una tarea anterio
 r="$(razon "$(ROMPELO_LANG=en hook claude me3 "$R")")"; printf '%s' "$r" | grep -q 'the repo has had the `junta` profile since an earlier task' && ! printf '%s' "$r" | grep -q 'desde\|el repo' && ok "en inglés: since an earlier task, sin restos" || bad "EN motivos del estado" "$r"
 rm -f "$EST"; contrato 'segunda_pasada="revisado"'; "$ASSURE" check >/dev/null; "$ASSURE" close >/dev/null
 
+echo "── base del contrato (17-09-2026): lo que otros fusionan durante la tarea sale como «fuera de scope»; rompelo base --mover la adelanta"
+"$ASSURE" init --force --id BASE1 --scope 'src/**' --check ok >/dev/null || exit 2
+"$ASSURE" check >/dev/null
+BASE0="$(git rev-parse HEAD)"
+mkdir -p docs && echo ajeno > docs/ajeno.md && git add -A && git commit -qm "PR ajeno fusionado"
+espera_bloqueo "commit ajeno después de la base: fuera de scope" b1 "fuera de scope_paths: docs/ajeno.md"
+out="$("$ASSURE" base 2>&1)"; printf '%s' "$out" | grep -q '1 commit' && printf '%s' "$out" | grep -q 'docs/ajeno.md' && ok "rompelo base dice cuántos commits van por delante y qué rutas traen" || bad "rompelo base" "$out"
+"$ASSURE" base --mover >/dev/null 2>&1 && bad "mover sin --motivo debía fallar" || ok "mover sin --motivo: rechazado"
+grep -q "\"base\": \"$BASE0\"" .rompelo/task.json && ok "y la base no cambió" || bad "la base cambió sin motivo" "$(grep '"base"' .rompelo/task.json)"
+"$ASSURE" base --mover "$BASE0~1" --motivo x >/dev/null 2>&1 && bad "mover hacia atrás debía fallar" || ok "mover hacia atrás: rechazado"
+RAMA="$(git rev-parse --abbrev-ref HEAD)"; git checkout -q -b otra "$BASE0" && echo z > src/z.txt && git add -A && git commit -qm otra; OTRA="$(git rev-parse HEAD)"; git checkout -q "$RAMA"
+"$ASSURE" base --mover "$OTRA" --motivo x >/dev/null 2>&1 && bad "mover a un commit fuera de la historia de HEAD debía fallar" || ok "mover fuera de la historia de HEAD: rechazado"
+grep -q "\"base\": \"$BASE0\"" .rompelo/task.json && ok "tres rechazos y la base sigue igual" || bad "la base cambió con un rechazo" "$(grep '"base"' .rompelo/task.json)"
+"$ASSURE" base --mover --motivo 'PR ajeno fusionado' >/dev/null && ok "mover a HEAD con motivo" || bad "mover a HEAD"
+grep -q "\"base\": \"$(git rev-parse HEAD)\"" .rompelo/task.json && ok "la base es HEAD" || bad "la base no es HEAD" "$(grep '"base"' .rompelo/task.json)"
+python3 -c "import json;c=json.load(open('.rompelo/task.json'));m=c['base_movida'][-1];assert m['de']=='$BASE0' and m['a']==c['base'] and 'docs/ajeno.md' in m['rutas_absorbidas'] and m['motivo']=='PR ajeno fusionado' and m['commits']==1,m" && ok "queda escrito de dónde a dónde, por qué, cuántos commits y qué rutas se absorbieron" || bad "base_movida" "$(grep -A8 base_movida .rompelo/task.json)"
+espera_bloqueo "la evidencia anterior ya no vale sobre la base nueva" b2 'se ejecutó sobre otro árbol'
+"$ASSURE" check >/dev/null
+espera_paso "con la base movida y check nuevo: silencio (docs/ajeno.md ya no es de esta tarea)" b3
+echo w > src/a.txt
+espera_bloqueo "un cambio propio después sigue contando" b4 'se ejecutó sobre otro árbol'
+"$ASSURE" base --mover --motivo otra >/dev/null 2>&1 && bad "mover con la base ya en HEAD debía decir que no hay nada que mover" || ok "base ya en HEAD: nada que mover (rc≠0, sin escribir)"
+python3 -c "import json;c=json.load(open('.rompelo/task.json'));assert len(c['base_movida'])==1" && ok "y no añade una entrada vacía" || bad "entrada vacía en base_movida"
+
 rm -rf "$T"
 resumen

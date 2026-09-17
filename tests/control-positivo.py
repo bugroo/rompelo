@@ -55,12 +55,13 @@ def gate(tmp):
     if rotos:
         print(f"la batería vio {rotos} invocación(es) del hook rotas (crash, timeout, stderr): instrumento no verificado")
         return 2
-    fallos = [linea.strip() for linea in r.stdout.splitlines() if linea.strip().startswith("❌")]
-    esperado = "❌ fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/x.md»)"
+    fallos = sorted(linea.strip() for linea in r.stdout.splitlines() if linea.strip().startswith("❌"))
+    esperados = sorted(["❌ fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/x.md»)",
+                        "❌ commit ajeno después de la base: fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/ajeno.md»)"])
     print(f"1 mutación de scope confirmada; batería PASS={pasa} FAIL={falla}")
     if r.returncode == 0 and falla == 0 and pasa > 0:
         return 0
-    if r.returncode == 1 and falla == 1 and pasa > 0 and fallos == [esperado]:
+    if r.returncode == 1 and falla == len(esperados) and pasa > 0 and fallos == esperados:
         return 1
     print("el fallo no es exclusivamente el de scope esperado; no cuenta como control detectado")
     return 2

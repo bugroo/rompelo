@@ -2495,6 +2495,62 @@ def cmd_nivel(root, args):
     return 0
 
 
+def cmd_base(root, args):
+    """Contra qué commit se mide la tarea. Sin argumentos: dónde está la base y qué ha entrado en HEAD desde
+    entonces. `--mover [REF] --motivo TXT` la adelanta (REF por defecto HEAD): solo hacia delante y solo dentro
+    de la historia de HEAD, y deja escrito de dónde a dónde, por qué, cuántos commits y qué rutas se absorben.
+    Para qué: durante una tarea larga otros fusionan sus PR en la rama; contra la base vieja esas rutas salen como
+    «fuera de scope» y checks caducados que no son de esta tarea (17-09-2026: 38 rutas ajenas en un contrato de
+    ClaveON). Qué NO esconde: lo que el agente pudo commitear ya pasó por la puerta (PreToolUse deniega el
+    commit con el contrato sin cumplir; con el contrato cerrado, un cambio posterior también), así que adelantar
+    la base no saca trabajo sin juzgar del diff. La huella cambia con la base, luego la evidencia anterior caduca
+    y hay que repetir `rompelo check` (y `close`). Fail-closed: cualquier duda sobre REF es un error, no un movimiento."""
+    d, f = rutas(root)
+    c = leer_contrato(root)
+    h = head(root)
+    base = c.get("base") or h
+    if h == SIN_HEAD or base == SIN_HEAD:
+        sys.exit("rompelo base: sin commits no hay base que mover")
+    try:
+        n = int(git_ok(root, "rev-list", "--count", f"{base}..{h}").decode().strip() or 0)
+        rutas_ajenas = _nul(git_ok(root, "diff", "--name-only", "-z", "--no-renames", base, h, "--", *EXCL))
+    except GitError as exc:
+        sys.exit(f"rompelo base: no pude comparar la base ({base[:12]}) con HEAD: {exc}")
+    if "--mover" not in args:
+        print(f"base {base[:12]} · HEAD {h[:12]} · {n} commit(s) por delante" + (f" · rutas que traen: {', '.join(sorted(rutas_ajenas))}" if rutas_ajenas else ""))
+        for m in c.get("base_movida") or []:
+            print(f"  movida {str(m.get('fecha', ''))[:19]}: {str(m.get('de', ''))[:12]} → {str(m.get('a', ''))[:12]} ({m.get('commits', '?')} commit(s)) · {m.get('motivo', '')}")
+        if n:
+            print("  para adelantarla: rompelo base --mover [REF] --motivo '<por qué: qué PR ajeno se fusionó>'")
+        return 0
+    motivo = (valor(args, "--motivo") or "").strip()
+    if not motivo:
+        sys.exit("uso: rompelo base --mover [REF] --motivo '<por qué>' (el motivo queda en el contrato; sin él no se mueve)")
+    i = args.index("--mover")
+    ref = args[i + 1] if i + 1 < len(args) and not args[i + 1].startswith("--") else "HEAD"
+    r = git(root, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}")
+    if r.returncode != 0 or not r.stdout.strip():
+        sys.exit(f"rompelo base: {ref!r} no es un commit de este repo")
+    nuevo = r.stdout.strip()
+    if nuevo == base:
+        sys.exit(f"rompelo base: la base ya es {nuevo[:12]}; nada que mover")
+    if git(root, "merge-base", "--is-ancestor", base, nuevo).returncode != 0:
+        sys.exit(f"rompelo base: {nuevo[:12]} no desciende de la base actual ({base[:12]}); la base solo avanza")
+    if git(root, "merge-base", "--is-ancestor", nuevo, h).returncode != 0:
+        sys.exit(f"rompelo base: {nuevo[:12]} no está en la historia de HEAD ({h[:12]}); solo se puede mover dentro de esta rama")
+    try:
+        commits = int(git_ok(root, "rev-list", "--count", f"{base}..{nuevo}").decode().strip() or 0)
+        absorbidas = sorted(_nul(git_ok(root, "diff", "--name-only", "-z", "--no-renames", base, nuevo, "--", *EXCL)))
+    except GitError as exc:
+        sys.exit(f"rompelo base: no pude medir qué se absorbe: {exc}")
+    c.setdefault("base_movida", []).append({"de": base, "a": nuevo, "fecha": ahora(), "motivo": motivo, "commits": commits, "rutas_absorbidas": absorbidas})
+    c["base"] = nuevo
+    escribir_json_atomico(f, c)
+    print(f"base movida {base[:12]} → {nuevo[:12]}: {commits} commit(s), {len(absorbidas)} ruta(s) dejan de contar como cambio de esta tarea. "
+          "La huella ha cambiado: repite `rompelo check` (y `rompelo close`).")
+    return 0
+
+
 def cmd_state(args):
     """rompelo state prune --dias N [--dry-run]: borra libros de sesión y marcas del tope más viejos que N días.
     Nunca toca state/repos (nivel, perfiles, permisos), forma.jsonl, observe.err ni la evidencia de los repos."""
@@ -2915,6 +2971,8 @@ disparo:  `entrega` (defecto): la puerta salta al ENTREGAR (PreToolUse deniega c
           Patrones y defecto en config/disparo.json (`por_repo` por ruta); el contrato puede fijar `disparo`.
   rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)
   rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
+  rompelo base [--mover [REF] --motivo TXT]   contra qué commit se mide la tarea; --mover la adelanta (solo hacia delante, dentro de
+                                 la historia de HEAD) cuando lo que otros fusionaron sale como «fuera de scope»; queda escrito
   rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (nunca estado ni evidencia)
   rompelo doctor                 diagnóstico de solo lectura: versiones, rutas, registro elegido, allowlist, hooks conectados
 contrato: `checks_nivel3` lista checks que solo se exigen a nivel 3 (tras `rompelo permiso … si`)
@@ -2945,7 +3003,8 @@ def main(argv):
     if not root:
         sys.exit("rompelo: no estás dentro de un repositorio git")
     tabla = {"init": cmd_init, "status": cmd_status, "verify": cmd_verify, "check": cmd_check,
-             "cruce": cmd_cruce, "close": cmd_close, "permiso": cmd_permiso, "nivel": cmd_nivel, "revisar": cmd_revisar}
+             "cruce": cmd_cruce, "close": cmd_close, "permiso": cmd_permiso, "nivel": cmd_nivel, "revisar": cmd_revisar,
+             "base": cmd_base}
     if sub not in tabla:
         sys.exit(f"rompelo: subcomando desconocido '{sub}'\n{AYUDA}")
     try:
