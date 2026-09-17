@@ -31,8 +31,14 @@ versionar, pisa clave a clave) y el campo `disparo` del contrato (`rompelo init 
   bloqueó cada turno de una sesión distinta sobre un contrato ajeno y cerrado en otro árbol.
 - Con la config ilegible o un `disparo` inválido la puerta no adivina: PreToolUse deniega la entrega y Stop
   bloquea (fail-closed) diciendo qué arreglar.
-- `--dry-run` en el comando no es entregar. Los patrones son expresiones regulares (sin mayúsculas) sobre el
-  comando entero; `git commit` dentro de `cd x && …` o `git -C dir commit` también casan.
+- El comando se juzga **por tramos** (partido por `&&`, `||`, `;`, `|`, salto de línea, paréntesis y comillas),
+  no por el texto entero (17-09-2026). Así `git push --dry-run && git push` entrega (el `--dry-run` solo exime a su
+  tramo) y `bash -c 'git commit …'` o `eval "git push"` también (hasta entonces pasaban: el patrón exigía un
+  separador de shell delante). El precio: si «git commit» solo aparece citado (un `grep`, un mensaje), la puerta
+  deniega y lo dice; fail-closed. Los patrones siguen siendo expresiones regulares (sin mayúsculas), ahora sobre
+  cada tramo; `git -C dir commit` casa igual.
+- Un comando compuesto (`pnpm test && git add -A && git commit`) se deniega **entero**: la puerta no deja pasar
+  la mitad, y el motivo dice qué tramo entrega y que la preparación vaya en un comando aparte.
 - Hooks: `adapters/claude/settings-fragment.json` (PreToolUse con matcher `Bash`, UserPromptSubmit, Stop,
   PostToolUse, PostToolUseFailure) y `adapters/codex/hooks.json` (PreToolUse, UserPromptSubmit, Stop,
   PostToolUse). Los dos clientes aceptan el mismo JSON de respuesta
@@ -127,7 +133,7 @@ deniega el commit con el contrato sin cumplir, y con el contrato cerrado un camb
 
 | Batería | Casos | Control positivo (mutante) |
 |---|---|---|
-| `tests/rompelo-disparo-test.sh` | 62 | Stop en `entrega` ignora el cierre declarado → 6 fallos exactos (3 bloqueos que no llegan, 3 marcas que no se retiran) |
+| `tests/rompelo-disparo-test.sh` | 67 | Stop en `entrega` ignora el cierre declarado → 6 fallos exactos (3 bloqueos que no llegan, 3 marcas que no se retiran) |
 | `tests/rompelo-obliga-test.sh` | 38 | toda regla aplica sin ruta que case → 3 fallos exactos |
 | `tests/rompelo-revisar-test.sh` | 32 | la revisión vale aunque sea de otro árbol → fallos exactos |
 | `tests/rompelo-stop-test.sh` | 242 (+3 de categorías protegidas, +17 de la base movible) | scope anulado → 2 fallos exactos (el fichero fuera de scope y el commit ajeno tras la base) |

@@ -38,7 +38,9 @@ Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar c
    de despliegue se deniega si el contrato no está cumplido, con los motivos y la línea `Siguiente:`. Y cuando el
    usuario pide cerrar («termina», «sube esto», «haz el commit»…) la puerta juzga al acabar ese turno, y te
    adelanta lo que falta al empezar. No intentes rodear el deny (otro comando, `--no-verify`, editar la evidencia):
-   cumple lo que pide y vuelve a lanzar el comando. Si el contrato ya está cerrado y has cambiado algo después, la
+   cumple lo que pide y vuelve a lanzar el comando. El commit o el push van **solos** en su comando: un
+   `pnpm test && git commit` se deniega entero, y un `grep 'git commit'` también (la puerta juzga por tramos y no
+   distingue el texto citado); pon la preparación y las búsquedas en comandos aparte. Si el contrato ya está cerrado y has cambiado algo después, la
    puerta no lo juzga por turnos: abre un contrato nuevo para ese cambio (`rompelo init --force`). El observador (`PostToolUse`) mira solo; a nivel 2 exigirá una
    segunda pasada con manifiesto (punto 5) y, según el perfil, cruce o afirmaciones con fuente.
 5. **Cierra de verdad**, en este orden y después del último cambio:

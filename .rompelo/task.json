@@ -1,21 +1,19 @@
 {
   "schema": 1,
-  "id": "BASE-MOVIBLE-2026-09-17",
+  "id": "DENY-COMPUESTO-2026-09-17",
   "estado": "cerrada",
-  "base": "dde27e945d8f1a3fa7c583860074a9e2ae53a8e9",
-  "descripcion": "rompelo base --mover: la base del contrato avanza a HEAD cuando lo ajeno ya está fusionado",
+  "base": "7c750c87feb63543bd8c9c14f8be247f1d6b0cd0",
+  "descripcion": "el deny de un comando compuesto dice que separe la preparación del commit",
   "scope_paths": [
     "bin/rompelo",
-    "tests/rompelo-stop-test.sh",
-    "tests/control-positivo.py",
+    "tests/rompelo-disparo-test.sh",
     "docs/disparo.md",
     "CHANGELOG.md",
-    "README.md",
     "adapters/skill/SKILL.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.tests"
+    "rompelo.disparo-tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": false,
@@ -27,9 +25,9 @@
     "perfiles": [],
     "permisos": [],
     "checks": [
+      "rompelo.disparo-tests",
       "rompelo.tests",
       "rompelo.observe-tests",
-      "rompelo.disparo-tests",
       "rompelo.obliga-tests",
       "rompelo.revisar-tests"
     ],
@@ -37,11 +35,11 @@
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {
+      "rompelo.tests": "obliga: bin/rompelo",
       "rompelo.observe-tests": "obliga: bin/rompelo",
-      "rompelo.disparo-tests": "obliga: bin/rompelo",
       "rompelo.obliga-tests": "obliga: bin/rompelo",
       "rompelo.revisar-tests": "obliga: bin/rompelo"
     },
-    "fecha": "2026-09-17T09:11:07+00:00"
+    "fecha": "2026-09-17T09:53:13+00:00"
   }
 }

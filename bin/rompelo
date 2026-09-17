@@ -86,6 +86,7 @@ EN = {
     "hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff": "finding {h}: regression \"{r}\" is neither a registry check nor a test changed in this diff",
     "toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)": "toca_exterior: true and no claim carries a state (verificado | derivado | no_verificado)",
     "afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual": "claim \"{tx}\" marked verificado without a primary source or a verbatim quote",
+    "\nEl comando lleva más tramos que el que entrega («{tramo}»): la puerta no deja pasar la mitad. Lanza la preparación en un comando aparte y el que entrega solo, cuando el contrato cumpla. Si «{tramo}» solo aparece como texto (un grep, un mensaje), quítalo de este comando.": "\nThe command has more segments than the delivering one (\"{tramo}\"): the gate cannot let half of it through. Run the preparation as a separate command and the delivering one alone, once the contract is met. If \"{tramo}\" only appears as text (a grep, a message), take it out of this command.",
     "afirmación «{tx}» marcada derivado sin decir de qué se deduce": "claim \"{tx}\" marked derivado without saying what it derives from",
     "afirmación «{tx}» marcada no_verificado sin decir qué falta": "claim \"{tx}\" marked no_verificado without saying what is missing",
     "afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)": "claim \"{tx}\" without a valid state (verificado | derivado | no_verificado)",
@@ -2700,11 +2701,32 @@ def disparo_de(root, c=None):
     return config_disparo(root)["defecto"]
 
 
+SEPARADORES_TRAMO = re.compile(r"""(?:&&|\|\||[;|\n()]|['"])+""")
+
+
+def tramos_de(cmd):
+    """Un comando de shell partido en tramos: por `&&`, `||`, `;`, `|`, salto de línea, paréntesis y COMILLAS.
+    Las comillas parten a propósito: `bash -c 'git commit …'`, `eval "git push"` o `xargs sh -c "…"` llevan el
+    comando que entrega dentro de una cadena, y hasta el 17-09-2026 pasaban sin mirar (el patrón exigía un
+    separador de shell delante). El precio es un falso positivo cuando el texto solo se cita (un grep de
+    «git commit», un mensaje de commit que lo nombra): la puerta deniega y lo dice; fail-closed."""
+    return [x.strip() for x in SEPARADORES_TRAMO.split(cmd or "") if x and x.strip()]
+
+
+def tramo_que_entrega(cmd, conf):
+    """El primer tramo del comando que entrega (commit, push, deploy… según config), o None. Se juzga tramo a
+    tramo: un `--dry-run` solo exime al tramo que lo lleva (`git push --dry-run && git push` entrega)."""
+    for tramo in tramos_de(cmd):
+        if "--dry-run" in tramo:
+            continue
+        if any(p.search(tramo) for p in conf["entrega"]):
+            return tramo
+    return None
+
+
 def es_entrega(cmd, conf):
-    """¿El comando entrega (commit, push, deploy…)? Un `--dry-run` no entrega nada."""
-    if not cmd or "--dry-run" in cmd:
-        return False
-    return any(p.search(cmd) for p in conf["entrega"])
+    """¿El comando entrega (commit, push, deploy…)? Un `--dry-run` no entrega nada (en su tramo)."""
+    return tramo_que_entrega(cmd, conf) is not None
 
 
 def ruta_marca_cierre(root):
@@ -2829,6 +2851,12 @@ def hook_pretool(agente, ent, root):
     if sig:
         texto += "\n" + sig
     texto += _("\nCumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.")
+    patrones = conf["entrega"] if conf is not None else [re.compile(x, re.I) for x in ENTREGA_DEFECTO]
+    tramo = tramo_que_entrega(cmd, patrones and {"entrega": patrones})
+    if tramo and len(tramos_de(cmd)) > 1:
+        # La puerta no puede dejar pasar la mitad de un `a && b && git commit`: se deniega entero, y se dice cómo
+        # partirlo. Si lo que entrega solo aparece como texto citado (grep, mensaje), también se dice.
+        texto += _("\nEl comando lleva más tramos que el que entrega («{tramo}»): la puerta no deja pasar la mitad. Lanza la preparación en un comando aparte y el que entrega solo, cuando el contrato cumpla. Si «{tramo}» solo aparece como texto (un grep, un mensaje), quítalo de este comando.", tramo=tramo[:80])
     return salida_deny(texto)
 
 

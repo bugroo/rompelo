@@ -5,6 +5,12 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **El deny de entrega se juzga por tramos (17-09).** Dos agujeros cerrados: `bash -c 'git commit …'` / `eval "git push"`
+  pasaban (el patrón exigía un separador de shell delante de `git`), y un `--dry-run` en cualquier parte eximía al
+  comando entero (`git push --dry-run && git push`). Ahora el comando se parte por `&&`, `||`, `;`, `|`, saltos,
+  paréntesis y comillas, y cada tramo se juzga solo. Un comando compuesto con un tramo que entrega se deniega
+  entero y el motivo dice qué tramo es y que la preparación vaya aparte. Falso positivo asumido: «git commit» citado
+  en un grep o un mensaje también deniega, y lo dice. 5 casos nuevos en la batería de disparo (67).
 - **`rompelo base --mover [REF] --motivo TXT` (17-09).** La base del contrato avanza (solo hacia delante, solo dentro de
   la historia de HEAD, con motivo) cuando lo que otros fusionaron durante la tarea sale como «fuera de scope». Queda
   escrito en el contrato (`base_movida`: de, a, fecha, motivo, commits, rutas absorbidas) y la evidencia anterior caduca.
