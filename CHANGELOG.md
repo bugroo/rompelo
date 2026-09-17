@@ -5,6 +5,11 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Todas las baterías del gate tienen control positivo (17-09).** `control-positivo.py instrumento` (un `es_bloqueo`
+  que acepta cualquier JSON → 2 fallos exactos) y `portabilidad` (estado del repo por nombre de carpeta → 3 fallos
+  exactos). El mutante de portabilidad destapó que la batería no veía la mezcla de estado: comprobaba con `permiso`,
+  que no vive en el estado del repo, y contaba los cerrojos `.lock` como ficheros de estado. Corregida: a/app sube a
+  nivel 2 por el observador y b/app tiene que seguir en 0; el recuento solo cuenta `.json`.
 - **La batería del observador tiene control positivo (17-09).** `tests/control-positivo.py observe` corre
   `rompelo-observe-test.sh` contra un binario cuyo observador nunca sube el repo a nivel 2 y exige 4 fallos exactos
   (nivel, segunda pasada, perfil junta, perfil exterior). Era la única batería del gate sin mutante: su verde no

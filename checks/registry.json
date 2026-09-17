@@ -118,7 +118,15 @@
   ],
   "cwd": "rompelo",
   "min_lineas": 10,
-  "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos",
+  "descripcion": "control del instrumento de prueba: las aserciones de tests/lib.sh contra hooks falsos (muerto, ausente, JSON roto, contaminado, sin respuesta) y sanos; visto en rojo (mutante: es_bloqueo acepta cualquier JSON)",
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "instrumento"
+   ],
+   "cwd": "rompelo"
+  },
   "no_afecta": [
    "docs/**",
    "*.md",
@@ -133,7 +141,15 @@
   ],
   "cwd": "rompelo",
   "min_lineas": 10,
-  "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor",
+  "descripcion": "HOME con espacios, dos proyectos con la misma carpeta, ROMPELO_HOME alternativo y rompelo doctor; visto en rojo (mutante: estado por nombre de carpeta)",
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "portabilidad"
+   ],
+   "cwd": "rompelo"
+  },
   "no_afecta": [
    "docs/**",
    "*.md",

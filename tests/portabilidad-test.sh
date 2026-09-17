@@ -22,10 +22,17 @@ out="$(printf '{"session_id":"esp","cwd":"%s","stop_hook_active":false}' "$T" | 
 
 echo "── dos proyectos con la misma carpeta no mezclan estado ni evidencia"
 for d in a b; do mkdir -p "$T/$d/app/src"; (cd "$T/$d/app" && git init -q && git config user.email t@t && git config user.name t && echo x > src/a.txt && git add -A && git commit -qm b && "$ROMPELO" init --id "T-$d" --check ok >/dev/null 2>&1); done
-(cd "$T/a/app" && "$ROMPELO" permiso herramientas si >/dev/null && "$ROMPELO" check >/dev/null)
-(cd "$T/b/app" && "$ROMPELO" nivel | grep -q 'nivel 0') && ok "el permiso dado en a/app no aparece en b/app (estado por ruta real, no por nombre)" || bad "estado mezclado" "$(cd "$T/b/app" && "$ROMPELO" nivel)"
+# a/app sube a nivel 2 por el observador (la misma firma de error dos veces); b/app tiene que seguir en 0.
+# Antes se comprobaba con `permiso`, que no vive en el estado del repo, y el recuento de «dos ficheros» contaba el cerrojo
+# `.lock` de un solo estado: un estado nombrado por carpeta pasaba entero (visto con el mutante, 17-09-2026).
+ev() { printf '{"session_id":"p1","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stdout":"","stderr":"%s","exit_code":1}}' "$1" "$2"; }
+(cd "$T/a/app" && "$ROMPELO" check >/dev/null && observar claude "$(ev "$T/a/app" 'Error: expected 200 got 500 at line 41')" >/dev/null && observar claude "$(ev "$T/a/app" 'Error: expected 200 got 503 at line 97')" >/dev/null)
+(cd "$T/b/app" && observar claude "$(ev "$T/b/app" 'Error: expected 200 got 500 at line 41')" >/dev/null)   # b/app también escribe estado: un error, sin patrón
+nivel_en() { (cd "$1" && "$ROMPELO" nivel | grep -o 'nivel [0-9]'); }
+[ "$(nivel_en "$T/a/app")" = "nivel 2" ] && ok "precondición: el observador subió a/app a nivel 2" || bad "precondición: a/app no subió a nivel 2" "$(nivel_en "$T/a/app")"
+[ "$(nivel_en "$T/b/app")" = "nivel 0" ] && ok "el nivel 2 de a/app no aparece en b/app (estado por ruta real, no por nombre)" || bad "estado mezclado" "$(nivel_en "$T/b/app")"
 [ -f "$T/a/app/.rompelo/evidence/T-a/check-ok.json" ] && [ ! -e "$T/b/app/.rompelo/evidence/T-b/check-ok.json" ] && ok "la evidencia vive en cada repo" || bad "evidencia mezclada"
-[ "$(ls "$ROMPELO_HOME/state/repos/" | grep -c json)" = 2 ] && ok "dos ficheros de estado, uno por ruta" || bad "estado por ruta" "$(ls "$ROMPELO_HOME/state/repos/")"
+[ "$(ls "$ROMPELO_HOME/state/repos/" | grep -c '\.json$')" = 2 ] && ok "dos ficheros de estado, uno por ruta (sin contar cerrojos)" || bad "estado por ruta" "$(ls "$ROMPELO_HOME/state/repos/")"
 
 echo "── instalación en otro directorio: ROMPELO_HOME manda sobre ~/rompelo"
 mkdir -p "$T/otra/checks"; printf '{"solo-aqui": {"argv": ["true"]}}' > "$T/otra/checks/registry.json"
@@ -38,6 +45,6 @@ out="$(cd "$T/a/app" && "$ROMPELO" doctor 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] && ok "doctor sale con 0" || { bad "doctor rc=$rc" "$out"; out=""; }   # sin 0 no se leen palabras (la ayuda las contiene)
 for k in 'python' 'ROMPELO_HOME' 'registro' 'allowlist' 'estado' 'git ' 'hooks'; do printf '%s' "$out" | grep -qi "$k" && ok "doctor informa de: $k" || bad "doctor no dice $k" "$out"; done
 printf '%s' "$out" | grep -q 'solo-aqui\|1 check' && ok "doctor dice qué registro eligió y cuántos checks tiene" || bad "doctor registro" "$out"
-[ "$(ls "$ROMPELO_HOME/state/repos/" | grep -c json)" = 2 ] && ok "doctor no escribe estado" || bad "doctor escribió"
+[ "$(ls "$ROMPELO_HOME/state/repos/" | grep -c '\.json$')" = 2 ] && ok "doctor no escribe estado" || bad "doctor escribió"
 
 rm -rf "$T"; resumen
