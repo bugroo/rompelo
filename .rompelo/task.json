@@ -1,20 +1,18 @@
 {
   "schema": 1,
-  "id": "MARCA-HUERFANA-2026-09-17",
+  "id": "CONTROL-OBSERVE-2026-09-17",
   "estado": "cerrada",
-  "base": "23c33fbf57db34ec64f9f94b098a8db79d46d5e5",
-  "descripcion": "una marca de cierre no sobrevive a un contrato cerrado ni a otra tarea",
+  "base": "0a8ef29ff3d47feceabb669d53df719faa87da9a",
+  "descripcion": "control positivo de la batería del observador",
   "scope_paths": [
-    "bin/rompelo",
-    "tests/rompelo-disparo-test.sh",
     "tests/control-positivo.py",
+    "checks/registry.json",
     "docs/disparo.md",
     "CHANGELOG.md",
-    "adapters/skill/SKILL.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.disparo-tests"
+    "rompelo.observe-tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": false,
@@ -26,21 +24,12 @@
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.disparo-tests",
-      "rompelo.tests",
-      "rompelo.observe-tests",
-      "rompelo.obliga-tests",
-      "rompelo.revisar-tests"
+      "rompelo.observe-tests"
     ],
     "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
-    "obliga": {
-      "rompelo.tests": "obliga: bin/rompelo",
-      "rompelo.observe-tests": "obliga: bin/rompelo",
-      "rompelo.obliga-tests": "obliga: bin/rompelo",
-      "rompelo.revisar-tests": "obliga: bin/rompelo"
-    },
-    "fecha": "2026-09-17T05:11:47+00:00"
+    "obliga": {},
+    "fecha": "2026-09-17T06:15:42+00:00"
   }
 }

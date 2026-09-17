@@ -71,7 +71,15 @@
   ],
   "cwd": "rompelo",
   "min_lineas": 10,
-  "descripcion": "batería de la capa de observación",
+  "descripcion": "batería de la capa de observación; vista en rojo (mutante: el observador nunca sube a nivel 2)",
+  "control_positivo": {
+   "argv": [
+    "python3",
+    "tests/control-positivo.py",
+    "observe"
+   ],
+   "cwd": "rompelo"
+  },
   "no_afecta": [
    "docs/**",
    "*.md",
