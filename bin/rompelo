@@ -2656,17 +2656,38 @@ def ruta_marca_cierre(root):
     return os.path.join(ESTADO, "marcas", "cerrando-" + hashlib.sha256(root.encode("utf-8", "surrogateescape")).hexdigest()[:16])
 
 
-def cierre_declarado(root):
+def cierre_declarado(root, tid=None, cerrada=False):
     """True si alguien declaró el cierre de la tarea de este repo (el usuario con una frase de cierre, o
-    `rompelo close` en rojo) y la marca es de hoy: una de hace más de un día es de otra jornada y se retira."""
+    `rompelo close` en rojo) y la marca sigue valiendo: es de hoy, es de ESTA tarea y el contrato está abierto.
+    Una de hace más de un día es de otra jornada; una a nombre de otra tarea es de un contrato que ya no está
+    (init --force desde otra sesión, `git checkout` de task.json); y un contrato cerrado no sostiene ninguna:
+    lo cerrado ya se entregó, y lo que cambie después lo frena el deny al entregar (incidente 17-09-2026: una
+    marca de una prueba en otra sesión bloqueó cada turno sobre un contrato ajeno y cerrado). En los tres casos
+    la marca se retira."""
     f = ruta_marca_cierre(root)
     try:
-        if (time.time() - os.path.getmtime(f)) < 86400:
-            return True
-        os.remove(f)
+        if (time.time() - os.path.getmtime(f)) >= 86400 or cerrada:
+            os.remove(f)
+            return False
+        if tid is not None:
+            try:
+                de = json.load(open(f, encoding="utf-8")).get("tarea")
+            except Exception:
+                de = None
+            if isinstance(de, str) and de != tid:
+                os.remove(f)
+                return False
+        return True
     except OSError:
-        pass
-    return False
+        return False
+
+
+def contrato_cerrado(root):
+    """True solo si el contrato se lee y dice `cerrada`; un contrato ilegible no es «cerrado» (fail-closed)."""
+    try:
+        return str(leer_contrato(root).get("estado")) == "cerrada"
+    except Exception:
+        return False
 
 
 def declarar_cierre(root, tid, quien):
@@ -2777,6 +2798,12 @@ def hook_prompt(agente, ent, root):
         m = [motivo_lista] + m
     if not m:
         ctx = _("[rompelo] El usuario pide cerrar o entregar; la tarea {tid} no tiene nada pendiente ahora mismo. Si cambias algo, vuelve a `rompelo check` (y `rompelo cruce` si hay junta) y `rompelo close` antes de entregar.", tid=tid)
+    elif contrato_cerrado(root):
+        # Un contrato cerrado ya se entregó: no se declara cierre sobre él (la marca quedaría huérfana y juzgaría
+        # cada turno un contrato que quizá cerró otra sesión en otro árbol). Lo que haya cambiado después lo frena
+        # el deny al entregar; el camino es un contrato nuevo, o repetir check y close si el cambio es de esta tarea.
+        ctx = (_("[rompelo] El usuario pide cerrar o entregar, pero la tarea {tid} ya está cerrada y hay cambios posteriores. El commit y el push se denegarán hasta resolverlo: abre un contrato nuevo para lo que has cambiado (`rompelo init --force --id … --scope …`) o, si es de esta misma tarea, vuelve a `rompelo check` y `rompelo close`. Ahora mismo falta:\n", tid=tid)
+               + "\n".join("- " + x for x in m))
     else:
         declarar_cierre(root, tid, f"{agente}:prompt")
         ctx = (_("[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará commit ni push sin evidencia. Ahora mismo falta:\n", tid=tid)
@@ -2826,7 +2853,7 @@ def cmd_hook(agente, args):
             disparo = "turno"  # no sé cuándo saltar: salto (fail-closed) y lo digo
             m = [_("disparo inválido ({exc}): hasta arreglarlo la puerta juzga en cada turno", exc=str(exc))] + m
         if disparo == "entrega":
-            if not cierre_declarado(root):
+            if not cierre_declarado(root, tid, contrato_cerrado(root)):
                 return 0  # se está trabajando: la puerta salta al entregar (PreToolUse) o al declarar el cierre
             if not m:
                 retirar_cierre(root)  # cierre declarado y cumplido: la tarea está entregada

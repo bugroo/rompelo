@@ -102,10 +102,10 @@ def ocr_review(tmp):
 
 def disparo(tmp):
     """La batería del disparo (tests/rompelo-disparo-test.sh) contra un binario que, con disparo `entrega`, calla en
-    Stop aunque el cierre esté declarado: tiene que fallar exactamente en los dos casos que exigen ese bloqueo."""
+    Stop aunque el cierre esté declarado: tiene que fallar exactamente en los casos que exigen ese bloqueo o que retiren la marca."""
     original = RAIZ / "bin/rompelo"
     texto = original.read_text(encoding="utf-8")
-    antes = "            if not cierre_declarado(root):\n                return 0"
+    antes = "            if not cierre_declarado(root, tid, contrato_cerrado(root)):\n                return 0"
     despues = "            if True:  # mutación de control positivo: el cierre declarado no cuenta\n                return 0"
     if texto.count(antes) != 1:
         print("no pude aplicar exactamente una mutación del disparo; no cuenta como hallazgo")
@@ -128,11 +128,14 @@ def disparo(tmp):
     fallos = sorted(l.strip() for l in r.stdout.splitlines() if l.strip().startswith("❌"))
     esperados = sorted(["❌ Stop tras el cierre declarado: bloquea (esperaba bloqueo con «check `ok` se ejecutó sobre otro árbol»)",
                         "❌ Stop tras close en rojo: bloquea (esperaba bloqueo con «check `ok` se ejecutó sobre otro árbol»)",
-                        "❌ la marca sigue tras cumplir"])  # un Stop que nunca juzga tampoco retira la marca
+                        "❌ la marca sigue tras cumplir",  # un Stop que nunca juzga tampoco retira la marca
+                        "❌ la marca huérfana sigue (1)",  # ni la de un contrato cerrado
+                        "❌ la marca de la otra tarea sigue (1)",  # ni la de otra tarea
+                        "❌ y Stop bloquea con la marca legítima (esperaba bloqueo con «check `ok` sin ejecutar»)"])
     print(f"1 mutación del disparo confirmada; batería PASS={pasa} FAIL={falla}")
     if r.returncode == 0 and falla == 0 and pasa > 0:
         return 0
-    if r.returncode == 1 and falla == 3 and pasa > 0 and fallos == esperados:
+    if r.returncode == 1 and falla == len(esperados) and pasa > 0 and fallos == esperados:
         return 1
     print("el fallo no es exclusivamente el del disparo esperado; no cuenta como control detectado")
     return 2
