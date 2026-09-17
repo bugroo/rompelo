@@ -5,6 +5,10 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **La batería del observador tiene control positivo (17-09).** `tests/control-positivo.py observe` corre
+  `rompelo-observe-test.sh` contra un binario cuyo observador nunca sube el repo a nivel 2 y exige 4 fallos exactos
+  (nivel, segunda pasada, perfil junta, perfil exterior). Era la única batería del gate sin mutante: su verde no
+  se había visto rojo.
 - **Una marca de cierre no sobrevive a un contrato cerrado ni a otra tarea (17-09).** Con disparo `entrega`, Stop retira
   en silencio la marca `cerrando-<repo>` si el contrato está `cerrada` o si la marca es de otra tarea (init --force
   desde otra sesión, `git checkout` de `task.json`); y el prompt de cierre sobre un contrato cerrado ya no declara

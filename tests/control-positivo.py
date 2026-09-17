@@ -214,10 +214,50 @@ def revisar(tmp):
     return 2
 
 
+def observe(tmp):
+    """La batería del observador (tests/rompelo-observe-test.sh) contra un binario cuyo observador nunca sube el
+    repo a nivel 2: tiene que fallar exactamente en lo que depende de esa escalada (el nivel, la segunda pasada
+    y los perfiles junta y exterior que el nivel impone sobre el contrato)."""
+    original = RAIZ / "bin/rompelo"
+    texto = original.read_text(encoding="utf-8")
+    antes = '    est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)\n'
+    despues = '    est["nivel"] = int(est.get("nivel", 0) or 0)  # mutación de control positivo: el observador nunca sube el nivel\n'
+    if texto.count(antes) != 1:
+        print("no pude aplicar exactamente una mutación del observador; no cuenta como hallazgo")
+        return 2
+    mutante = tmp / "rompelo-mutante"
+    mutante.write_text(texto.replace(antes, despues, 1), encoding="utf-8")
+    mutante.chmod(original.stat().st_mode)
+    aplicado = mutante.read_text(encoding="utf-8")
+    assert antes not in aplicado and aplicado.count(despues) == 1 and aplicado != texto
+    r = correr(["bash", str(RAIZ / "tests/rompelo-observe-test.sh")],
+               env=dict(os.environ, ROMPELO_BIN=str(mutante)), cwd=str(RAIZ))
+    resumen = re.findall(r"^PASS=(\d+) FAIL=(\d+) ROTOS=(\d+)$", r.stdout, re.M)
+    if len(resumen) != 1:
+        print("la batería no completó su recuento; instrumento no verificado")
+        return 2
+    pasa, falla, rotos = map(int, resumen[0])
+    if rotos:
+        print(f"la batería vio {rotos} invocación(es) del hook rotas: instrumento no verificado")
+        return 2
+    fallos = sorted(l.strip() for l in r.stdout.splitlines() if l.strip().startswith("❌"))
+    esperados = sorted(["❌ nivel",  # el repo no llega a 2
+                        "❌ segunda pasada",  # y el gate no la exige
+                        "❌ junta manda",  # ni el perfil junta
+                        "❌ exterior"])  # ni el perfil exterior
+    print(f"1 mutación del observador confirmada; batería PASS={pasa} FAIL={falla}")
+    if r.returncode == 0 and falla == 0 and pasa > 0:
+        return 0
+    if r.returncode == 1 and falla == len(esperados) and pasa > 0 and fallos == esperados:
+        return 1
+    print("el fallo no es exclusivamente el del observador esperado; no cuenta como control detectado")
+    return 2
+
+
 def main():
-    modos = {"sin-var-pegada": variable_pegada, "gate": gate, "ocr-review": ocr_review, "disparo": disparo, "obliga": obliga, "revisar": revisar}
+    modos = {"sin-var-pegada": variable_pegada, "gate": gate, "ocr-review": ocr_review, "disparo": disparo, "obliga": obliga, "revisar": revisar, "observe": observe}
     if len(sys.argv) != 2 or sys.argv[1] not in modos:
-        print("uso: control-positivo.py sin-var-pegada|gate|ocr-review|disparo|obliga|revisar", file=sys.stderr)
+        print("uso: control-positivo.py sin-var-pegada|gate|ocr-review|disparo|obliga|revisar|observe", file=sys.stderr)
         return 2
     try:
         with tempfile.TemporaryDirectory(prefix="rompelo-positivo-") as d:
