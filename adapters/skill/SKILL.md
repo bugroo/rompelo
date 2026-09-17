@@ -57,11 +57,16 @@ Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar c
      `concurrency`, `memory`, `compat` o `data`, además `comprobado`: qué ejecutaste o leíste que lo refuta) o
      `aceptado` (+ `nota`); «pendiente» no desbloquea;
    - algo que no se puede comprobar aquí va en `excepciones: [{que, motivo, quien}]`, con nombre
-     del responsable.
+     del responsable;
+   - un motivo que empieza por «el repo está en nivel 2 desde <fecha>» o «el repo tiene perfil `junta` desde
+     <fecha>» viene del estado del observador del REPO (`rompelo nivel` lo enseña), no de tu diff: se cumple igual
+     (segunda pasada, cruce). El nivel solo se baja con `rompelo nivel bajar --motivo '<por qué>'` cuando el patrón
+     que lo subió está resuelto de verdad y el usuario lo decide en ese turno; nunca para conseguir verde.
 
 Prohibido para conseguir verde: editar `.rompelo/evidence/`, quitar checks del contrato, ampliar el
 scope a `**` porque sí, bajar `min_lineas`, borrar tests, cambiar el disparo a mitad de tarea, marcar
-`revisado` sin haber leído el diff, o escribir `segunda_pasada` a mano. Un verde que no has visto rojo no es
+`revisado` sin haber leído el diff, escribir `segunda_pasada` a mano, o bajar el nivel del repo (`rompelo nivel
+bajar`) para que deje de pedir segunda pasada o cruce. Un verde que no has visto rojo no es
 información.
 
 Al terminar, di qué se comprobó, qué quedó como NO VERIFICADO y por qué, y pega el informe de

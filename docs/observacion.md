@@ -108,7 +108,13 @@ cita textual. Una búsqueda sin cita no cuenta.
 
 El nivel se guarda en `~/rompelo/state/sesiones/…` y en `~/rompelo/state/repos/<sha-de-la-ruta>.json`
 (nivel del repo, con fecha). Baja solo de forma explícita (`rompelo nivel bajar --motivo`) o
-al cerrar una tarea con todo en verde en nivel 2.
+al cerrar una tarea con todo en verde en nivel 2. Al subir a 2 queda escrito `nivel_desde`, y los
+motivos del gate lo citan: «el repo está en nivel 2 desde 04-09-2026 (perfiles auth, junta, secretos;
+patrones firma-repetida, verde-ambiguo): hace falta segunda pasada…», «el repo tiene perfil `junta`
+desde 04-09-2026: hace falta cruce real…». El nivel es del repo, no de la tarea que lo sufre: una
+tarea que solo toca README.md hereda el cruce que exigió otra (17-09-2026). Un estado de formato
+anterior, sin fecha, dice «desde una tarea anterior». `nivel_desde` viaja también en
+`obligaciones_efectivas` para que CI diga lo mismo.
 
 ## 6. Aviso y permiso
 
@@ -369,6 +375,12 @@ guiones de `scripts/`).
   «rojo es rojo». Lo que sí queda a cargo de ClaveON: la allowlist de gitleaks y los 12 avisos.
 - El motivo del gate a nivel 3 por permiso decía «nivel 2 ()»; ahora dice el nivel real y «por
   permiso, sin patrones». Caso en rojo primero.
+- Los motivos que salen del estado del repo decían «observación: nivel 2 (…)» y «la tarea tocó rutas
+  de junta», y no era la tarea: el 17-09 una tarea que solo tocaba README.md los recibió por un estado
+  del 16-09. Ahora dicen «el repo está en nivel 2 desde <fecha> (perfiles …; patrones …)» y «el repo
+  tiene perfil `junta` desde <fecha>»; la fecha es `nivel_desde` (escrita al subir), la del permiso
+  activo a nivel 3, o «desde una tarea anterior». Cinco casos en rojo primero en la batería del Stop,
+  dos en la del observador.
 - Perfiles por repo, implementados: `por_repo` en `config/riesgo.json` o en
   `config/riesgo.local.json` (sin versionar) apaga o cambia un perfil para una ruta. Tres casos.
 

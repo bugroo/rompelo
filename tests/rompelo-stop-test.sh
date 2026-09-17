@@ -661,5 +661,18 @@ espera_bloqueo "y el Stop lo ve sobre otro árbol: la evidencia es de ANTES del 
 contrato 'checks=["ok"]'
 "$ASSURE" check > "$T/esc.txt" 2>&1; grep -q 'cambió el árbol' "$T/esc.txt" && bad "aviso sin motivo" "$(cat "$T/esc.txt")" || ok "un check que no toca nada: sin aviso"
 
+echo "── los motivos que salen del estado del repo dicen de dónde vienen y desde cuándo, no «la tarea» (17-09)"
+contrato 'estado="abierta"' 'checks=["ok"]' 'toca_junta=false' 'segunda_pasada=""'
+printf '{"nivel": 2, "perfiles": ["auth", "junta", "secretos"], "patrones": ["firma-repetida", "verde-ambiguo"], "nivel_desde": "2026-09-04T10:00:00+00:00", "fecha": "2026-09-16T13:21:10+00:00"}' > "$EST"   # $EST es el estado de $R5, el repo actual
+"$ASSURE" check >/dev/null; rm -f .rompelo/evidence/T1/cruce.json
+out="$(hook claude me1 "$R")"
+es_bloqueo "$out" 'el repo está en nivel 2 desde 04-09-2026 (perfiles auth, junta, secretos; patrones firma-repetida, verde-ambiguo): hace falta segunda pasada' && ok "nivel 2: el motivo dice que es el repo, desde cuándo, perfiles y patrones" || bad "motivo de nivel" "$out"
+es_bloqueo "$out" 'el repo tiene perfil `junta` desde 04-09-2026: hace falta cruce real aunque el contrato diga toca_junta: false' && ok "perfil junta: el motivo dice que es el repo y desde cuándo, no la tarea" || bad "motivo de junta" "$out"
+es_bloqueo "$out" 'toca_junta: false' && ! printf '%s' "$(razon "$out")" | grep -q 'la tarea tocó rutas de junta\|observación: nivel 2 (' && ok "bloquea y el texto viejo («la tarea tocó rutas de junta», «observación: nivel 2 (») ya no sale" || bad "sigue atribuyendo a la tarea lo que es del repo, o calla" "$out"
+printf '{"nivel": 2, "perfiles": ["junta"], "patrones": []}' > "$EST"
+espera_bloqueo "estado de formato anterior, sin fecha: «desde una tarea anterior»" me2 'el repo tiene perfil `junta` desde una tarea anterior'
+r="$(razon "$(ROMPELO_LANG=en hook claude me3 "$R")")"; printf '%s' "$r" | grep -q 'the repo has had the `junta` profile since an earlier task' && ! printf '%s' "$r" | grep -q 'desde\|el repo' && ok "en inglés: since an earlier task, sin restos" || bad "EN motivos del estado" "$r"
+rm -f "$EST"; contrato 'segunda_pasada="revisado"'; "$ASSURE" check >/dev/null; "$ASSURE" close >/dev/null
+
 rm -rf "$T"
 resumen

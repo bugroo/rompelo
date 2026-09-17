@@ -74,6 +74,7 @@ o1="$(bash_ev $SID 'pnpm test' 1 '' 'Error: expected 200 got 500 at line 41')"
 o2="$(bash_ev $SID 'pnpm test' 1 '' 'Error: expected 200 got 503 at line 97')"
 printf '%s' "$o2" | grep -q 'el mismo error 2 veces' && printf '%s' "$o2" | grep -q additionalContext && ok "segundo fallo con la misma firma: aviso" || bad "firma repetida" "$o2"
 [ "$(nivel)" = 2 ] && ok "nivel del repo = 2" || bad "nivel" "$(nivel)"
+python3 -c "import json,glob;d=json.load(open(glob.glob('$ROMPELO_HOME/state/repos/*.json')[0]));assert d.get('nivel_desde','')[:2]=='20',d" && ok "al subir a 2 el estado deja escrito desde cuándo (nivel_desde)" || bad "nivel_desde al subir"
 o3="$(bash_ev $SID 'pnpm test' 1 '' 'Error: expected 200 got 500 at line 41')"
 [ -z "$o3" ] && ok "tercer fallo: el aviso no se repite en la sesión" || bad "aviso repetido" "$o3"
 o4="$(bash_ev $SID 'git push' 1 '' 'fatal: could not read from remote')"
@@ -385,7 +386,7 @@ reset_estado; nueva_sesion; "$ROMPELO" permiso herramientas-externas si >/dev/nu
 python3 - <<'PY'
 import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='';json.dump(c,open(f,'w'))
 PY
-out="$(hook $SID)"; printf '%s' "$out" | grep -q 'observación: nivel 3 (por permiso' && ! printf '%s' "$out" | grep -q 'nivel 2 ()' && ok "nivel 3 por permiso sin patrones: el motivo dice nivel 3 y por qué, no «nivel 2 ()»" || bad "motivo nivel por permiso" "$out"
+out="$(hook $SID)"; printf '%s' "$out" | grep -q 'el repo está en nivel 3 desde [0-9][0-9]-[0-9][0-9]-20[0-9][0-9] (sin perfiles; por permiso, sin patrones)' && ! printf '%s' "$out" | grep -q 'nivel 2 ()\|desde una tarea anterior' && ok "nivel 3 por permiso sin patrones: el motivo dice nivel 3 y por qué, no «nivel 2 ()»" || bad "motivo nivel por permiso" "$out"
 python3 - <<'PY'
 import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='revisado';json.dump(c,open(f,'w'))
 PY

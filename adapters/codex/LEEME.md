@@ -169,7 +169,7 @@ terminada:
 
 ```text
 [rompelo] La tarea ROMPELO-CODEX-05 NO puede darse por terminada (1/3):
-- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- el repo está en nivel 2 desde una tarea anterior (sin perfiles; patrones firma-repetida): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
 - check `rompelo.tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
@@ -189,7 +189,7 @@ sin ejecutar y pidió los seis `--id` exactos:
 
 ```text
 [rompelo] La tarea ROMPELO-CODEX-05 NO puede darse por terminada (2/3):
-- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- el repo está en nivel 2 desde una tarea anterior (sin perfiles; patrones firma-repetida): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
 - check `rompelo.tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
@@ -373,7 +373,7 @@ cliente codex: /opt/homebrew/bin/codex
 
 ```text
 [rompelo] La tarea ROMPELO-CODEX-04 NO puede darse por terminada (1/3):
-- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- el repo está en nivel 2 desde una tarea anterior (sin perfiles; patrones firma-repetida): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
 - check `rompelo.tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.instrumento-tests` sin ejecutar (usa `rompelo check`)
@@ -392,7 +392,7 @@ No declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cru
 
 ```text
 [rompelo] La tarea ROMPELO-CODEX-04 NO puede darse por terminada (2/3):
-- observación: nivel 2 (firma-repetida). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
+- el repo está en nivel 2 desde una tarea anterior (sin perfiles; patrones firma-repetida): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)
 - fuera de scope_paths: config/permisos.json
 - check `rompelo.tests` sin ejecutar (usa `rompelo check`)
 - check `rompelo.observe-tests` sin ejecutar (usa `rompelo check`)
