@@ -97,6 +97,14 @@ espera_deny "scripts/desplegar.sh: deny" e1 "bash scripts/desplegar.sh" claude "
 espera_deny "Codex recibe el mismo deny" e1 "git commit -m x" codex "$R" 'sin ejecutar'
 espera_permite "git commit --dry-run no es entregar: silencio" e1 "git commit --dry-run"
 espera_permite "una palabra suelta 'deploy' en un echo no es entregar" e1 "echo deploy pendiente"
+echo "── compuestos y comillas (17-09-2026): se juzga por tramo, no por el texto entero"
+espera_deny "un --dry-run en otro tramo no exime al push: deny" e1 "git push --dry-run && git push origin main" claude "$R" 'sin ejecutar'
+espera_deny "bash -c 'git commit …' es un commit: deny" e1 "bash -c 'git commit -m x'" claude "$R" 'sin ejecutar'
+espera_deny "eval \"git push\" es un push: deny" e1 'eval "git push origin main"' claude "$R" 'sin ejecutar'
+out="$(pretool claude e1 Bash "pnpm test && git add -A && git commit -m x")"
+es_deny "$out" 'sin ejecutar' && es_deny "$out" 'El comando lleva más tramos que el que entrega' && es_deny "$out" 'git commit -m x' && ok "compuesto: el deny dice que separe la preparación del commit y cita el tramo" || bad "deny de compuesto sin la explicación" "$out"
+out="$(pretool claude e1 Bash "git commit -m x")"
+es_deny "$out" 'sin ejecutar' && ! es_deny "$out" 'más tramos' && ok "un commit solo: deny sin hablar de tramos" || bad "commit solo habla de tramos" "$out"
 [ "$(marcas)" = "0" ] && ok "el deny no declara cierre (sin marca)" || bad "el deny dejó marca de cierre"
 "$ROMPELO" check >/dev/null || exit 2
 espera_permite "contrato cumplido: el commit pasa" e1 "git commit -am x"
