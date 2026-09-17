@@ -34,11 +34,17 @@ EN = {
         "\nDo not declare the task done. Resolve each point (rompelo check / rompelo cruce / finding disposition) and try again. If something cannot be met, say so as NOT VERIFIED and write it in the contract.",
     "[rompelo] tope de {tope} bloqueos alcanzado: la tarea {tid} queda SIN VERIFICAR. ": "[rompelo] limit of {tope} blocks reached: task {tid} is left UNVERIFIED. ",
     "rompelo no pudo evaluar el contrato ({exc}). Un repo alistado sin contrato legible no puede cerrar.": "rompelo could not evaluate the contract ({exc}). An enrolled repo without a readable contract cannot close.",
-    "observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
-        "observation: level {nivel} ({patrones}). An explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)":
+        "the repo is at level {nivel} {desde} ({detalle}): an explicit second pass is required before closing: `segunda_pasada` field in the contract with what was reviewed and what was found (even if nothing)",
+    "desde {fecha}": "since {fecha}",
+    "desde una tarea anterior": "since an earlier task",
+    "perfiles {p}": "profiles {p}",
+    "sin perfiles": "no profiles",
+    "sin patrones": "no patterns",
+    "patrones {p}": "patterns {p}",
     "por permiso, sin patrones": "by permission, no patterns",
-    "observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`":
-        "observation: level {nivel} ({patrones}). A second pass with a manifest over the current tree is required: `rompelo revisar`, review every file (or skip it with a reason), `rompelo revisar --cerrar`",
+    "el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`":
+        "the repo is at level {nivel} {desde} ({detalle}): a second pass with a manifest over the current tree is required: `rompelo revisar`, review every file (or skip it with a reason), `rompelo revisar --cerrar`",
     "rompelo revisar && <revisa cada fichero y rellena el manifiesto> && rompelo revisar --cerrar": "rompelo revisar && <review every file and fill the manifest> && rompelo revisar --cerrar",
     "estado: cerrada, pero el contrato cambió después del cierre. Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but the contract changed after closing. Run `rompelo check` and `rompelo close` again.",
     "estado: cerrada, pero hay cambios posteriores al cierre (huella distinta). Vuelve a `rompelo check` y `rompelo close`.": "state: closed, but there are changes after closing (different fingerprint). Run `rompelo check` and `rompelo close` again.",
@@ -70,7 +76,7 @@ EN = {
     "check `{cid}`: control positivo no pudo ejecutarse o no terminó (instrumento, no hallazgo)": "check `{cid}`: positive control could not run or did not finish (instrument, not a finding)",
     "no puedo leer la allowlist ({exc}): no sé si este repo está alistado. Arréglala o quítala; hasta entonces no doy ninguna tarea por terminada.": "I cannot read the allowlist ({exc}): I do not know whether this repo is enrolled. Fix it or remove it; until then no task is marked done.",
     "el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio": "the real crossing predates the last change; cross AFTER deploying the last change",
-    "observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false": "observation: the task touched boundary paths (`junta` profile), so a real crossing is required even though the contract says toca_junta: false",
+    "el repo tiene perfil `junta` {desde}: hace falta cruce real aunque el contrato diga toca_junta: false": "the repo has had the `junta` profile {desde}: a real crossing is required even though the contract says toca_junta: false",
     "hallazgo sin disposición: {h}": "finding without disposition: {h}",
     "hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)": "finding {h}: disposition \"{d}\" is not valid (confirmado | rechazado | aceptado)",
     "hallazgo {h} rechazado sin motivo": "finding {h} rejected without a reason",
@@ -619,6 +625,37 @@ def nivel_efectivo(est, tarea):
     return 3 if permisos_de(est, tarea)[0] else base
 
 
+def fecha_corta(iso):
+    """'2026-09-04T10:00:00+00:00' → '04-09-2026'. Sin fecha válida, cadena vacía."""
+    p = str(iso or "")[:10].split("-")
+    return f"{p[2]}-{p[1]}-{p[0]}" if len(p) == 3 and all(x.isdigit() for x in p) else ""
+
+
+def desde_texto(fuente, tarea, nivel):
+    """Desde cuándo está el repo en su nivel, para que el motivo no se lo atribuya a la tarea (17-09-2026: «la tarea
+    tocó rutas de junta» salía por un estado del 16-09 en una tarea que solo tocó README.md). Nivel 3: la fecha del
+    permiso activo más reciente; si no, `nivel_desde` (lo escribe `subir_nivel` al pasar a 2) o `fecha` del estado;
+    un estado de formato anterior sin ninguna dice «desde una tarea anterior»."""
+    f = ""
+    if nivel >= 3:
+        activos = permisos_de(fuente, tarea)[0]
+        fechas = [str(p.get("fecha") or "") for p in fuente.get("permisos") or []
+                  if isinstance(p, dict) and not p.get("revocado") and str(p.get("patron")) in activos]
+        f = max(fechas) if fechas else ""
+    fc = fecha_corta(f or fuente.get("nivel_desde") or fuente.get("fecha"))
+    return _("desde {fecha}", fecha=fc) if fc else _("desde una tarea anterior")
+
+
+def subir_nivel(est):
+    """Sube el repo a nivel 2 y deja escrito desde cuándo (`nivel_desde`), que es lo que citan los motivos del gate.
+    Un estado que ya estaba en 2 sin la fecha (formato anterior) toma la de su última escritura, no la de hoy."""
+    if int(est.get("nivel", 0) or 0) < 2:
+        est["nivel_desde"] = ahora()
+    elif not est.get("nivel_desde"):
+        est["nivel_desde"] = est.get("fecha") or ahora()
+    est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+
+
 def contrato_efectivo(root, ci=False, cambiados=None):
     """Lo que de verdad se exige, en un solo sitio: el contrato escrito más lo que impone la observación
     (nivel ≥ 2: perfiles `junta`/`exterior` y segunda pasada; nivel 3: `checks_nivel3`), más lo que OBLIGAN las
@@ -643,6 +680,7 @@ def contrato_efectivo(root, ci=False, cambiados=None):
         activos, revocados = permisos_de(fuente, tarea)
     ef = dict(c)
     info = {"hash": hash_contrato(c), "nivel": nivel, "perfiles": sorted(perfiles), "patrones": list(fuente.get("patrones") or []),
+            "desde": desde_texto(fuente, tarea, nivel), "nivel_desde": fuente.get("nivel_desde"),
             "junta_por_perfil": False, "exterior_por_perfil": False, "segunda_pasada": nivel >= 2}
     if nivel >= 2:
         if "junta" in perfiles and not c["toca_junta"]:
@@ -743,15 +781,19 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     junta_por_perfil = info["junta_por_perfil"]
     exc = {str(x.get("que")): x for x in (c.get("excepciones") or [])}
     if info["segunda_pasada"]:
-        pats = ", ".join(sorted(info["patrones"])) or _("por permiso, sin patrones")
+        # El nivel es del REPO (estado del observador, con fecha), no de esta tarea: el motivo lo dice así.
+        perf = _("perfiles {p}", p=", ".join(info["perfiles"])) if info["perfiles"] else _("sin perfiles")
+        pats = (_("patrones {p}", p=", ".join(sorted(info["patrones"]))) if info["patrones"]
+                else _("por permiso, sin patrones") if info["nivel"] >= 3 else _("sin patrones"))
+        detalle = f"{perf}; {pats}"
         if modo_segunda_pasada() == "revision":
             if not revision_vigente(ev, hu):
                 acc["revisar"] = True
-                m.append(_("observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`",
-                           nivel=info["nivel"], patrones=pats))
+                m.append(_("el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`",
+                           nivel=info["nivel"], desde=info["desde"], detalle=detalle))
         elif not str(c.get("segunda_pasada") or "").strip():
-            m.append(_("observación: nivel {nivel} ({patrones}). Hace falta una segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
-                       nivel=info["nivel"], patrones=pats))
+            m.append(_("el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada explícita antes de cerrar: campo `segunda_pasada` en el contrato con qué se revisó y qué se encontró (aunque sea nada)",
+                       nivel=info["nivel"], desde=info["desde"], detalle=detalle))
 
     if str(c["estado"]) == "cerrada" and not ci:
         cerr = leer_evidencia(ev, "cerrada.json")
@@ -850,7 +892,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
         elif cr.get("huella") != hu:
             mc.append(_("el cruce real es anterior al último cambio; hay que cruzar DESPUÉS de desplegar el último cambio"))
         if mc and junta_por_perfil:
-            m.append(_("observación: la tarea tocó rutas de junta (perfil `junta`), así que hace falta cruce real aunque el contrato diga toca_junta: false"))
+            m.append(_("el repo tiene perfil `junta` {desde}: hace falta cruce real aunque el contrato diga toca_junta: false", desde=info["desde"]))
         if mc and info.get("junta_por_obliga"):
             m.append(_("obliga: la tarea cambia rutas de junta ({globs}), así que hace falta cruce real aunque el contrato diga toca_junta: false", globs=", ".join(info["junta_por_obliga"])))
         if mc:
@@ -1388,7 +1430,7 @@ def cmd_close(root, args):
     hu = huella_arbol(root, c.get("base"))
     # Las obligaciones con las que se cierra viajan en el contrato (versionado y revisado): un runner de CI
     # sin estado local exige lo mismo, y rebajarlas a mano cambia el hash del contrato e invalida el cierre.
-    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "perfiles": info["perfiles"], "permisos": info["permisos"],
+    c["obligaciones_efectivas"] = {"nivel": info["nivel"], "nivel_desde": info.get("nivel_desde"), "perfiles": info["perfiles"], "permisos": info["permisos"],
                                    "checks": [cid for cid, _n3 in info["checks"]], "toca_junta": bool(ef["toca_junta"]),
                                    "toca_exterior": bool(ef.get("toca_exterior")), "exige_prueba_en_diff": bool(ef.get("exige_prueba_en_diff")),
                                    "obliga": info.get("origen") or {}, "fecha": ahora()}
@@ -2241,7 +2283,7 @@ def codex_al_stop(ent, sid, root):
             nuevos = set(patrones_de(relevantes, umbrales())) - set(est.get("patrones", []))
             if nuevos:
                 est["patrones"] = sorted(set(est.get("patrones", [])) | nuevos)
-                est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+                subir_nivel(est)
                 guardar_estado_repo(root, est)
     if pendientes:
         return _("[rompelo · Codex] {n} ejecuciones con código NO VERIFICADO; cobertura del observador incompleta. No cuentan como checks verdes.", n=pendientes)
@@ -2368,7 +2410,7 @@ def cmd_observe(agente, args):
             if not nuevos:
                 guardar_estado_repo(root, est)
                 return 0
-            est["nivel"] = max(int(est.get("nivel", 0) or 0), 2)
+            subir_nivel(est)
             clave = f"{agente}-{sid}"
             est["avisos"].setdefault(clave, [])
             pendientes = [n for n in nuevos if n[1] not in est["avisos"][clave]]
@@ -2442,6 +2484,7 @@ def cmd_nivel(root, args):
         motivo = valor(args, "--motivo")
         if not motivo:
             sys.exit("uso: rompelo nivel bajar --motivo 'por qué'")
+        est.pop("nivel_desde", None)
         est.update({"nivel": 0, "perfiles": [], "patrones": [], "permisos": [], "bajado": {"fecha": ahora(), "motivo": motivo}})
         guardar_estado_repo(root, est)
     try:

@@ -1,35 +1,45 @@
 {
   "schema": 1,
-  "id": "ROMPELO-CODEX-06",
+  "id": "MOTIVOS-ESTADO",
   "estado": "cerrada",
-  "base": "b03c55e2f83bb4d8606c313c8403048642deaf8a",
-  "descripcion": "Cruzar el disparo entrega desde Codex real y actualizar su adaptador",
+  "base": "d85e05886e369e431334cf2cca656b5ed0080c37",
+  "descripcion": "Los motivos que salen del estado del repo dicen de dónde vienen y desde cuándo",
   "scope_paths": [
-    "adapters/codex/**",
-    "docs/observacion.md",
-    ".rompelo/task.json"
+    "bin/rompelo",
+    "tests/rompelo-stop-test.sh",
+    "tests/rompelo-observe-test.sh",
+    "adapters/skill/SKILL.md",
+    "adapters/codex/LEEME.md",
+    "CHANGELOG.md",
+    "docs/observacion.md"
   ],
   "checks": [
+    "rompelo.tests",
+    "rompelo.observe-tests",
     "rompelo.disparo-tests",
-    "rompelo.observe-tests"
+    "rompelo.obliga-tests",
+    "rompelo.revisar-tests"
   ],
-  "toca_junta": true,
+  "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:9973908a37e66696: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 0,
+    "nivel_desde": null,
     "perfiles": [],
     "permisos": [],
     "checks": [
+      "rompelo.tests",
+      "rompelo.observe-tests",
       "rompelo.disparo-tests",
-      "rompelo.observe-tests"
+      "rompelo.obliga-tests",
+      "rompelo.revisar-tests"
     ],
-    "toca_junta": true,
+    "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-16T22:23:18+00:00"
+    "fecha": "2026-09-17T04:45:11+00:00"
   }
 }

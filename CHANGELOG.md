@@ -5,6 +5,12 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Los motivos que vienen del estado del repo lo dicen (17-09).** «el repo está en nivel 2 desde 04-09-2026 (perfiles auth,
+  junta, secretos; patrones firma-repetida, verde-ambiguo): hace falta segunda pasada…» y «el repo tiene perfil `junta`
+  desde 04-09-2026: hace falta cruce real…» sustituyen a «observación: nivel 2 (…)» y a «la tarea tocó rutas de junta»,
+  que atribuían a la tarea lo que era del repo. La fecha es `nivel_desde`, escrita al subir a 2 (y en
+  `obligaciones_efectivas` para CI); un estado anterior sin fecha dice «desde una tarea anterior». Cómo se baja y cuándo
+  no, en la skill.
 - **La puerta salta al entregar, no en cada turno (16-09).** Disparo `entrega` por defecto: `PreToolUse` deniega
   `git commit`/`push`/`merge`, `gh pr`, `wrangler deploy`, `scripts/desplegar.sh`… con el contrato sin cumplir (motivos y
   línea «Siguiente:», sin tope); `UserPromptSubmit` reconoce la petición de cerrar del usuario («termina», «sube esto»,
