@@ -106,6 +106,23 @@ el presupuesto deja ficheros en `warnings` y el envoltorio lo lee como 2 (no pud
 Sigue `OCR_MAX_LINEAS` (1500) como tope previo. Medido: una corrida de `verify --ci` con ocr en el contrato
 costó 1,3 M tokens (≈ 1,8 $) el 16-09-2026.
 
+## 7. Base del contrato: `rompelo base --mover`
+
+El contrato mide la tarea contra `base`, el commit que `init` escribió. En una tarea larga otros fusionan sus PR
+en la rama: contra la base vieja esas rutas salen como «fuera de scope» y arrastran checks caducados que no son
+de esta tarea (17-09-2026: 38 rutas ajenas en un contrato de ClaveON, añadidas a mano una a una).
+
+```
+rompelo base                                  # base, HEAD, commits por delante y qué rutas traen; movimientos anteriores
+rompelo base --mover [REF] --motivo '<por qué>'   # adelanta la base (REF por defecto HEAD)
+```
+
+Reglas, todas fail-closed: solo hacia delante (REF desciende de la base), solo dentro de la historia de HEAD,
+con motivo obligatorio, y queda escrito en el contrato (`base_movida`: de, a, fecha, motivo, commits, rutas
+absorbidas). La huella cambia con la base, así que la evidencia anterior caduca y hay que repetir `rompelo check`
+(y `close`). No esconde trabajo sin juzgar: lo que el agente pudo commitear ya pasó por la puerta (PreToolUse
+deniega el commit con el contrato sin cumplir, y con el contrato cerrado un cambio posterior también).
+
 ## Baterías y controles
 
 | Batería | Casos | Control positivo (mutante) |
@@ -113,7 +130,7 @@ costó 1,3 M tokens (≈ 1,8 $) el 16-09-2026.
 | `tests/rompelo-disparo-test.sh` | 62 | Stop en `entrega` ignora el cierre declarado → 6 fallos exactos (3 bloqueos que no llegan, 3 marcas que no se retiran) |
 | `tests/rompelo-obliga-test.sh` | 38 | toda regla aplica sin ruta que case → 3 fallos exactos |
 | `tests/rompelo-revisar-test.sh` | 32 | la revisión vale aunque sea de otro árbol → fallos exactos |
-| `tests/rompelo-stop-test.sh` | 222 (+3 de categorías protegidas) | scope anulado |
+| `tests/rompelo-stop-test.sh` | 242 (+3 de categorías protegidas, +17 de la base movible) | scope anulado → 2 fallos exactos (el fichero fuera de scope y el commit ajeno tras la base) |
 | `tests/rompelo-observe-test.sh` | 113 | el observador nunca sube a nivel 2 → 4 fallos exactos (nivel, segunda pasada, perfil junta, perfil exterior) |
 | `tests/instrumento-test.sh` | 26 distinciones | `es_bloqueo` de `lib.sh` acepta cualquier JSON → 2 fallos exactos |
 | `tests/portabilidad-test.sh` | 19 | el estado del repo se nombra por carpeta y no por ruta → 3 fallos exactos |

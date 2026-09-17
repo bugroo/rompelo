@@ -1,36 +1,47 @@
 {
   "schema": 1,
-  "id": "PR3-DOCS-INTEGRACION-20260917",
+  "id": "BASE-MOVIBLE-2026-09-17",
   "estado": "cerrada",
-  "base": "5988e15c92f83c968c4beec9e19c57883ee56ebb",
-  "descripcion": "Integrar documentación Mac y GitHub sobre main con controles positivos de portabilidad",
+  "base": "dde27e945d8f1a3fa7c583860074a9e2ae53a8e9",
+  "descripcion": "rompelo base --mover: la base del contrato avanza a HEAD cuando lo ajeno ya está fusionado",
   "scope_paths": [
-    "docs/PROTECCION-MAIN.md",
-    "docs/auditoria-2026-09-07/SEGUIMIENTO.md",
+    "bin/rompelo",
+    "tests/rompelo-stop-test.sh",
+    "tests/control-positivo.py",
+    "docs/disparo.md",
+    "CHANGELOG.md",
+    "README.md",
+    "adapters/skill/SKILL.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.portabilidad-tests",
-    "rompelo.sin-var-pegada"
+    "rompelo.tests"
   ],
-  "toca_junta": true,
+  "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:e1bddfa09a2a98ab: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 0,
     "nivel_desde": null,
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.portabilidad-tests",
-      "rompelo.sin-var-pegada"
+      "rompelo.tests",
+      "rompelo.observe-tests",
+      "rompelo.disparo-tests",
+      "rompelo.obliga-tests",
+      "rompelo.revisar-tests"
     ],
-    "toca_junta": true,
+    "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
-    "obliga": {},
-    "fecha": "2026-09-17T06:38:44+00:00"
+    "obliga": {
+      "rompelo.observe-tests": "obliga: bin/rompelo",
+      "rompelo.disparo-tests": "obliga: bin/rompelo",
+      "rompelo.obliga-tests": "obliga: bin/rompelo",
+      "rompelo.revisar-tests": "obliga: bin/rompelo"
+    },
+    "fecha": "2026-09-17T09:11:07+00:00"
   }
 }

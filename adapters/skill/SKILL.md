@@ -12,7 +12,10 @@ Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar c
    llevan prefijo de repo: `claveon.test`, `mi-app.typecheck`. Si no hay ninguno para este repo, `rompelo init`
    sin `--check` los detecta de `package.json`, `pyproject`, `Makefile`…
 2. **Si hay un contrato abierto de otra sesión**, no lo pises: abre el tuyo con `--force` o trabaja en un
-   worktree (dos sesiones sobre la misma raíz comparten `.rompelo/task.json`, INC-0048).
+   worktree (dos sesiones sobre la misma raíz comparten `.rompelo/task.json`, INC-0048). Si durante tu tarea
+   otros fusionan PR en la rama y salen rutas ajenas como «fuera de scope», no las metas en el scope: `rompelo base`
+   te dice qué entró y `rompelo base --mover --motivo '<qué PR se fusionó>'` adelanta la base (después, `rompelo
+   check` otra vez).
 3. **Abre el contrato** con lo que la tarea de verdad necesita:
 
    ```

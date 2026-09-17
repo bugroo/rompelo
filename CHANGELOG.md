@@ -5,6 +5,11 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **`rompelo base --mover [REF] --motivo TXT` (17-09).** La base del contrato avanza (solo hacia delante, solo dentro de
+  la historia de HEAD, con motivo) cuando lo que otros fusionaron durante la tarea sale como «fuera de scope». Queda
+  escrito en el contrato (`base_movida`: de, a, fecha, motivo, commits, rutas absorbidas) y la evidencia anterior caduca.
+  `rompelo base` a secas dice dónde está la base y qué ha entrado en HEAD. 17 casos nuevos en la batería del gate; el
+  control positivo de scope espera ahora 2 fallos exactos. Docs: `docs/disparo.md` §7.
 - **Todas las baterías del gate tienen control positivo (17-09).** `control-positivo.py instrumento` (un `es_bloqueo`
   que acepta cualquier JSON → 2 fallos exactos) y `portabilidad` (estado del repo por nombre de carpeta → 3 fallos
   exactos). El mutante de portabilidad destapó que la batería no veía la mezcla de estado: comprobaba con `permiso`,
