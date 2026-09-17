@@ -5,6 +5,12 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **Una marca de cierre no sobrevive a un contrato cerrado ni a otra tarea (17-09).** Con disparo `entrega`, Stop retira
+  en silencio la marca `cerrando-<repo>` si el contrato está `cerrada` o si la marca es de otra tarea (init --force
+  desde otra sesión, `git checkout` de `task.json`); y el prompt de cierre sobre un contrato cerrado ya no declara
+  cierre: dice que está cerrada, qué falta y que el camino es un contrato nuevo. Antes, una marca dejada por una prueba
+  en otra sesión bloqueaba cada turno de cualquier sesión sobre ese repo. Batería de disparo 54 → 62 casos; el control
+  positivo espera 6 fallos exactos.
 - **Los motivos que vienen del estado del repo lo dicen (17-09).** «el repo está en nivel 2 desde 04-09-2026 (perfiles auth,
   junta, secretos; patrones firma-repetida, verde-ambiguo): hace falta segunda pasada…» y «el repo tiene perfil `junta`
   desde 04-09-2026: hace falta cruce real…» sustituyen a «observación: nivel 2 (…)» y a «la tarea tocó rutas de junta»,

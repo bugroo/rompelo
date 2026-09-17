@@ -62,6 +62,15 @@ espera_deny() { local out; out="$(pretool "${4:-claude}" "$2" Bash "$3" "${5:-$R
 espera_permite() { local out; out="$(pretool "${4:-claude}" "$2" "${5:-Bash}" "$3")"
   if [ -z "$out" ]; then ok "$1"; else bad "$1 (esperaba silencio)" "$out"; fi; }
 marcas() { ls "$ROMPELO_HOME/state/marcas" 2>/dev/null | grep -c '^cerrando-'; }
+# plantar_marca <tarea>: deja a mano la marca de cierre de este repo (mismo nombre que el binario: sha256 de la raíz real)
+plantar_marca() { python3 - "$ROMPELO_HOME" "$R" "$1" <<'PY'
+import hashlib, json, os, sys
+home, root, tarea = sys.argv[1:4]
+os.makedirs(os.path.join(home, "state", "marcas"), exist_ok=True)
+f = os.path.join(home, "state", "marcas", "cerrando-" + hashlib.sha256(os.path.realpath(root).encode()).hexdigest()[:16])
+json.dump({"tarea": tarea, "quien": "prueba", "fecha": "hoy"}, open(f, "w"))
+PY
+}
 
 echo "── fuera de la allowlist: PreToolUse y UserPromptSubmit callan y no ejecutan nada"
 mkdir -p .rompelo && printf '{"id":"AJENO","estado":"abierta","scope_paths":["**"],"checks":["canario"],"toca_junta":false}' > .rompelo/task.json
@@ -118,6 +127,25 @@ espera_permite "cerrada: el push pasa" e3 "git push"
 echo e > src/a.txt
 espera_deny "cerrada pero con cambios después: el commit se deniega" e3 "git commit -am x" claude "$R" 'cambios posteriores al cierre'
 espera_paso "cerrada con cambios y sin cierre declarado: Stop calla" e3
+
+echo "── marca huérfana: un contrato cerrado no la sostiene, ni una marca de otra tarea (incidente 17-09-2026)"
+out="$(prompt claude e5 "termina y sube esto")"
+tiene_contexto "$out" "ya está cerrada" && tiene_contexto "$out" "rompelo init" && ok "prompt de cierre sobre contrato cerrado: dice que está cerrada y qué hacer" || bad "prompt de cierre sobre contrato cerrado" "$out"
+[ "$(marcas)" = "0" ] && ok "y no deja marca sobre un contrato cerrado" || bad "dejó marca sobre un contrato cerrado ($(marcas))"
+plantar_marca "D1"
+[ "$(marcas)" = "1" ] || bad "no pude plantar la marca de prueba"
+espera_paso "marca de una tarea cerrada (de otra sesión o de ayer): Stop calla" e5
+[ "$(marcas)" = "0" ] && ok "y retira la marca huérfana" || bad "la marca huérfana sigue ($(marcas))"
+"$ROMPELO" init --force --id D1B --scope 'src/**' --check ok >/dev/null || exit 2
+echo huerfana > src/a.txt
+plantar_marca "OTRA"
+espera_paso "marca a nombre de otra tarea con el contrato abierto y sin cumplir: Stop calla" e5
+[ "$(marcas)" = "0" ] && ok "y retira la marca de la otra tarea" || bad "la marca de la otra tarea sigue ($(marcas))"
+out="$(prompt claude e5 "termina y sube esto")"; tiene_contexto "$out" "D1B" && ok "el cierre declarado de verdad sigue funcionando" || bad "prompt de cierre en D1B" "$out"
+espera_bloqueo "y Stop bloquea con la marca legítima" e5 'check `ok` sin ejecutar'
+"$ROMPELO" check >/dev/null && "$ROMPELO" close >/dev/null || exit 2
+[ "$(marcas)" = "0" ] || bad "close en verde dejó la marca (D1B)"
+"$ROMPELO" init --force --id D1 --scope 'src/**' --check ok >/dev/null || exit 2
 
 echo "── prompt de cierre con el contrato ya cumplido: contexto tranquilo y sin marca"
 "$ROMPELO" check >/dev/null && "$ROMPELO" close >/dev/null || exit 2

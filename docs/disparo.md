@@ -23,6 +23,12 @@ versionar, pisa clave a clave) y el campo `disparo` del contrato (`rompelo init 
 - `rompelo close` en rojo declara el cierre (el agente intentó terminar: desde ahí Stop juzga hasta que cierre
   de verdad). `rompelo close` en verde y `rompelo init --force` retiran la marca. Una marca de más de un día
   es de otra jornada y se ignora.
+- La marca solo vale si es de hoy, de **esta** tarea y el contrato está **abierto**. Una marca a nombre de otra tarea
+  (init --force desde otra sesión, `git checkout` de `task.json`) o sobre un contrato `cerrada` se retira en silencio:
+  lo cerrado ya se entregó y lo que cambie después lo frena el deny al entregar. Por lo mismo, el prompt de cierre
+  sobre un contrato cerrado no declara nada: dice que está cerrada, qué falta y que el camino es un contrato nuevo (o
+  repetir `check` y `close` si el cambio es de esa tarea). Incidente 17-09-2026: una marca de una prueba en otra sesión
+  bloqueó cada turno de una sesión distinta sobre un contrato ajeno y cerrado en otro árbol.
 - Con la config ilegible o un `disparo` inválido la puerta no adivina: PreToolUse deniega la entrega y Stop
   bloquea (fail-closed) diciendo qué arreglar.
 - `--dry-run` en el comando no es entregar. Los patrones son expresiones regulares (sin mayúsculas) sobre el
@@ -104,7 +110,7 @@ costó 1,3 M tokens (≈ 1,8 $) el 16-09-2026.
 
 | Batería | Casos | Control positivo (mutante) |
 |---|---|---|
-| `tests/rompelo-disparo-test.sh` | 54 | Stop en `entrega` ignora el cierre declarado → 3 fallos exactos |
+| `tests/rompelo-disparo-test.sh` | 62 | Stop en `entrega` ignora el cierre declarado → 6 fallos exactos (3 bloqueos que no llegan, 3 marcas que no se retiran) |
 | `tests/rompelo-obliga-test.sh` | 38 | toda regla aplica sin ruta que case → 3 fallos exactos |
 | `tests/rompelo-revisar-test.sh` | 32 | la revisión vale aunque sea de otro árbol → fallos exactos |
 | `tests/rompelo-stop-test.sh` | 222 (+3 de categorías protegidas) | scope anulado |

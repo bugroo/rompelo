@@ -1,24 +1,20 @@
 {
   "schema": 1,
-  "id": "MOTIVOS-ESTADO",
+  "id": "MARCA-HUERFANA-2026-09-17",
   "estado": "cerrada",
-  "base": "d85e05886e369e431334cf2cca656b5ed0080c37",
-  "descripcion": "Los motivos que salen del estado del repo dicen de dónde vienen y desde cuándo",
+  "base": "23c33fbf57db34ec64f9f94b098a8db79d46d5e5",
+  "descripcion": "una marca de cierre no sobrevive a un contrato cerrado ni a otra tarea",
   "scope_paths": [
     "bin/rompelo",
-    "tests/rompelo-stop-test.sh",
-    "tests/rompelo-observe-test.sh",
-    "adapters/skill/SKILL.md",
-    "adapters/codex/LEEME.md",
+    "tests/rompelo-disparo-test.sh",
+    "tests/control-positivo.py",
+    "docs/disparo.md",
     "CHANGELOG.md",
-    "docs/observacion.md"
+    "adapters/skill/SKILL.md",
+    ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.tests",
-    "rompelo.observe-tests",
-    "rompelo.disparo-tests",
-    "rompelo.obliga-tests",
-    "rompelo.revisar-tests"
+    "rompelo.disparo-tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": false,
@@ -30,16 +26,21 @@
     "perfiles": [],
     "permisos": [],
     "checks": [
+      "rompelo.disparo-tests",
       "rompelo.tests",
       "rompelo.observe-tests",
-      "rompelo.disparo-tests",
       "rompelo.obliga-tests",
       "rompelo.revisar-tests"
     ],
     "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
-    "obliga": {},
-    "fecha": "2026-09-17T04:45:11+00:00"
+    "obliga": {
+      "rompelo.tests": "obliga: bin/rompelo",
+      "rompelo.observe-tests": "obliga: bin/rompelo",
+      "rompelo.obliga-tests": "obliga: bin/rompelo",
+      "rompelo.revisar-tests": "obliga: bin/rompelo"
+    },
+    "fecha": "2026-09-17T05:11:47+00:00"
   }
 }
