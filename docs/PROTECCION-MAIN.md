@@ -1,16 +1,19 @@
-# Protección de `main` (preparada el 07-09-2026, NO activada)
+# Protección de `main` (activada el 16-09-2026)
 
-Estado medido el 07-09-2026 con la API de GitHub: `main` tiene `protected: false` y el repo no tiene
-rulesets (RMP-016 de la auditoría). Activarlo es una acción remota sobre el repositorio y la decide
-José; este documento deja los comandos listos para que la activación sea un paso, no una investigación.
+El 16-09-2026 se activó la protección de rama de `bugroo/rompelo`, al retomar los pendientes del
+Mac y GitHub por encargo de José. Una lectura nueva de la API confirmó `gate` obligatorio,
+rama actualizada, PR obligatorio, aplicación a administradores y bloqueo de force-push y borrado.
+Se usa protección de rama clásica; no se creó un ruleset adicional.
+La configuración se releyó el 17-09-2026 y conserva esos requisitos.
 
 ## Qué exige
 
 - El check `rompelo / gate` (workflow `.github/workflows/ci.yml`) en verde antes de integrar.
 - Sin push directo a `main`: todo entra por pull request.
-- Sin `--force` sobre `main`.
+- No exige un segundo revisor: el número de aprobaciones es cero.
+- Sin `--force` ni borrado de `main`, también para administradores.
 
-## Comandos (ejecutar José, con `gh` autenticado como `bugroo`)
+## Configuración aplicada
 
 ```bash
 gh api -X PUT repos/bugroo/rompelo/branches/main/protection \
@@ -18,7 +21,12 @@ gh api -X PUT repos/bugroo/rompelo/branches/main/protection \
 {
   "required_status_checks": {"strict": true, "contexts": ["gate"]},
   "enforce_admins": true,
-  "required_pull_request_reviews": null,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 0,
+    "require_last_push_approval": false
+  },
   "restrictions": null,
   "allow_force_pushes": false,
   "allow_deletions": false
@@ -27,8 +35,14 @@ JSON
 gh api repos/bugroo/rompelo/branches/main/protection --jq '.required_status_checks.contexts'
 ```
 
-`contexts` tiene que coincidir con el nombre del job (`gate`). Comprobarlo después con un PR de prueba
-cuyo gate esté en rojo: si se puede integrar, la protección no está actuando.
+`contexts` coincide con el nombre real del job (`gate`). El ejemplo anterior usaba
+`required_pull_request_reviews: null`, que desactiva ese requisito; ahora el objeto exige PR sin
+pedir aprobaciones de otro colaborador. Véase la
+[API oficial de protección de ramas](https://docs.github.com/en/rest/branches/branch-protection#update-branch-protection).
+
+La relectura de la regla comprueba su configuración. La comprobación operacional consiste en
+observar un PR con `gate` fallido y estado de integración `BLOCKED`; no requiere intentar fusionarlo.
+Un PR en borrador tampoco demuestra por sí solo que el bloqueo proceda del check.
 
 ## Lo que esto no hace
 

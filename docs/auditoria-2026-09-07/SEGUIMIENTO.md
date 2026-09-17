@@ -1,5 +1,36 @@
 # Seguimiento de la auditoría del 07-09-2026
 
+## Actualización operacional del 17-09-2026
+
+- **RMP-016:** protección de `main` activada y releída mediante la API: `gate` obligatorio,
+  rama actualizada, PR con cero aprobaciones requeridas, administradores incluidos, force-push y
+  borrado deshabilitados. Configuración reproducible en [PROTECCION-MAIN.md](../PROTECCION-MAIN.md).
+- **RMP-018, instalación del Mac:** las líneas de Rómpelo instaladas corresponden a los fragmentos
+  versionados: cinco eventos en Claude Code y cuatro en Codex, incluidos `PreToolUse` y
+  `UserPromptSubmit`. Las dos skills están sincronizadas con `adapters/skill/SKILL.md`;
+  la de Codex incorpora también las correcciones posteriores de las PR #7 y #8.
+  Un proceso nuevo de Codex App Server la descubre como skill de usuario habilitada, sin duplicados.
+- **Portabilidad local:** `rompelo check --id rompelo.portabilidad-tests`: batería con código 0
+  y control positivo con código 1, incorporando la corrección de la PR #10.
+- **OCR y corpus:** el bloqueo del 16-09 quedó resuelto en la
+  [PR #5](https://github.com/bugroo/rompelo/pull/5): `OCR-SOLO-LOCAL-2026-09-16` cerrado,
+  control positivo de `ocr.review` con código 1, revisión y cruce real con código 0,
+  corpus regenerado en contrato separado. La CI anterior fallida queda como evidencia histórica,
+  no como estado pendiente actual.
+- **Entrega y Parte 6:** las [PR #4](https://github.com/bugroo/rompelo/pull/4) y
+  [#6](https://github.com/bugroo/rompelo/pull/6) están integradas. Codex CLI 0.154.0 demostró
+  denegación nativa del commit pendiente, contexto al pedir cierre y Stop hasta cumplir el contrato;
+  evidencias y límites en [el adaptador Codex](../../adapters/codex/LEEME.md).
+  La representación visual en la aplicación de escritorio continúa **NO VERIFICADA**.
+- **CI en Linux:** [35157683717](https://github.com/bugroo/rompelo/actions/runs/35157683717)
+  pasó en `main` tras integrar la Parte 6, incluidas las baterías, el corpus y `verify --ci`.
+  Los checks `solo_local` y la junta se acreditan localmente; el verde de CI no los sustituye.
+
+Las cifras, permisos y pendientes que siguen son el registro histórico del 07-09; esta actualización
+sustituye únicamente los estados operacionales comprobados arriba.
+
+## Registro histórico
+
 Snapshot auditado: `86001d2`. Contraste contra el binario real (07-09, sesión Claude Code): `repro-2026-09-07.py`
 y `repro2-2026-09-07.py` en esta carpeta, ejecutados sobre `af6ee5e` (mismo código que el snapshot).
 Resultado: 17 comprobaciones ejecutadas, 17 reproducidas; cubren RMP-001 (a, a', b, c, d, e), 002 (2),

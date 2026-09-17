@@ -1,38 +1,36 @@
 {
   "schema": 1,
-  "id": "CONTROLES-2026-09-17",
+  "id": "PR3-DOCS-INTEGRACION-20260917",
   "estado": "cerrada",
-  "base": "7986f947f72d081e8f298e665f624610bed4568f",
-  "descripcion": "controles positivos de instrumento y portabilidad",
+  "base": "5988e15c92f83c968c4beec9e19c57883ee56ebb",
+  "descripcion": "Integrar documentación Mac y GitHub sobre main con controles positivos de portabilidad",
   "scope_paths": [
-    "tests/control-positivo.py",
-    "tests/portabilidad-test.sh",
-    "checks/registry.json",
-    "docs/disparo.md",
-    "CHANGELOG.md",
+    "docs/PROTECCION-MAIN.md",
+    "docs/auditoria-2026-09-07/SEGUIMIENTO.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.instrumento-tests",
-    "rompelo.portabilidad-tests"
+    "rompelo.portabilidad-tests",
+    "rompelo.sin-var-pegada"
   ],
-  "toca_junta": false,
+  "toca_junta": true,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "revisión con manifiesto sobre v2:e1bddfa09a2a98ab: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 0,
     "nivel_desde": null,
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.instrumento-tests",
-      "rompelo.portabilidad-tests"
+      "rompelo.portabilidad-tests",
+      "rompelo.sin-var-pegada"
     ],
-    "toca_junta": false,
+    "toca_junta": true,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-17T06:34:36+00:00"
+    "fecha": "2026-09-17T06:38:44+00:00"
   }
 }
