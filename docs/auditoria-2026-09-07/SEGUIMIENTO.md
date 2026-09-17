@@ -10,7 +10,8 @@
   `UserPromptSubmit`. Las dos skills están sincronizadas con `adapters/skill/SKILL.md`;
   la de Codex incorpora también las correcciones posteriores de las PR #7 y #8.
   Un proceso nuevo de Codex App Server la descubre como skill de usuario habilitada, sin duplicados.
-- **Portabilidad local:** `bash tests/portabilidad-test.sh`: `PASS=18 FAIL=0 ROTOS=0`.
+- **Portabilidad local:** `rompelo check --id rompelo.portabilidad-tests`: batería con código 0
+  y control positivo con código 1, incorporando la corrección de la PR #10.
 - **OCR y corpus:** el bloqueo del 16-09 quedó resuelto en la
   [PR #5](https://github.com/bugroo/rompelo/pull/5): `OCR-SOLO-LOCAL-2026-09-16` cerrado,
   control positivo de `ocr.review` con código 1, revisión y cruce real con código 0,

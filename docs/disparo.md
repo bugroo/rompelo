@@ -115,6 +115,8 @@ costó 1,3 M tokens (≈ 1,8 $) el 16-09-2026.
 | `tests/rompelo-revisar-test.sh` | 32 | la revisión vale aunque sea de otro árbol → fallos exactos |
 | `tests/rompelo-stop-test.sh` | 222 (+3 de categorías protegidas) | scope anulado |
 | `tests/rompelo-observe-test.sh` | 113 | el observador nunca sube a nivel 2 → 4 fallos exactos (nivel, segunda pasada, perfil junta, perfil exterior) |
+| `tests/instrumento-test.sh` | 26 distinciones | `es_bloqueo` de `lib.sh` acepta cualquier JSON → 2 fallos exactos |
+| `tests/portabilidad-test.sh` | 19 | el estado del repo se nombra por carpeta y no por ruta → 3 fallos exactos |
 | `tests/ocr-review-test.sh` | 22 (+5 de effort/presupuesto) | tope anulado |
 | `tests/cruce-hooks-entrega.sh` | cruce adaptador → binario con payloads reales; visto ROTO contra el binario anterior | |
 
