@@ -1,18 +1,20 @@
 {
   "schema": 1,
-  "id": "CONTROL-OBSERVE-2026-09-17",
+  "id": "CONTROLES-2026-09-17",
   "estado": "cerrada",
-  "base": "0a8ef29ff3d47feceabb669d53df719faa87da9a",
-  "descripcion": "control positivo de la batería del observador",
+  "base": "7986f947f72d081e8f298e665f624610bed4568f",
+  "descripcion": "controles positivos de instrumento y portabilidad",
   "scope_paths": [
     "tests/control-positivo.py",
+    "tests/portabilidad-test.sh",
     "checks/registry.json",
     "docs/disparo.md",
     "CHANGELOG.md",
     ".rompelo/task.json"
   ],
   "checks": [
-    "rompelo.observe-tests"
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": false,
@@ -24,12 +26,13 @@
     "perfiles": [],
     "permisos": [],
     "checks": [
-      "rompelo.observe-tests"
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests"
     ],
     "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-17T06:15:42+00:00"
+    "fecha": "2026-09-17T06:34:36+00:00"
   }
 }

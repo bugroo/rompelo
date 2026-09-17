@@ -254,10 +254,87 @@ def observe(tmp):
     return 2
 
 
+def instrumento(tmp):
+    """La batería del instrumento (tests/instrumento-test.sh) contra un tests/lib.sh cuyo `es_bloqueo` acepta cualquier
+    JSON como bloqueo: tiene que fallar exactamente en las dos distinciones que dependen de leer el JSON (otro texto,
+    JSON sin decision=block). Se copian los tres ficheros a un árbol temporal porque la batería carga lib.sh por su
+    propia ruta."""
+    original = RAIZ / "tests/lib.sh"
+    texto = original.read_text(encoding="utf-8")
+    antes = 'sys.exit(0 if isinstance(d, dict) and d.get("decision") == "block" and texto in str(d.get("reason", "")) else 1)\n'
+    despues = 'sys.exit(0)  # mutación de control positivo: cualquier JSON cuenta como bloqueo\n'
+    if texto.count(antes) != 1:
+        print("no pude aplicar exactamente una mutación del instrumento; no cuenta como hallazgo")
+        return 2
+    (tmp / "tests").mkdir()
+    for f in ("invocar.py", "instrumento-test.sh"):
+        (tmp / "tests" / f).write_text((RAIZ / "tests" / f).read_text(encoding="utf-8"), encoding="utf-8")
+    mutante = tmp / "tests/lib.sh"
+    mutante.write_text(texto.replace(antes, despues, 1), encoding="utf-8")
+    aplicado = mutante.read_text(encoding="utf-8")
+    assert antes not in aplicado and aplicado.count(despues) == 1 and aplicado != texto
+    r = correr(["bash", str(tmp / "tests/instrumento-test.sh")], cwd=str(tmp))
+    resumen = re.findall(r"^instrumento: (\d+) de (\d+) distinciones correctas$", r.stdout, re.M)
+    if len(resumen) != 1:
+        print("la batería no completó su recuento; instrumento no verificado")
+        return 2
+    bien, total = map(int, resumen[0])
+    fallos = sorted(l.strip() for l in r.stdout.splitlines() if l.strip().startswith("❌"))
+    esperados = sorted(["❌ bloqueo sano con OTRO texto no pasa",
+                        "❌ un JSON sin decision=block no es bloqueo"])
+    print(f"1 mutación del instrumento confirmada; batería {bien} de {total} distinciones")
+    if r.returncode == 0 and bien == total and total > 0:
+        return 0
+    if r.returncode == 1 and total - bien == len(esperados) and bien > 0 and fallos == esperados:
+        return 1
+    print("el fallo no es exclusivamente el del instrumento esperado; no cuenta como control detectado")
+    return 2
+
+
+def portabilidad(tmp):
+    """La batería de portabilidad (tests/portabilidad-test.sh) contra un binario que nombra el estado del repo por el
+    nombre de la carpeta y no por el hash de la ruta real: dos proyectos con la misma carpeta comparten estado, y la
+    batería tiene que verlo (antes del 17-09-2026 no lo veía: comprobaba con `permiso`, que no vive ahí, y contaba
+    los cerrojos como ficheros de estado)."""
+    original = RAIZ / "bin/rompelo"
+    texto = original.read_text(encoding="utf-8")
+    antes = '    return os.path.join(ESTADO, "repos", hashlib.sha256(root.encode()).hexdigest()[:16] + ".json")\n'
+    despues = '    return os.path.join(ESTADO, "repos", os.path.basename(root) + ".json")  # mutación de control positivo: estado por nombre de carpeta\n'
+    if texto.count(antes) != 1:
+        print("no pude aplicar exactamente una mutación del estado por repo; no cuenta como hallazgo")
+        return 2
+    mutante = tmp / "rompelo-mutante"
+    mutante.write_text(texto.replace(antes, despues, 1), encoding="utf-8")
+    mutante.chmod(original.stat().st_mode)
+    aplicado = mutante.read_text(encoding="utf-8")
+    assert antes not in aplicado and aplicado.count(despues) == 1 and aplicado != texto
+    r = correr(["bash", str(RAIZ / "tests/portabilidad-test.sh")],
+               env=dict(os.environ, ROMPELO_BIN=str(mutante)), cwd=str(RAIZ))
+    resumen = re.findall(r"^PASS=(\d+) FAIL=(\d+) ROTOS=(\d+)$", r.stdout, re.M)
+    if len(resumen) != 1:
+        print("la batería no completó su recuento; instrumento no verificado")
+        return 2
+    pasa, falla, rotos = map(int, resumen[0])
+    if rotos:
+        print(f"la batería vio {rotos} invocación(es) del hook rotas: instrumento no verificado")
+        return 2
+    fallos = sorted(l.strip() for l in r.stdout.splitlines() if l.strip().startswith("❌"))
+    esperados = sorted(["❌ estado mezclado",  # b/app hereda el nivel 2 de a/app
+                        "❌ estado por ruta",  # un solo fichero de estado para dos repos
+                        "❌ doctor escribió"])  # y el recuento posterior también ve uno
+    print(f"1 mutación del estado por repo confirmada; batería PASS={pasa} FAIL={falla}")
+    if r.returncode == 0 and falla == 0 and pasa > 0:
+        return 0
+    if r.returncode == 1 and falla == len(esperados) and pasa > 0 and fallos == esperados:
+        return 1
+    print("el fallo no es exclusivamente el del estado por repo esperado; no cuenta como control detectado")
+    return 2
+
+
 def main():
-    modos = {"sin-var-pegada": variable_pegada, "gate": gate, "ocr-review": ocr_review, "disparo": disparo, "obliga": obliga, "revisar": revisar, "observe": observe}
+    modos = {"sin-var-pegada": variable_pegada, "gate": gate, "ocr-review": ocr_review, "disparo": disparo, "obliga": obliga, "revisar": revisar, "observe": observe, "instrumento": instrumento, "portabilidad": portabilidad}
     if len(sys.argv) != 2 or sys.argv[1] not in modos:
-        print("uso: control-positivo.py sin-var-pegada|gate|ocr-review|disparo|obliga|revisar|observe", file=sys.stderr)
+        print("uso: control-positivo.py sin-var-pegada|gate|ocr-review|disparo|obliga|revisar|observe|instrumento|portabilidad", file=sys.stderr)
         return 2
     try:
         with tempfile.TemporaryDirectory(prefix="rompelo-positivo-") as d:
