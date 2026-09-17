@@ -76,6 +76,154 @@ Luego, en Codex, `/hooks` → revisar y confiar las entradas nuevas. El script n
 
 ## Estado
 
+### 17-09-2026 · Parte 7: deny por tramos y avance de base desde Codex real
+
+Cliente: `codex-cli 0.154.0`; `main` en `50b215d`. Se leyó «Sin publicar» y `docs/disparo.md` §1 y §7.
+Los hooks globales existentes ejecutaron `~/rompelo/bin/rompelo`, sin modificar hooks, confianza, nivel
+ni disparo. Sesión nativa: `01a0aee7-9174-78b1-a1c0-246b51e10dee`, dos turnos mediante `codex exec` y `resume`.
+Las salidas siguientes proceden de resultados de herramienta del transcript y del flujo JSON nativo.
+
+**Instalación y worktrees.** Skill local idéntica a `adapters/skill/SKILL.md` de main (`diff -q`, código 0),
+incluidos base y tramos. Worktree de PR #5 limpio, evidencia conservada, rama fusionada: retirados worktree,
+rama local y su ruta de la allowlist. El de PR #3 se conserva: ` M .rompelo/task.json`, cambio sin commit.
+
+**Deny por tramos.** Repo desechable alistado, contrato `CX-CODEX-07`, scope `prueba.txt` y `.rompelo/task.json`,
+check real `rompelo.disparo-tests` pendiente. Cada comando se pidió por separado. Tras los tres denies
+seguía existiendo solo el commit inicial: el compuesto completo se detuvo antes de preparar cambios.
+El dry-run pasó la puerta; su código 1 corresponde a Git sin cambios preparados, no a un deny.
+
+`bash -c 'git commit -m x'` — denegado por el hook; no se ejecutó el shell:
+
+```text
+Command blocked by PreToolUse hook: [rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea CX-CODEX-07 no está verificada:
+- check `rompelo.disparo-tests` sin ejecutar (usa `rompelo check`)
+Siguiente: rompelo check
+Cumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.
+El comando lleva más tramos que el que entrega («git commit -m x»): la puerta no deja pasar la mitad. Lanza la preparación en un comando aparte y el que entrega solo, cuando el contrato cumpla. Si «git commit -m x» solo aparece como texto (un grep, un mensaje), quítalo de este comando.. Command: bash -c 'git commit -m x'
+```
+
+`git push --dry-run && git push origin main` — denegado por el hook; no se ejecutó el shell:
+
+```text
+Command blocked by PreToolUse hook: [rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea CX-CODEX-07 no está verificada:
+- check `rompelo.disparo-tests` sin ejecutar (usa `rompelo check`)
+Siguiente: rompelo check
+Cumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.
+El comando lleva más tramos que el que entrega («git push origin main»): la puerta no deja pasar la mitad. Lanza la preparación en un comando aparte y el que entrega solo, cuando el contrato cumpla. Si «git push origin main» solo aparece como texto (un grep, un mensaje), quítalo de este comando.. Command: git push --dry-run && git push origin main
+```
+
+`echo listo && git add -A && git commit -m x` — denegado por el hook; no se ejecutó el shell:
+
+```text
+Command blocked by PreToolUse hook: [rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea CX-CODEX-07 no está verificada:
+- check `rompelo.disparo-tests` sin ejecutar (usa `rompelo check`)
+Siguiente: rompelo check
+Cumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.
+El comando lleva más tramos que el que entrega («git commit -m x»): la puerta no deja pasar la mitad. Lanza la preparación en un comando aparte y el que entrega solo, cuando el contrato cumpla. Si «git commit -m x» solo aparece como texto (un grep, un mensaje), quítalo de este comando.. Command: echo listo && git add -A && git commit -m x
+```
+
+`git commit --dry-run` — código 1:
+
+```text
+On branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   prueba.txt
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.rompelo/
+
+no changes added to commit (use "git add" and/or "git commit -a")
+```
+
+`ls` — código 0:
+
+```text
+prueba.txt
+```
+
+**Base desde el cliente real.** Un segundo clon creó `ajeno.txt` en un commit posterior al de la base;
+el controlador lo incorporó por fast-forward, conservando el cambio pendiente en `prueba.txt`.
+En la misma sesión nativa se pidieron las seis llamadas siguientes, usando el ejecutable absoluto
+`/Users/rootml/rompelo/bin/rompelo`. El primer cierre es el control positivo de fuera de scope.
+El avance quedó registrado por la herramienta; no se editó el contrato ni la evidencia a mano.
+
+`rompelo close` — código 1:
+
+```text
+no se puede cerrar:
+  - fuera de scope_paths: ajeno.txt
+  - check `rompelo.disparo-tests` sin ejecutar (usa `rompelo check`)
+  Siguiente: rompelo check
+```
+
+`rompelo base` — código 0:
+
+```text
+base 1cfe82662e9d · HEAD c5db437fad10 · 1 commit(s) por delante · rutas que traen: ajeno.txt
+  para adelantarla: rompelo base --mover [REF] --motivo '<por qué: qué PR ajeno se fusionó>'
+```
+
+`rompelo base --mover --motivo 'commit ajeno de prueba'` — código 0:
+
+```text
+base movida 1cfe82662e9d → c5db437fad10: 1 commit(s), 1 ruta(s) dejan de contar como cambio de esta tarea. La huella ha cambiado: repite `rompelo check` (y `rompelo close`).
+```
+
+`rompelo check` — código 0:
+
+```text
+[1/1] rompelo.disparo-tests: bash tests/rompelo-disparo-test.sh
+    → código 0 en 8.1 s, 80/10 líneas, control positivo: código 1 (operativo)
+todos en verde
+```
+
+`rompelo close` — código 0:
+
+```text
+# Informe de cierre · CX-CODEX-07
+
+## Qué se comprobó
+
+- rompelo.disparo-tests: código 0 en 8.1 s, 80 líneas de salida
+- rompelo.disparo-tests: control positivo vio el caso malo (código 1, 1 líneas)
+
+## Qué no se pudo comprobar
+
+- nada declarado como no verificado
+
+## Qué queda a tu cargo
+
+- nada: no hay hallazgos aceptados sin corregir
+
+## Qué observó el observador
+
+- nivel 0
+
+Un verde aquí significa «no encontré los de mi clase», no «está bien». Un control positivo solo acredita el caso malo que ejercita.
+
+tarea CX-CODEX-07 cerrada sobre la huella v2:68635130317330a8 · informe en /Users/rootml/Documents/Codex/2026-09-16/ro/work/codex7/repo-nativo/.rompelo/evidence/CX-CODEX-07/INFORME.md
+```
+
+`rompelo verify --json` — código 0:
+
+```text
+{"ok": true, "motivos": [], "siguiente": ""}
+```
+
+El motivo de fuera de scope desapareció tras mover la base y repetir el check; el cierre y `verify`
+terminaron en verde. El turno terminó con `PRUEBA B OBSERVADA` y código 0.
+
+**Límites.** NO VERIFICADA la representación visual en la app de escritorio; esto acredita Codex CLI.
+No se ensayaron variantes adicionales de shell distintas de las cinco indicadas. No hubo discrepancia
+del payload que requiriese `ROMPELO_DEBUG_FORMA=1`. No se modificaron `bin/rompelo`, tests ni checks.
+La batería inicial dio `PASS=67 FAIL=0 ROTOS=0`; emitió además `tests/rompelo-disparo-test.sh: line 127:
+rompelo: command not found`: esa línea usa sustitución de comando en el rótulo del test. Se deja señalado,
+sin corregir tests fuera del scope. El check nativo y su control positivo terminaron con los códigos
+esperados que constan arriba.
+
 ### 17-09-2026 · Parte 6: disparo `entrega` desde Codex real
 
 Cliente: `codex-cli 0.154.0`; binario de rompelo en `b03c55e`, después de fusionar PR #4 con CI verde.

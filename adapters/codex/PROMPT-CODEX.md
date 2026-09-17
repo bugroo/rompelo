@@ -280,6 +280,9 @@ abre tu contrato con `rompelo init --force --id ROMPELO-CODEX-06 --scope 'adapte
    `adapters/codex/LEEME.md`, sección «Estado», con fecha y versión: las salidas literales de 2, 3 y 4, las respuestas
    de 5 y lo NO VERIFICADO. Los mismos límites de siempre: ni `bin/rompelo`, ni `tests/`, ni `~/.claude/`.
 
+## Parte 7 · Codex al día con main (17-09-2026)
+Cruzar deny por tramos y `rompelo base --mover` desde Codex real; sincronizar skill, retirar worktrees fusionados limpios y documentar salidas y límites en `LEEME.md`.
+
 ## Entrega
 
 Tres bloques, en este orden: qué queda hecho, qué falta, qué problemas tiene el trabajo.
