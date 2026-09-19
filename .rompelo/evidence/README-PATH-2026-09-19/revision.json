@@ -1,0 +1,19 @@
+{
+  "huella": "v2:b1da1a6629c18325",
+  "base": "8a450900a64031c40a539eaf30f61529de511a23",
+  "cerrada": true,
+  "abierta": "2026-09-19T18:00:09+00:00",
+  "ficheros": [
+    {
+      "path": "README.md",
+      "estado": "revisado",
+      "motivo": "Diff leído: una línea de shell en el bloque de instalación y un párrafo que dice por qué (hooks con ruta completa; skill y README llaman a rompelo a secas). Medido en este Mac: antes `zsh -lic type rompelo` → not found; tras el enlace → /Users/rootml/.local/bin/rompelo y `rompelo doctor` arranca."
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-09-19T18:00:10+00:00",
+  "n_revisados": 1,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}
