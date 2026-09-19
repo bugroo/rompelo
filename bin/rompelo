@@ -729,14 +729,37 @@ def hash_contrato(c):
     return hashlib.sha256(json.dumps(d, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
 
 
+# El .gitignore que rompelo escribe en evidence/: todo ignorado salvo el manifiesto de la tarea EN CURSO.
+# Con `!*/revision.json` (global) los manifiestos de todas las tareas cerradas de antes aparecerían de golpe
+# como ficheros sin commitear (56 en ClaveON el 19-09-2026). Con la excepción por id, solo viaja el de la
+# tarea abierta; los ya commiteados siguen tracked aunque la excepción cambie de id.
+GITIGNORE_EVIDENCIA_RE = re.compile(r"\A\*\n(!\S+\n)*\Z")   # lo que escribe rompelo; otra cosa es del usuario
+
+
+def gitignore_evidencia(tid):
+    return f"*\n!{tid}/\n!{tid}/revision.json\n"
+
+
 def dir_evidencia(root, c):
     base = os.path.join(root, ".rompelo", "evidence")
-    d = os.path.join(base, re.sub(r"[^A-Za-z0-9._-]", "_", str(c["id"])))
+    tid = re.sub(r"[^A-Za-z0-9._-]", "_", str(c["id"]))
+    d = os.path.join(base, tid)
     os.makedirs(d, exist_ok=True)
-    gi = os.path.join(base, ".gitignore")  # la evidencia se autoignora; el .gitignore del repo no se toca
-    if not os.path.exists(gi):
+    # La evidencia se autoignora, salvo el manifiesto de la segunda pasada: `verify --ci` en modo
+    # `revision` no puede juzgar un PR sin él (19-09-2026, PR #15: el CI bloqueaba con «hace falta
+    # segunda pasada con manifiesto» porque evidence/ entero estaba ignorado). revision.json es texto
+    # escrito por quien revisa (rutas, estados, motivos, hallazgos); las salidas de los checks y los
+    # cruces se quedan fuera, que pueden llevar argv expandidos. La excepción es solo para la tarea en
+    # curso (ver GITIGNORE_EVIDENCIA_RE); el `*` viejo o el de otra tarea se reescriben; un .gitignore
+    # escrito a mano por el usuario no se toca.
+    gi = os.path.join(base, ".gitignore")
+    try:
+        actual = open(gi).read()
+    except FileNotFoundError:
+        actual = None
+    if actual is None or (GITIGNORE_EVIDENCIA_RE.match(actual) and actual != gitignore_evidencia(tid)):
         with open(gi, "w") as fh:
-            fh.write("*\n")
+            fh.write(gitignore_evidencia(tid))
     return d
 
 

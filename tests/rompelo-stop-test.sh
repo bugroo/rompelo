@@ -40,7 +40,7 @@ echo "── init: rechaza ids fuera del registro y no ejecuta cadenas"
 [ ! -e "$CANARY" ] && ok "la cadena no se ejecutó" || bad "la cadena SE EJECUTÓ"
 "$ASSURE" init --id T1 --scope 'src/**' --scope 'tests/**' --check hay-a --check ok --junta --prueba >/dev/null || exit 2
 grep -q "$R" "$ROMPELO_HOME/config/repos.json" && ok "init apunta el repo en la allowlist" || bad "allowlist"
-[ "$(cat .rompelo/evidence/.gitignore)" = "*" ] && [ "$(git status --porcelain)" = "?? .rompelo/" ] && ok "la evidencia se autoignora; solo el contrato queda por commitear" || bad "gitignore" "$(git status --porcelain)"
+[ "$(cat .rompelo/evidence/.gitignore)" = "$(printf '*\n!T1/\n!T1/revision.json')" ] && [ "$(git status --porcelain)" = "?? .rompelo/" ] && ok "la evidencia se autoignora salvo el manifiesto de revisión; solo el contrato queda por commitear" || bad "gitignore" "$(git status --porcelain)"
 contrato 'hallazgos=[{"id":"H1","texto":"x","disposicion":"rechazado","motivo":"falso positivo"}]'
 
 echo "── contrato inválido (fail-closed)"

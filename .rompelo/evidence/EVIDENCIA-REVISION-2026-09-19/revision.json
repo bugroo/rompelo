@@ -1,0 +1,39 @@
+{
+  "huella": "v2:7166073c3b86fd67",
+  "base": "2f761c3d713c5898ac7efb707d10418a0d3de108",
+  "cerrada": true,
+  "abierta": "2026-09-19T18:52:27+00:00",
+  "ficheros": [
+    {
+      "path": ".gitignore",
+      "estado": "revisado",
+      "motivo": "Diff leído: solo se quita `.rompelo/evidence/`; el resto igual. Sin esa línea manda el .gitignore de dentro de evidence/, que ignora todo salvo el manifiesto de la tarea en curso. Comprobado en este repo: git status muestra solo EVIDENCIA-REVISION-2026-09-19/ (su revision.json) y no los manifiestos viejos."
+    },
+    {
+      "path": "README.md",
+      "estado": "revisado",
+      "motivo": "Diff leído: párrafo en ## CI que dice qué viaja con el PR (task.json + revision.json de la tarea), qué se queda local y por qué (PR #15 bloqueado). Coherente con el código."
+    },
+    {
+      "path": "bin/rompelo",
+      "estado": "revisado",
+      "motivo": "Diff leído entero (+24/-3) y dir_evidencia completa. Constante regex GITIGNORE_EVIDENCIA_RE (solo lo que rompelo escribe: `*` y líneas `!…`), gitignore_evidencia(tid) por id saneado (el mismo que nombra el directorio), y la condición: se escribe si falta, o si es de rompelo y distinto del de la tarea en curso; un fichero con comentario u otras líneas no se toca. Sin salida a stdout, sin secretos. Visto en rojo con el binario viejo (batería revisar: ❌ gitignore, ❌ revision.json sigue ignorado) y en verde con el nuevo; las 5 baterías obligadas por bin/rompelo en verde con control positivo."
+    },
+    {
+      "path": "tests/rompelo-revisar-test.sh",
+      "estado": "revisado",
+      "motivo": "Diff leído: caso nuevo con 7 aserciones (contenido exacto del .gitignore, check-ignore de R1/revision.json, de R1/check-ok.json y de VIEJA/revision.json, migración de `*`, reescritura de la excepción de otra tarea, .gitignore a mano intacto). PASS=39 FAIL=0. Contra el binario viejo, 2 de ellas en rojo."
+    },
+    {
+      "path": "tests/rompelo-stop-test.sh",
+      "estado": "revisado",
+      "motivo": "Diff leído: una línea, la aserción del .gitignore pasa de `*` a `*\\n!T1/\\n!T1/revision.json` (T1 es el id que usa esa batería). Con la aserción vieja la batería fallaba (❌ gitignore) y el control positivo del check decía «no pudo mirar»; ahora 288 líneas, verde, control positivo operativo."
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-09-19T18:52:28+00:00",
+  "n_revisados": 5,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}
