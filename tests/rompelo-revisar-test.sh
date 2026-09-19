@@ -135,5 +135,19 @@ espera_bloqueo "modo inválido: fail-closed" t2 'segunda_pasada'
 rm -f "$ROMPELO_HOME/config/observacion.json"
 espera_bloqueo "sin config: el defecto es el manifiesto" t3 'rompelo revisar'
 
+echo "── el manifiesto viaja con el PR: evidence/.gitignore deja fuera solo el revision.json de la tarea en curso (PR #15, 19-09-2026)"
+GI=".rompelo/evidence/.gitignore"; ESPERADO="$(printf '*\n!R1/\n!R1/revision.json')"
+[ "$(cat "$GI")" = "$ESPERADO" ] && ok "gitignore de evidencia: todo menos R1/revision.json" || bad "gitignore de evidencia" "$(cat "$GI")"
+mkdir -p .rompelo/evidence/R1 .rompelo/evidence/VIEJA && : > .rompelo/evidence/R1/revision.json && : > .rompelo/evidence/R1/check-ok.json && : > .rompelo/evidence/VIEJA/revision.json
+git check-ignore -q .rompelo/evidence/R1/revision.json && bad "R1/revision.json sigue ignorado: el CI no lo verá" || ok "R1/revision.json NO está ignorado (git check-ignore)"
+git check-ignore -q .rompelo/evidence/R1/check-ok.json && ok "R1/check-ok.json sí está ignorado" || bad "check-ok.json no está ignorado: las salidas de checks viajarían"
+git check-ignore -q .rompelo/evidence/VIEJA/revision.json && ok "el manifiesto de OTRA tarea sigue ignorado (no aparecen 56 ficheros de golpe)" || bad "VIEJA/revision.json no está ignorado"
+printf '*\n' > "$GI"; "$ROMPELO" check >/dev/null 2>&1
+[ "$(cat "$GI")" = "$ESPERADO" ] && ok "un * viejo se migra al pasar por rompelo" || bad "el * viejo no se migró" "$(cat "$GI")"
+printf '*\n!OTRA/\n!OTRA/revision.json\n' > "$GI"; "$ROMPELO" check >/dev/null 2>&1
+[ "$(cat "$GI")" = "$ESPERADO" ] && ok "la excepción de otra tarea se reescribe a la tarea en curso" || bad "no reescribió la excepción de otra tarea" "$(cat "$GI")"
+printf '# mio\n*\n' > "$GI"; "$ROMPELO" check >/dev/null 2>&1
+[ "$(cat "$GI")" = "$(printf '# mio\n*')" ] && ok "un .gitignore escrito a mano no se toca" || bad "pisó un .gitignore a mano" "$(cat "$GI")"
+
 cd / && rm -rf "$T"
 resumen

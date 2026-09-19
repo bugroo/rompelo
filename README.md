@@ -119,6 +119,13 @@ the checks on a runner where the agent has written nothing and reports per oblig
 `FAIL`, `ERROR`, `SKIPPED`, `WAIVED`. "OK PARTIAL" means something (boundary, `solo_local`) is only
 crossed outside CI. Consumer registry: `ROMPELO_REGISTRO=repo` reads `.rompelo/registry.json`.
 
+What travels with the PR is `.rompelo/task.json` and, per task, `.rompelo/evidence/<id>/revision.json`
+(the second-pass manifest: paths, states, reasons, findings). Everything else under `evidence/` (check
+outputs, crossings, `cerrada.json`) stays local: the `.gitignore` rompelo writes there ignores all but the
+current task's manifest (the exception is per task id, so the manifests of tasks closed before this rule
+do not surface as untracked files), and it migrates an old plain `*` on the next run. Without the manifest, `verify --ci` at level 2
+cannot judge the PR and blocks (seen 2026-09-19, PR #15).
+
 ## The limit
 
 The agent can edit its contract and write evidence by hand. The gate stops carelessness, not a
