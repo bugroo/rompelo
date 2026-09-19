@@ -1,33 +1,36 @@
 {
   "schema": 1,
-  "id": "ECHO-COMILLAS-2026-09-17",
+  "id": "README-PATH-2026-09-19",
   "estado": "cerrada",
-  "base": "033d16ab98e9ffa0eb22f97b4c90259db68dc827",
-  "descripcion": "un echo con comillas invertidas ejecutaba rompelo close dentro de la batería del disparo",
+  "base": "8a450900a64031c40a539eaf30f61529de511a23",
+  "descripcion": "README Install: enlace de rompelo en el PATH; sin él el binario no existe para el usuario ni para la skill",
   "scope_paths": [
-    "tests/rompelo-disparo-test.sh",
-    "CHANGELOG.md",
-    ".rompelo/task.json"
+    "README.md"
   ],
   "checks": [
-    "rompelo.disparo-tests"
+    "rompelo.tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+  "segunda_pasada": "revisión con manifiesto sobre v2:b1da1a6629c18325: 1 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
-    "nivel": 0,
+    "nivel": 2,
     "nivel_desde": null,
-    "perfiles": [],
+    "perfiles": [
+      "auth",
+      "junta",
+      "secretos"
+    ],
     "permisos": [],
     "checks": [
-      "rompelo.disparo-tests"
+      "rompelo.tests"
     ],
-    "toca_junta": false,
+    "toca_junta": true,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-17T11:05:50+00:00"
+    "fecha": "2026-09-19T18:00:10+00:00"
   }
 }

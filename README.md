@@ -13,7 +13,13 @@ Python 3.9 and git on macOS or Linux, no dependencies.
 
 ```bash
 git clone https://github.com/bugroo/rompelo ~/rompelo
+ln -s ~/rompelo/bin/rompelo ~/.local/bin/rompelo   # or any directory on your PATH
 ```
+
+The hooks call the binary by its full path, so they work without this link. The skill and
+this README call `rompelo` bare, and so will you: without the link, `rompelo doctor` is
+"command not found" in every shell (measured 2026-09-19 on a Mac where the hooks had been
+working for weeks).
 
 1. **Hooks.** Claude Code: add the `PreToolUse` (matcher `Bash`), `UserPromptSubmit`, `Stop`, `PostToolUse`
    and `PostToolUseFailure` entries from
