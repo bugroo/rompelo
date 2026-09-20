@@ -1,26 +1,25 @@
 {
   "schema": 1,
-  "id": "EVIDENCIA-REVISION-2026-09-19",
+  "id": "TRAILER-NO-ES-AUTH",
   "estado": "cerrada",
-  "base": "2f761c3d713c5898ac7efb707d10418a0d3de108",
-  "descripcion": "El manifiesto de la segunda pasada (evidence/<id>/revision.json) viaja con el PR: gitignore de evidencia con excepción, migración del * viejo, README CI; verify --ci puede juzgar a nivel 2",
+  "base": "f88125e3c8c1c09f66f256f98569fd74073496de",
+  "descripcion": "el trailer Claude-Session/Co-Authored-By de un commit no cuenta como riesgo auth (falso positivo, 3 veces en ~/tails el 20-09)",
   "scope_paths": [
     "bin/rompelo",
-    ".gitignore",
-    "README.md",
-    "tests/rompelo-revisar-test.sh",
-    ".rompelo/evidence/**",
-    "tests/rompelo-stop-test.sh"
+    "tests/rompelo-observe-test.sh"
   ],
   "checks": [
     "rompelo.tests",
-    "rompelo.revisar-tests"
+    "rompelo.observe-tests",
+    "rompelo.revisar-tests",
+    "rompelo.disparo-tests",
+    "rompelo.obliga-tests"
   ],
   "toca_junta": false,
-  "exige_prueba_en_diff": false,
+  "exige_prueba_en_diff": true,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:7166073c3b86fd67: 5 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
+  "segunda_pasada": "revisión con manifiesto sobre v2:2e6d84cd25b0c857: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 2,
     "nivel_desde": null,
@@ -32,19 +31,15 @@
     "permisos": [],
     "checks": [
       "rompelo.tests",
-      "rompelo.revisar-tests",
       "rompelo.observe-tests",
+      "rompelo.revisar-tests",
       "rompelo.disparo-tests",
       "rompelo.obliga-tests"
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "exige_prueba_en_diff": false,
-    "obliga": {
-      "rompelo.observe-tests": "obliga: bin/rompelo",
-      "rompelo.disparo-tests": "obliga: bin/rompelo",
-      "rompelo.obliga-tests": "obliga: bin/rompelo"
-    },
-    "fecha": "2026-09-19T19:05:09+00:00"
+    "exige_prueba_en_diff": true,
+    "obliga": {},
+    "fecha": "2026-09-20T15:51:43+00:00"
   }
 }
