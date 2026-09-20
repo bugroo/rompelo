@@ -180,6 +180,16 @@ o="$(claude_ok_ev $SID 'grep -i token src/a.ts' 'src/a.ts:1: token' '')"
 o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
 [ -z "$o" ] && o="$(claude_ok_ev $SID 'sed -i s/x/y/ src/auth/session.ts' '' '')"
 printf '%s' "$o" | grep -q 'toca `auth`' && ok "escribir en src/auth dos veces sí dispara" || bad "sed auth" "$o"
+reset_estado; nueva_sesion
+# El trailer de atribución que lleva cada commit («Claude-Session: https://…») casa con \bsession\b y subía
+# el repo a nivel 2 en cada entrega (visto tres veces en ~/tails el 20-09). Un trailer no es tocar auth.
+bash_ev $SID $'git commit -q -m "docs: x\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_017X"' 0 '' '' >/dev/null
+o="$(bash_ev $SID $'git commit -q -m "docs: y\n\nClaude-Session: https://claude.ai/code/session_017X"' 0 '' '')"
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "el trailer Claude-Session de un commit no es tocar auth" || bad "trailer session" "$o"
+reset_estado; nueva_sesion
+bash_ev $SID "printf 'docs: z\\n\\nClaude-Session: https://claude.ai/code/session_017X\\n' > /tmp/msg.txt" 0 '' '' >/dev/null
+o="$(bash_ev $SID "printf 'docs: w\\n\\nClaude-Session: https://claude.ai/code/session_017X\\n' > /tmp/msg.txt" 0 '' '')"
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "y con «\\n» literal en un printf, tampoco" || bad "trailer printf" "$o"
 
 echo "── toques por perfil: se leen de config/observacion.json (mutación a 1 y a 3)"
 reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"

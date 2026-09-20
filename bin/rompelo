@@ -1808,6 +1808,14 @@ def es_check(cmd):
     return bool(cmd) and any(re.search(pat, cmd) for pat in CHECKS_VERDES)
 
 
+def sin_trailers(txt):
+    """Quita los trailers de atribución de un mensaje de commit (Claude-Session, Co-Authored-By, Signed-off-by…):
+    son texto que viaja con cada entrega, no una orden, y no deben pesar como riesgo."""
+    # Vale con salto real (heredoc, $'…') y con «\n» literal dentro de un printf: se corta hasta el siguiente
+    # salto, real o escrito.
+    return re.sub(r"(?i)(claude-session|co-authored-by|signed-off-by|reviewed-by|change-id)[ \t]*:[^\n\\]*", "", txt)
+
+
 def solo_lee(evento):
     txt = evento.get("riesgo_texto") or ""
     if evento.get("ficheros"):
@@ -2084,7 +2092,9 @@ def evento_desde_hook(ent, agente="claude"):
         "ficheros": ficheros,
         # Para D1 se mira el comando SIN los cuerpos de heredoc: ahí va texto, no órdenes, y un
         # documento que habla de functions/api no es tocar functions/api (falso positivo en vivo, 05-09).
-        "riesgo_texto": (re.sub(r"<<-?\s*['\"]?(\w+)['\"]?.*?^\s*\1\s*$", "", cmd, flags=re.S | re.M) + "\n" + "\n".join(ficheros)),
+        # Tampoco los trailers de atribución de un commit («Claude-Session: https://…», «Co-Authored-By:»):
+        # «Session» casaba con el perfil auth y subía el repo a nivel 2 en cada entrega (20-09).
+        "riesgo_texto": (sin_trailers(re.sub(r"<<-?\s*['\"]?(\w+)['\"]?.*?^\s*\1\s*$", "", cmd, flags=re.S | re.M)) + "\n" + "\n".join(ficheros)),
     }
     if agente == "codex" and es_shell:
         ev.update(codigo=None, fuente_codigo=None, estado_ejecucion="desconocido",

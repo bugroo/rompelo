@@ -1,0 +1,24 @@
+{
+  "huella": "v2:2e6d84cd25b0c857",
+  "base": "f88125e3c8c1c09f66f256f98569fd74073496de",
+  "cerrada": true,
+  "abierta": "2026-09-20T15:51:29+00:00",
+  "ficheros": [
+    {
+      "path": "bin/rompelo",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-observe-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-09-20T15:51:42+00:00",
+  "n_revisados": 2,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}
