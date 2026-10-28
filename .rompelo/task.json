@@ -1,12 +1,13 @@
 {
   "schema": 1,
-  "id": "TRAILER-NO-ES-AUTH",
+  "id": "disparo-solo-al-desplegar",
   "estado": "cerrada",
-  "base": "f88125e3c8c1c09f66f256f98569fd74073496de",
-  "descripcion": "el trailer Claude-Session/Co-Authored-By de un commit no cuenta como riesgo auth (falso positivo, 3 veces en ~/tails el 20-09)",
+  "base": "14d38d6c029f8989a24711d14b03de35adf27965",
+  "descripcion": "disparo.json: la puerta salta solo al publicar (merge de PR, push a main, despliegues), no en cada commit; orden de José 28-10-2026",
   "scope_paths": [
-    "bin/rompelo",
-    "tests/rompelo-observe-test.sh"
+    "config/disparo.json",
+    "docs/OCR.md",
+    "config/repos.json.bak-20261006"
   ],
   "checks": [
     "rompelo.tests",
@@ -16,10 +17,24 @@
     "rompelo.obliga-tests"
   ],
   "toca_junta": false,
-  "exige_prueba_en_diff": true,
+  "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:2e6d84cd25b0c857: 2 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
+  "afirmaciones": [
+    {
+      "texto": "José ordenó usar rompelo solo al desplegar",
+      "estado": "verificado",
+      "fuente": "chat de José, 28-10-2026",
+      "cita": "utilices rompelo solamente a la hora de desplegar, no cada vez que haces una tarea, porque roba demasiado tiempo"
+    },
+    {
+      "texto": "José dio el GO para empujar el cambio",
+      "estado": "verificado",
+      "fuente": "chat de José, 28-10-2026",
+      "cita": "go"
+    }
+  ],
+  "segunda_pasada": "revisión con manifiesto sobre v2:3cc8bb85d17c3a8f: 0 revisado(s), 2 saltado(s) (config/repos.json.bak-20261006, docs/OCR.md), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 2,
     "nivel_desde": null,
@@ -38,8 +53,8 @@
     ],
     "toca_junta": true,
     "toca_exterior": false,
-    "exige_prueba_en_diff": true,
+    "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-09-20T15:51:43+00:00"
+    "fecha": "2026-10-28T15:06:56+00:00"
   }
 }

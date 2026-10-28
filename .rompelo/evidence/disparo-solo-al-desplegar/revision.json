@@ -1,0 +1,24 @@
+{
+  "huella": "v2:3cc8bb85d17c3a8f",
+  "base": "14d38d6c029f8989a24711d14b03de35adf27965",
+  "cerrada": true,
+  "abierta": "2026-10-28T15:06:51+00:00",
+  "ficheros": [
+    {
+      "path": "config/repos.json.bak-20261006",
+      "estado": "saltado",
+      "motivo": "no es de esta tarea: cambio sin commitear de otra sesión; no va en el commit ni en el push"
+    },
+    {
+      "path": "docs/OCR.md",
+      "estado": "saltado",
+      "motivo": "no es de esta tarea: cambio sin commitear de otra sesión; no va en el commit ni en el push"
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-10-28T15:06:52+00:00",
+  "n_revisados": 0,
+  "n_saltados": 2,
+  "n_hallazgos": 0
+}
