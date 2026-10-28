@@ -1,0 +1,19 @@
+{
+  "huella": "v2:cf781d9fabb18d30",
+  "base": "4fd39ab71526be633eb67f7597fdebb362666582",
+  "cerrada": true,
+  "abierta": "2026-10-28T15:25:42+00:00",
+  "ficheros": [
+    {
+      "path": "config/disparo.json",
+      "estado": "revisado",
+      "motivo": ""
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-10-28T15:25:42+00:00",
+  "n_revisados": 1,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}

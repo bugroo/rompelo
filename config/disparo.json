@@ -1,9 +1,9 @@
 {
-  "_ayuda": "Cuándo juzga la puerta (docs/disparo.md). `defecto`: entrega | turno. entrega = la puerta salta al ENTREGAR: en PreToolUse cuando el comando casa con `entrega` (commit, push, deploy…), y en Stop solo cuando el cierre está declarado (el usuario lo pidió con una frase de `cierre`, o `rompelo close` falló). turno = la puerta salta al final de cada turno (comportamiento hasta el 16-09-2026). Las expresiones son regulares de Python sobre el comando entero o sobre el prompt del usuario, sin distinguir mayúsculas. `por_repo`: ruta real del repo → {defecto, entrega, cierre} que sustituyen a los globales para ese repo. El contrato puede fijar `disparo` y manda sobre todo esto.",
+  "_ayuda": "Cuándo juzga la puerta (docs/disparo.md). `defecto`: entrega | turno. entrega = la puerta salta al ENTREGAR: en PreToolUse cuando el comando casa con `entrega` (commit, push, deploy…), y en Stop solo cuando el cierre está declarado (el usuario lo pidió con una frase de `cierre`, o `rompelo close` falló). turno = la puerta salta al final de cada turno (comportamiento hasta el 16-09-2026). Las expresiones son regulares de Python sobre el comando entero o sobre el prompt del usuario, sin distinguir mayúsculas. `por_repo`: ruta real del repo → {defecto, entrega, cierre} que sustituyen a los globales para ese repo. El contrato puede fijar `disparo` y manda sobre todo esto. 28-10-2026, orden de José («utiliza rompelo solamente a la hora de desplegar, no cada vez que haces una tarea»): `entrega` ya no incluye commit, push a una rama ni crear un PR; solo lo que publica (merge de PR, push a main/master, despliegues), y `cierre` solo frases de desplegar o publicar.",
   "defecto": "entrega",
   "entrega": [
-    "(^|[;&|(]\\s*)git\\s+(-C\\s+\\S+\\s+)?(commit|push|merge)\\b",
-    "(^|[;&|(]\\s*)gh\\s+pr\\s+(create|merge)\\b",
+    "(^|[;&|(]\\s*)gh\\s+pr\\s+merge\\b",
+    "(^|[;&|(]\\s*)git\\s+(-C\\s+\\S+\\s+)?push\\b[^;&|]*\\b(main|master)\\b",
     "\\bwrangler\\s+(deploy|publish|pages\\s+deploy|versions\\s+upload)\\b",
     "scripts?/desplegar",
     "(^|[;&|(]\\s*)(bash|sh)\\s+\\S*deploy",
@@ -18,10 +18,9 @@
     "\\bnetlify\\s+deploy\\b"
   ],
   "cierre": [
-    "^\\s*(termina|terminar|terminamos|cierra|cerrar|cerramos|finaliza|finalizar|entrega|entregar|despliega|desplegar|sube|subir|súbelo|publica|publicar|commitea|commit|push|deploy|ship|finish|finalize|wrap\\s+up|close\\s+(it|this|the\\s+task)|release)\\b",
-    "\\b(haz|hacer|dale|dame)\\s+(el\\s+|un\\s+)?(commit|push|deploy|merge)\\b",
+    "^\\s*(despliega|desplegar|despliégalo|publica|publicar|deploy|ship|release)\\b",
+    "\\b(haz|hacer|dale|dame)\\s+(el\\s+|un\\s+)?deploy\\b",
     "\\b(a|para)\\s+(producci[oó]n|prod)\\b",
-    "\\b(cierra|cerrar|termina|terminar)\\s+(la\\s+)?tarea\\b",
     "\\brompelo\\s+close\\b"
   ],
   "por_repo": {}
