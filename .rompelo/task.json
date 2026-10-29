@@ -1,17 +1,15 @@
 {
   "schema": 1,
-  "id": "sin-friccion-antes-de-desplegar",
+  "id": "check-no-es-texto",
   "estado": "cerrada",
-  "base": "8394eeadc3588fdd54eb4a60c4a47ea751c31a88",
-  "descripcion": "Observador en silencio hasta la entrega; skill solo al desplegar (José, 29-10)",
+  "base": "00a8c6e95fb24573fc6136f4c0f86e0d47d961be",
+  "descripcion": "Un check citado en un echo/grep/commit no es un check; control de sesiones reales refijado (José, 29-10: nada queda abierto)",
   "scope_paths": [
     "bin/rompelo",
-    "config/**",
+    "checks/**",
     "tests/**",
     "docs/**",
-    "README.md",
     "CHANGELOG.md",
-    "adapters/**",
     ".rompelo/**"
   ],
   "checks": [
@@ -27,7 +25,7 @@
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "No se edita a mano: `rompelo hallazgo <id> confirmado|rechazado|aceptado …`, `rompelo afirmar …`, `rompelo revisar --revisado|--saltado|--hallazgo …`. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:3cd4b98bdc49c76c: 10 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
+  "segunda_pasada": "revisión con manifiesto sobre v2:1065520e5db91832: 6 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 2,
     "nivel_desde": "2026-10-29T15:23:07+00:00",
@@ -46,6 +44,6 @@
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-10-29T17:25:52+00:00"
+    "fecha": "2026-10-29T18:21:26+00:00"
   }
 }

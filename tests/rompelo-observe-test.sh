@@ -150,7 +150,11 @@ reset_estado
 echo "── programa de un comando compuesto (29-10-2026: «cd x && T=\$(mktemp -d) && export V=1 && …» se anotó como «&&»)"
 reset_estado; nueva_sesion
 bash_ev $SID 'cd /tmp && T=$(mktemp -d) && export ROMPELO_HOME="$T/home" && mkdir -p "$T/x" && pnpm test' 0 '12 passed' '' >/dev/null
-python3 - "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" <<'PY' && ok "el programa anotado es «mkdir» (el primer tramo que hace algo), nunca «&&» ni «-d)»" || bad "programa de compuesto" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+python3 - "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" <<'PY' && ok "el programa anotado es «pnpm test» (el tramo que es check), nunca «&&» ni «-d)»" || bad "programa de compuesto" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+import json,sys;e=json.loads(open(sys.argv[1]).read().splitlines()[-1]);sys.exit(0 if e["prog"]=="pnpm test" and e["cmd_es_check"] else 1)
+PY
+bash_ev $SID 'cd /tmp && T=$(mktemp -d) && export V=1 && mkdir -p "$T/x"' 0 '' '' >/dev/null
+python3 - "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" <<'PY' && ok "sin check dentro: el primer tramo que hace algo (mkdir)" || bad "programa de compuesto sin check" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
 import json,sys;e=json.loads(open(sys.argv[1]).read().splitlines()[-1]);sys.exit(0 if e["prog"]=="mkdir" else 1)
 PY
 bash_ev $SID 'export A=1; cd /tmp; ls' 0 'x' '' >/dev/null
@@ -171,6 +175,24 @@ reset_estado; nueva_sesion
 for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
 bash_ev $SID 'pnpm test' 0 '12 passed' '' >/dev/null
 o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && ok "un check verde entre medias reinicia el contador" || bad "reinicio" "$o"
+
+echo "── un check citado en un echo, un grep o un mensaje de commit no es un check (29-10-2026: dos echo «… rompelo check …» = verde ambiguo)"
+reset_estado; nueva_sesion
+bash_ev $SID 'echo "luego rompelo check y pnpm test"' 0 '' '' >/dev/null
+o="$(bash_ev $SID 'echo "luego rompelo check y pnpm test"' 0 '' '')"; [ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "dos echo que citan un check, sin salida: silencio (no son checks)" || bad "echo contó como check" "$o"
+python3 -c "import json,sys;l=[json.loads(x) for x in open('$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl')];assert not any(e['cmd_es_check'] for e in l),l" && ok "y el libro no los marca como check" || bad "cmd_es_check en un echo"
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+bash_ev $SID 'git commit -q -m "pnpm test en verde"' 0 '' '' >/dev/null
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "un commit cuyo mensaje cita pnpm test no reinicia el contador de ediciones (control positivo)" || bad "el mensaje de commit contó como check" "$o"
+reset_estado; nueva_sesion
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+bash_ev $SID 'grep -rn "pnpm test" docs && pnpm test' 0 '12 passed' '' >/dev/null
+o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && ok "grep seguido de pnpm test de verdad: el segundo tramo sí es check y reinicia" || bad "check tras grep no contó" "$o"
+bash_ev $SID "$(printf 'cat > /tmp/notas.md <<EOF\nluego pnpm test y rompelo check\nEOF')" 0 '' '' >/dev/null
+python3 -c "import json;e=json.loads(open('$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl').read().splitlines()[-1]);assert not e['cmd_es_check'],e" && ok "un check citado dentro de un heredoc tampoco es un check" || bad "heredoc contó como check" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+bash_ev $SID 'printf x > /tmp/x && pnpm test' 0 '12 passed' '' >/dev/null
+python3 -c "import json;e=json.loads(open('$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl').read().splitlines()[-1]);assert e['prog']=='pnpm test' and e['cmd_es_check'],e" && ok "el libro anota el programa del tramo que es check (pnpm test), no printf" || bad "prog del check" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+reset_estado
 
 echo "── D2 verde ambiguo: 0 sin salida dos veces"
 reset_estado; nueva_sesion

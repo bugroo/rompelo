@@ -2044,8 +2044,29 @@ SIN_CHECK = (".md", ".mdx", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".gif", ".w
 ESCRIBEN = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "ApplyPatch", "edit", "write", "multi_edit", "notebook_edit"}
 
 
+# Programas que llevan TEXTO: «pnpm test» dentro de un echo, un grep o un mensaje de commit no es un check que se ejecuta.
+# El 29-10-2026 un `echo "… rompelo check …"` dos veces sin salida contó como «check verde ambiguo» en una sesión real.
+PORTADORES_DE_TEXTO = {"echo", "printf", "grep", "rg", "ag", "cat", "sed", "awk", "git commit", "git log", "git show", "git grep", "gh pr", "gh issue", "tee", "less", "head", "tail"}
+
+
+def tramo_check(cmd):
+    """El primer tramo del comando que ejecuta un check, o None. Se mira tramo a tramo: un tramo cuenta si su programa no
+    es un portador de texto y casa con CHECKS_VERDES. Así `grep -rn 'pnpm test' src && pnpm test` es un check (por el
+    segundo tramo) y `git commit -m "pnpm test en verde"` no. El libro anota el programa de ESE tramo: un
+    `printf … > f && pnpm test` es `pnpm test`, no `printf` (sesión real d2c3609d: «`printf` salió con 0 sin salida»)."""
+    if not cmd:
+        return None
+    sin_heredoc = re.sub(r"<<-?\s*['\"]?(\w+)['\"]?.*?^\s*\1\s*$", "", cmd, flags=re.S | re.M)  # el cuerpo de un heredoc es texto
+    for tramo in re.split(r"\s*(?:&&|\|\||;|\n)\s*", sin_heredoc.strip()):
+        if not tramo.strip() or programa(tramo) in PORTADORES_DE_TEXTO:
+            continue
+        if any(re.search(pat, tramo) for pat in CHECKS_VERDES):
+            return tramo
+    return None
+
+
 def es_check(cmd):
-    return bool(cmd) and any(re.search(pat, cmd) for pat in CHECKS_VERDES)
+    return tramo_check(cmd) is not None
 
 
 def sin_trailers(txt):
@@ -2338,7 +2359,7 @@ def evento_desde_hook(ent, agente="claude"):
         ficheros += re.findall(r"^\*\*\* Move to: (.+?)\s*$", texto_parche, re.M)
     cwd_ev = str(ent.get("cwd") or os.getcwd())
     ficheros = [os.path.realpath(f if os.path.isabs(f) else os.path.join(cwd_ev, f)) for f in ficheros]  # el parche trae rutas relativas al cwd
-    prog = programa(cmd) if cmd else tool.lower()
+    prog = programa(tramo_check(cmd) or cmd) if cmd else tool.lower()
     if not cmd:
         firma = None
     elif codigo not in (None, 0):
