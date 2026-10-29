@@ -118,6 +118,14 @@ anterior, sin fecha, dice «desde una tarea anterior». `nivel_desde` viaja tamb
 
 ## 6. Aviso y permiso
 
+**Desde el 29-10-2026 el aviso del punto 1 es una nota de una línea** (`"aviso": "nota"` en `config/observacion.json`,
+idea de José: «en vez de parar al modelo, que le haga saber que vio algo»): «[rompelo · nota] visto: `x.ts` editado 4
+veces sin un check en verde. Sigue con lo tuyo; lo tendré en cuenta al desplegar». No exige nada ni pide parar; el
+estado del repo (nivel, perfiles, patrones) se escribe igual y se juzga al entregar, en los motivos de la puerta («el
+repo está en nivel 2 desde <fecha> (perfiles …; patrones …)»). `"aviso": "entrega"` = silencio total hasta la entrega;
+`"aviso": "turno"` = el aviso largo de antes, que leía como una orden de parar («rompelo se mete en el medio de cada
+tarea: demasiada fricción»). Lo que sigue describe ese modo antiguo.
+
 1. **Aviso, siempre y una vez por patrón y sesión.** El hook devuelve `additionalContext`
    (los dos agentes lo admiten en PostToolUse) con un texto fijo: qué patrón, con qué
    evidencia (dos firmas iguales, cuatro ediciones…), a qué nivel se sube y qué va a exigir.

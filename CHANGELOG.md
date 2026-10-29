@@ -5,6 +5,13 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **29-10-2026 (tarde) · nada de rompelo antes de desplegar.** José: «rompelo se mete en el medio de cada tarea:
+  demasiada fricción». Dos fuentes que quedaban: el observador interrumpía al agente a mitad de tarea con
+  `additionalContext` al subir a nivel 2, con un texto que leía como orden de parar (ahora `"aviso": "nota"` por
+  defecto, idea de José: una nota de una línea «visto: …; sigue, lo tendré en cuenta al desplegar»; `entrega` =
+  silencio total; `turno` = el aviso de antes), y la skill decía «al empezar cualquier trabajo de código en un repo
+  alistado» (ahora: solo al desplegar, publicar o fusionar en main). Batería del observador con la nota, el silencio,
+  el nivel subiendo igual y el motivo al juzgar; control positivo con `turno`.
 - **29-10-2026 · recopilación de los fallos reales de seis semanas y arreglo de raíz** (47 sesiones de Claude Code con
   salida de rompelo, memorias, PROBLEMAS.md de ClaveON, el estado del observador y la evidencia del 28-10):
   - `rompelo cruce` ya no reimprime el argv (programa y nº de argumentos): el 18-09 un token del vault expandido en

@@ -246,7 +246,11 @@ def observe(tmp):
     esperados = sorted(["❌ nivel",  # el repo no llega a 2
                         "❌ segunda pasada",  # y el gate no la exige
                         "❌ junta manda",  # ni el perfil junta
-                        "❌ exterior"])  # ni el perfil exterior
+                        "❌ exterior",  # ni el perfil exterior
+                        # 29-10-2026: los casos del aviso `nota`/`entrega` comprueban que el nivel sube igual y que la puerta lo cuenta
+                        "❌ no subió",
+                        "❌ al juzgar, la puerta lo cuenta: el repo está en nivel 2 desde hoy (esperaba bloqueo con «el repo está en nivel 2 desde»)",
+                        "❌ entrega: silencio o nivel 2"])
     print(f"1 mutación del observador confirmada; batería PASS={pasa} FAIL={falla}")
     if r.returncode == 0 and falla == 0 and pasa > 0:
         return 0

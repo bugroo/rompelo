@@ -45,6 +45,10 @@ versionar, pisa clave a clave) y el campo `disparo` del contrato (`rompelo init 
   (`hookSpecificOutput.permissionDecision: deny` / `additionalContext`; docs oficiales leídas el 16-09-2026).
   `rompelo doctor` avisa si faltan PreToolUse o UserPromptSubmit.
 
+Y el observador (PostToolUse) tampoco interrumpe mientras se trabaja: con `"aviso": "nota"` (defecto desde el
+29-10-2026, `config/observacion.json`) deja como mucho una nota de una línea que no obliga a nada, y lo que vio aparece
+en los motivos de la puerta al desplegar (`entrega` = ni nota). Antes de producción, rompelo no se mete en medio de nada.
+
 Lo que NO hace: leer el último mensaje del agente para adivinar si «dijo hecho». Claude Code lo da
 (`last_assistant_message`), pero esa señal es exactamente la que un cierre falso imita mejor. La señal es
 el comando que entrega o la frase del usuario.

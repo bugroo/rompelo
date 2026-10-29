@@ -1,22 +1,18 @@
 {
   "schema": 1,
-  "id": "mejoras-2026-10-29",
+  "id": "sin-friccion-antes-de-desplegar",
   "estado": "cerrada",
-  "base": "eda56281efdaf9560ab28ae352d4bb92929325b3",
-  "descripcion": "Optimización de rompelo tras recopilar los errores reales (28-10 checks duplicados, lecturas contadas como ediciones, JSON a mano, cruce que imprime argv…)",
+  "base": "8394eeadc3588fdd54eb4a60c4a47ea751c31a88",
+  "descripcion": "Observador en silencio hasta la entrega; skill solo al desplegar (José, 29-10)",
   "scope_paths": [
     "bin/rompelo",
+    "config/**",
     "tests/**",
     "docs/**",
     "README.md",
     "CHANGELOG.md",
     "adapters/**",
-    "config/**",
-    ".rompelo/**",
-    ".gitignore",
-    "corpus/**",
-    "incidents/**",
-    "checks/**"
+    ".rompelo/**"
   ],
   "checks": [
     "rompelo.tests",
@@ -30,8 +26,8 @@
   "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
-  "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:befa87195d576550: 14 revisado(s), 1 saltado(s) (corpus/TABLA.md), 0 hallazgo(s) (evidence/revision.json)",
+  "_ayuda": "No se edita a mano: `rompelo hallazgo <id> confirmado|rechazado|aceptado …`, `rompelo afirmar …`, `rompelo revisar --revisado|--saltado|--hallazgo …`. Lo concede código, no el modelo.",
+  "segunda_pasada": "revisión con manifiesto sobre v2:3cd4b98bdc49c76c: 10 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 2,
     "nivel_desde": "2026-10-29T15:23:07+00:00",
@@ -50,6 +46,6 @@
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-10-29T16:16:28+00:00"
+    "fecha": "2026-10-29T17:25:52+00:00"
   }
 }

@@ -94,6 +94,8 @@ def main():
     os.makedirs(os.path.join(home, "config"))
     with open(os.path.join(home, "checks", "registry.json"), "w") as fh:
         fh.write("{}")
+    with open(os.path.join(home, "config", "observacion.json"), "w") as fh:
+        fh.write('{"aviso": "turno"}')  # este control cuenta los avisos en el momento; el defecto (entrega) los calla
     # El observador se carga en proceso (un subproceso por evento tardaba ~100 ms; 2.500 eventos, 4 min).
     os.environ["ROMPELO_HOME"] = home
     import importlib.machinery, importlib.util, io, contextlib

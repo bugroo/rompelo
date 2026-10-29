@@ -7,7 +7,7 @@
 T="$(mktemp -d)"; export TMPDIR="$T/tmp"; mkdir -p "$TMPDIR"
 export ROMPELO_HOME="$T/home"; mkdir -p "$ROMPELO_HOME/checks" "$ROMPELO_HOME/config"
 printf '{"defecto":"turno"}' > "$ROMPELO_HOME/config/disparo.json"
-printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"   # esta batería usa el campo de texto; el manifiesto tiene la suya (rompelo-revisar-test.sh)   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
+printf '{"segunda_pasada": "texto", "aviso": "turno"}' > "$ROMPELO_HOME/config/observacion.json"   # esta batería usa el campo de texto; el manifiesto tiene la suya (rompelo-revisar-test.sh)   # esta batería juzga el Stop en cada turno; el disparo `entrega` tiene la suya (rompelo-disparo-test.sh)
 export CODEX_HOME="$T/codex"; mkdir -p "$CODEX_HOME/sessions"
 printf '{"ok": {"argv": ["true"]}}' > "$ROMPELO_HOME/checks/registry.json"
 R="$T/repo"; mkdir -p "$R/src" "$R/functions/api"; cd "$R" || exit 2
@@ -130,6 +130,39 @@ for i in 1 2 3; do o="$(read_ev $SID src/a.ts Write)"; done
 o="$(read_ev $SID src/a.ts Write)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "Write cuenta como edición" || bad "Write no contó" "$o"
 reset_estado
 
+echo "── aviso: nota (defecto desde el 29-10-2026, idea de José): una línea que no para a nadie; entrega = silencio; lo visto se juzga al entregar"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"   # sin `aviso`: el defecto
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'rompelo · nota\] visto: `.*editado 4 veces' && ! printf '%s' "$o" | grep -q 'dile al usuario\|exige' && ok "cuarta edición sin verde con el defecto: una nota de una línea, sin orden de parar ni exigencias" || bad "la nota no es una nota" "$o"
+[ "$(nivel)" = 2 ] && ok "y el repo sube a nivel 2 (el estado se escribe igual)" || bad "no subió" "$(nivel)"
+python3 -c "import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='';json.dump(c,open(f,'w'))"   # sin segunda pasada declarada: la puerta tiene que pedirla
+espera_bloqueo "al juzgar, la puerta lo cuenta: el repo está en nivel 2 desde hoy" av1 'el repo está en nivel 2 desde'
+python3 -c "import json;f='.rompelo/task.json';c=json.load(open(f));c['segunda_pasada']='revisado el diff entero; nada nuevo';json.dump(c,open(f,'w'))"
+o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && ok "la nota sale una vez por patrón y sesión" || bad "nota repetida" "$o"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "entrega"}' > "$ROMPELO_HOME/config/observacion.json"
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+o="$(edit_ev $SID src/a.ts)"; [ -z "$o" ] && [ "$(nivel)" = 2 ] && ok "aviso=entrega: silencio total y el estado sube igual" || bad "entrega: silencio o nivel 2" "$o nivel=$(nivel)"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "turno"}' > "$ROMPELO_HOME/config/observacion.json"
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "control positivo: con aviso=turno sí avisa en el momento" || bad "turno no avisa" "$o"
+reset_estado
+
+echo "── programa de un comando compuesto (29-10-2026: «cd x && T=\$(mktemp -d) && export V=1 && …» se anotó como «&&»)"
+reset_estado; nueva_sesion
+bash_ev $SID 'cd /tmp && T=$(mktemp -d) && export ROMPELO_HOME="$T/home" && mkdir -p "$T/x" && pnpm test' 0 '12 passed' '' >/dev/null
+python3 - "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" <<'PY' && ok "el programa anotado es «mkdir» (el primer tramo que hace algo), nunca «&&» ni «-d)»" || bad "programa de compuesto" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+import json,sys;e=json.loads(open(sys.argv[1]).read().splitlines()[-1]);sys.exit(0 if e["prog"]=="mkdir" else 1)
+PY
+bash_ev $SID 'export A=1; cd /tmp; ls' 0 'x' '' >/dev/null
+python3 - "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" <<'PY' && ok "export y cd se saltan: «ls»" || bad "preámbulo" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+import json,sys;e=json.loads(open(sys.argv[1]).read().splitlines()[-1]);sys.exit(0 if e["prog"]=="ls" else 1)
+PY
+bash_ev $SID 'cd /tmp' 0 '' '' >/dev/null
+python3 - "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl" <<'PY' && ok "un cd solo sigue siendo cd" || bad "cd solo" "$(tail -1 "$ROMPELO_HOME/state/sesiones/claude-$SID.jsonl")"
+import json,sys;e=json.loads(open(sys.argv[1]).read().splitlines()[-1]);sys.exit(0 if e["prog"]=="cd" else 1)
+PY
+reset_estado
+
 echo "── D2 ediciones sin verde (thrashing) y su reinicio con un check verde"
 reset_estado; nueva_sesion
 for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
@@ -145,11 +178,11 @@ bash_ev $SID 'grep -rn foo src' 0 '' '' >/dev/null
 o="$(bash_ev $SID 'grep -rn bar src' 0 '' '')"; printf '%s' "$o" | grep -q 'sin salida' && ok "dos grep vacíos: aviso" || bad "verde ambiguo" "$o"
 
 echo "── umbrales: se leen de config/observacion.json (mutación 1 y 99)"
-reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "firma_repetida": 1}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "turno", "firma_repetida": 1}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1')"; printf '%s' "$o" | grep -q 'mismo error 1 veces' && ok "umbral 1: salta a la primera" || bad "umbral 1" "$o"
-reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "turno", "firma_repetida": 99, "check_en_rojo": 99}' > "$ROMPELO_HOME/config/observacion.json"
 bash_ev $SID 'pnpm test' 1 '' 'Error: boom 1' >/dev/null; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: boom 2')"; [ -z "$o" ] && ok "umbral 99: no salta" || bad "umbral 99" "$o"
-printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto", "aviso": "turno"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── Claude Code de verdad: el fallo llega por PostToolUseFailure, no por PostToolUse (INC-0031)"
 reset_estado; nueva_sesion
@@ -212,14 +245,14 @@ o="$(bash_ev $SID "printf 'docs: w\\n\\nClaude-Session: https://claude.ai/code/s
 [ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "y con «\\n» literal en un printf, tampoco" || bad "trailer printf" "$o"
 
 echo "── toques por perfil: se leen de config/observacion.json (mutación a 1 y a 3)"
-reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "turno", "toques_perfil": {"_defecto": 1}}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 1: salta al primer toque" || bad "toques 1" "$o"
-reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "turno", "toques_perfil": {"_defecto": 3}}' > "$ROMPELO_HOME/config/observacion.json"
 edit_ev $SID functions/api/x.ts >/dev/null; o="$(edit_ev $SID functions/api/x.ts)"; [ -z "$o" ] && ok "umbral 3: el segundo toque calla" || bad "toques 3" "$o"
 o="$(edit_ev $SID functions/api/x.ts)"; printf '%s' "$o" | grep -q 'toca `junta`' && ok "umbral 3: el tercero salta" || bad "toques 3 tercero" "$o"
-reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
+reset_estado; nueva_sesion; printf '{"segunda_pasada": "texto", "aviso": "turno", "toques_perfil": {"_defecto": 2, "exterior": 1}}' > "$ROMPELO_HOME/config/observacion.json"
 o="$(bash_ev $SID 'pnpm add left-pad' 0 'added 1 package' '')"; printf '%s' "$o" | grep -q 'toca `exterior`' && ok "excepción por perfil: exterior a un toque" || bad "excepción exterior" "$o"
-printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto", "aviso": "turno"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── Codex: una cadena JSON en stdout no proporciona un código de salida"
 reset_estado; nueva_sesion
@@ -374,11 +407,11 @@ R3="$T/otro-proyecto"; mkdir -p "$R3/src"; (cd "$R3" && git init -q && git confi
 (cd "$R3" && "$ROMPELO" init --id OTRO --check ok >/dev/null 2>&1)
 o="$(observar claude "$(python3 -c 'import json,sys;print(json.dumps({"session_id":sys.argv[1],"cwd":sys.argv[2],"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"pnpm test"},"tool_response":{"stdout":"","stderr":"Error: ajeno 1","exit_code":1}}))' $SA "$R3")")"
 nueva_sesion; o="$(bash_ev $SID 'pnpm test' 1 '' 'Error: ajeno 2')"; [ -z "$o" ] && ok "el fallo de OTRO proyecto no contamina: una sola vez aquí, silencio" || bad "contaminación entre proyectos" "$o"
-printf '{"segunda_pasada": "texto", "ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto", "aviso": "turno", "ventana_horas": 0}' > "$ROMPELO_HOME/config/observacion.json"
 reset_estado; nueva_sesion; SA=$SID; nueva_sesion; SB=$SID
 bash_ev $SA 'pnpm test' 1 '' 'Error: sinventana 1' >/dev/null; o="$(bash_ev $SB 'pnpm test' 1 '' 'Error: sinventana 2')"
 [ -z "$o" ] && ok "ventana_horas: 0 apaga la mirada entre sesiones (configurable por instalación)" || bad "ventana 0" "$o"
-printf '{"segunda_pasada": "texto"}' > "$ROMPELO_HOME/config/observacion.json"
+printf '{"segunda_pasada": "texto", "aviso": "turno"}' > "$ROMPELO_HOME/config/observacion.json"
 
 echo "── state prune (RMP-013): retención comprobable, con previsualización y sin tocar evidencia ni estado del repo"
 reset_estado; nueva_sesion; bash_ev $SID 'git status' 0 'ok' '' >/dev/null

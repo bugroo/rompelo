@@ -1,0 +1,64 @@
+{
+  "huella": "v2:3cd4b98bdc49c76c",
+  "base": "8394eeadc3588fdd54eb4a60c4a47ea751c31a88",
+  "cerrada": true,
+  "abierta": "2026-10-29T17:25:50+00:00",
+  "ficheros": [
+    {
+      "path": "CHANGELOG.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "README.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "adapters/skill/SKILL.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "bin/rompelo",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "config/observacion.json",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "docs/disparo.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "docs/observacion.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/control-negativo-sesiones.py",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/control-positivo.py",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-observe-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-10-29T17:25:51+00:00",
+  "n_revisados": 10,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}
