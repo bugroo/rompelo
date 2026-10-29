@@ -1,11 +1,14 @@
 ---
 name: rompelo
-description: Abre una tarea con rompelo (contrato con scope, checks del registro y junta) y no la da por entregada hasta que `rompelo close` cierra en verde. Úsala cuando el usuario escriba /rompelo o $rompelo seguido de la tarea, o al empezar cualquier trabajo de código en un repo alistado en rompelo.
+description: La puerta antes de desplegar. Abre un contrato con rompelo (scope, checks del registro, junta) sobre TODO lo que va a salir a producción y no lo da por entregable hasta que `rompelo close` cierra en verde. Úsala solo cuando el usuario escriba /rompelo o $rompelo, o cuando vayas a desplegar, publicar o fusionar en main. NO al empezar una tarea, ni por sección, ni por commit (José, 28-10-2026: rompelo roba demasiado tiempo; por tarea basta la prueba vista fallar y el CI).
 ---
 
-# rompelo · cómo se trabaja una tarea con la puerta puesta
+# rompelo · la puerta antes de desplegar
 
-Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar código:
+**Cuándo.** Una vez por despliegue, sobre todo lo que sale: antes de `desplegar.sh`, `wrangler deploy`, `gh pr merge` o
+un push a `main`. Mientras se trabaja (secciones, commits, PR a una rama) rompelo no interviene: el observador, como mucho,
+deja una nota de una línea («visto: …; sigue») que no obliga a nada; lo que vio se juzga aquí, al final. Lo que viene después de `/rompelo` (o `$rompelo`) es lo que se va a
+desplegar. Antes de desplegar:
 
 1. **Mira qué hay.** `rompelo doctor` dice si el repo está alistado, qué contrato hay abierto, qué ids de check
    existen en el registro (`~/rompelo/checks/registry.json` y `registry.local.json`) y qué hooks faltan. Los ids

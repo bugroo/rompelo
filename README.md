@@ -88,6 +88,8 @@ is **delivered**:
   "release"…), declares the close and tells the agent what is still missing before it starts.
 - `Stop` judges only once the close is declared (by the user, or by a failed `rompelo close`), and goes quiet
   again once the task really closes.
+- The observer (`PostToolUse`) never stops anyone: at most a one-line note ("seen: …; carry on"), and what it saw
+  shows up in the gate's reasons at deploy time (`"aviso"` in `config/observacion.json`: `nota` | `entrega` | `turno`).
 
 `turno` (the previous behaviour, judged at the end of every turn) is one line away: `"defecto": "turno"` in
 [`config/disparo.json`](config/disparo.json), per repo under `por_repo`, or `rompelo init --disparo turno`.

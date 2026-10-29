@@ -105,6 +105,7 @@ EN = {
     " Para nivel 3 hay checks registrados en el contrato ({lista}): se exigen solo con permiso.": " For level 3 the contract registers checks ({lista}): they are required only with permission.",
     " Para búsquedas en internet o herramientas externas (nivel 3) pide permiso y regístralo con `rompelo permiso <patron> si|no [--recordar]`.": " For internet searches or external tools (level 3) ask for permission and record it with `rompelo permiso <patron> si|no [--recordar]`.",
     "Siguiente: {cmd}": "Next: {cmd}",
+    "[rompelo · nota] visto: {que}. Sigue con lo tuyo; lo tendré en cuenta al desplegar (nivel 2: segunda pasada).": "[rompelo · note] seen: {que}. Carry on; I will take it into account at deploy time (level 2: second pass).",
     "rompelo cruce --nota '<qué cruzas>' -- <comando real>": "rompelo cruce --nota '<what you cross>' -- <real command>",
     "obliga: la tarea cambia rutas de junta ({globs}), así que hace falta cruce real aunque el contrato diga toca_junta: false": "obliga: the task changes boundary paths ({globs}), so a real crossing is required even though the contract says toca_junta: false",
     " Lo exige obliga: {globs}": " Required by obliga: {globs}",
@@ -2071,6 +2072,19 @@ def leer_json_o(f, defecto):
         return defecto
 
 
+AVISOS = ("nota", "entrega", "turno")
+
+
+def aviso_observador():
+    """`aviso` en config/observacion.json. nota (defecto desde el 29-10-2026, idea de José): el observador deja una nota de
+    UNA línea («visto: …; sigue, lo tendré en cuenta al desplegar»), sin exigir nada ni pedir que pare; lo que vio se
+    juzga al entregar, en los motivos de la puerta. entrega: ni nota; silencio total hasta la entrega. turno: el aviso
+    largo de antes («antes de seguir, dile al usuario… a partir de ahora la tarea exige…»), que leía como una orden de
+    parar y era la fricción («rompelo se mete en el medio de cada tarea»)."""
+    v = leer_json_o(OBS_CONF, {}).get("aviso", "nota")
+    return v if v in AVISOS else "nota"
+
+
 def ventana_horas():
     """Cuántas horas atrás mira el observador en los libros de OTRAS sesiones del mismo repo (docs/observacion.md §2:
     «últimas 24 h del repo»). 0 apaga la mirada entre sesiones."""
@@ -2188,16 +2202,26 @@ def firma_error(stderr, prog, codigo):
     return None
 
 
+PREAMBULO = ("cd", "pushd", "export", "set", "unset", "source", ".", "true", ":")  # tramos que preparan, no hacen
+
+
 def programa(cmd):
-    partes = [p for p in cmd.strip().split() if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", p)]
-    if not partes:
-        return ""
-    prog = os.path.basename(partes[0])
-    if prog in ("cd", "pushd"):
-        # «cd repo && pnpm test» es pnpm test, no cd (control negativo real, 05-09)
-        resto = re.split(r"\s*(?:&&|;|\|\|)\s*", cmd.strip(), 1)
-        if len(resto) == 2 and resto[1].strip():
-            return programa(resto[1])
+    """El programa que hace el trabajo. Un comando compuesto se mira tramo a tramo (`&&`, `||`, `;`): «cd repo &&
+    T=$(mktemp -d) && export V=1 && pnpm test» es `pnpm test` (control negativo real, 05-09; el 29-10 un comando así
+    salió anotado como «`&&`» y subió un repo a nivel 2 por «verde ambiguo» de un programa que no existe)."""
+    tramos = [t.strip() for t in re.split(r"\s*(?:&&|\|\||;)\s*", cmd.strip()) if t.strip()]
+    for i, tramo in enumerate(tramos):
+        partes = [p for p in tramo.split() if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", p)]
+        if not partes or partes[0].startswith("-") or partes[0] in ("&&", "||", "|", ";"):
+            continue  # solo asignaciones (T=$(mktemp -d) parte en dos palabras) o restos de la asignación
+        prog = os.path.basename(partes[0])
+        if prog in PREAMBULO and i < len(tramos) - 1:
+            continue
+        return _programa_de(prog, partes)
+    return ""
+
+
+def _programa_de(prog, partes):
     if prog in ("sudo", "env", "time", "nice"):
         return programa(" ".join(partes[1:]))
     if len(partes) > 1 and not partes[1].startswith("-") and prog in (
@@ -2694,7 +2718,12 @@ def cmd_observe(agente, args):
             est["avisos"][clave] += [n[1] for n in pendientes]
             est["fecha"] = ahora()
             guardar_estado_repo(root, est)
-        if not pendientes:
+        if not pendientes or aviso_observador() == "entrega":
+            return 0  # el estado ya está escrito; la puerta lo cuenta al desplegar, no ahora
+        if aviso_observador() == "nota":
+            # Una línea, informativa, sin orden: el modelo sigue; la puerta lo juzga al desplegar.
+            texto = _("[rompelo · nota] visto: {que}. Sigue con lo tuyo; lo tendré en cuenta al desplegar (nivel 2: segunda pasada).", que="; ".join(d for _x, _y, d in pendientes))
+            print(json.dumps({"hookSpecificOutput": {"hookEventName": ev["evento"], "additionalContext": texto}}, ensure_ascii=False))
             return 0
         exige = []
         if "junta" in est["perfiles"]:
