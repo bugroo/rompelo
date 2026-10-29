@@ -1,0 +1,15 @@
+id: INC-2026-0049
+titulo: "El observador contó cuatro lecturas (Read) de un fichero como «editado 4 veces sin un check en verde»"
+fecha: 2026-10-29
+fuente: "visto en vivo en esta sesión (Fable, ~/rompelo): cuatro Read paralelos de bin/rompelo para leerlo entero; el PostToolUse respondió con el aviso de nivel 2 y escribió `ediciones-sin-verde` en el estado del repo. Cinco repos del estado llevaban ese patrón sin que nadie supiera si era real"
+tipo: instrumento
+evidencia_verde: "al revés: una alarma sin hecho. D2 «ediciones sin verde» leía `tool_input.file_path` de CUALQUIER herramienta; Read, Grep y Glob también lo traen. Y D1 contaba un Read de `functions/api/` o de `.env` como toque de junta o de secretos"
+lo_que_faltaba: "distinguir herramientas que escriben (Edit, Write, MultiEdit, NotebookEdit, apply_patch) de las que leen; solo las primeras dejan ruta en el libro"
+gate: observador-escritura
+gate_descripcion: "`evento_desde_hook` solo anota `ficheros` cuando la herramienta está en ESCRIBEN; batería del observador con cinco Read y tres Grep en silencio, y cuatro Edit/Write avisando (control positivo)"
+existe_hoy: "sí"
+spike_cubre: "sí"
+regresion: "tests/rompelo-observe-test.sh «una lectura no es una edición ni un toque»"
+clase: I
+senal_al_stop: "ninguna: es ruido del propio observador, no de la tarea"
+disparador: "varios Read del mismo fichero seguidos (leer un fichero largo por trozos)"

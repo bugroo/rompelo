@@ -1,6 +1,6 @@
 # Corpus de fallos reales · tabla generada
 
-Generado desde `incidents/` (48 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`. «Declarada» es una etiqueta del YAML; «demostrada» exige un campo `regresion` con la prueba que lo caza.
+Generado desde `incidents/` (51 incidentes). No editar a mano: `python3 bin/rompelo-corpus.py`. «Declarada» es una etiqueta del YAML; «demostrada» exige un campo `regresion` con la prueba que lo caza.
 
 ## Lo que decide
 
@@ -8,11 +8,11 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 
 | Pregunta | Recuento |
 |---|---|
-| Reparto por clase | **A**: 2 · **C**: 5 · **I**: 27 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 3 (de 48) |
+| Reparto por clase | **A**: 2 · **C**: 6 · **I**: 28 · **M**: 3 · **R**: 2 · **S**: 6 · **T**: 4 (de 51) |
 | Cobertura DECLARADA del Stop gate sobre la clase S (`spike_cubre: sí`, anotado a mano) | **5 de 6** |
-| Cobertura declarada sobre TODOS (no es la métrica, se deja por honestidad) | sí: 11 · parcial: 8 · no: 29 |
-| Cobertura DEMOSTRADA (incidentes con `regresion` que nombra una prueba reproducible) | **9 de 48** |
-| ¿Cuántos tienen ya un control hoy? | sí: 17 · parcial: 11 · **no: 20** |
+| Cobertura declarada sobre TODOS (no es la métrica, se deja por honestidad) | sí: 14 · parcial: 8 · no: 29 |
+| Cobertura DEMOSTRADA (incidentes con `regresion` que nombra una prueba reproducible) | **12 de 51** |
+| ¿Cuántos tienen ya un control hoy? | sí: 20 · parcial: 11 · **no: 20** |
 
 ## Por tipo de gate que lo habría cazado
 
@@ -36,10 +36,13 @@ Clases: **S** señal disponible al Stop · **T** en el momento de la herramienta
 | `correr-el-detector-sobre-codigo-real` | 1 (0045) | sí |
 | `contraste-sobre-imagen` | 1 (0047) | no |
 | `contrato-por-sesion` | 1 (0048) | no |
+| `observador-escritura` | 1 (0049) | sí |
+| `check-sin-repetir` | 1 (0050) | sí |
+| `cruce-sin-argv` | 1 (0051) | sí |
 
 ## Qué lo habría visto (observación + gate)
 
-Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **7 de 48** (0006, 0007, 0009, 0010, 0015, 0026, 0037): clases R, T y A, que viven fuera del cierre de una tarea.
+Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin disparador ni gate: **7 de 51** (0006, 0007, 0009, 0010, 0015, 0026, 0037): clases R, T y A, que viven fuera del cierre de una tarea.
 
 | Id | Clase | Disparador |
 |---|---|---|
@@ -91,6 +94,9 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0046 | I | medir color computado cuando la hoja usa oklch, lab, color-mix o hsl |
 | 0047 | I | texto posicionado sobre una imagen o un canvas |
 | 0048 | C | candidato: dos `session_id` distintos con Stop sobre la misma raíz y el mismo id de tarea en menos de una hora |
+| 0049 | I | varios Read del mismo fichero seguidos (leer un fichero largo por trozos) |
+| 0050 | C | dos ids del contrato efectivo con el mismo argv y cwd; evidencia verde con la huella actual al lanzar check |
+| 0051 | T | un cruce con `bash -c` y una variable de entorno expandida en el argumento |
 
 ## Los incidentes
 
@@ -144,6 +150,9 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 | 0046 | 2026-09-07 | I | ninguna: trece fallos coherentes parecen un diseño malo, no un medidor roto | `instrumento-control-positivo` | sí | no |
 | 0047 | 2026-09-07 | I | ninguna: el verificador ya tenía control positivo y lo pasaba | `contraste-sobre-imagen` | no | no |
 | 0048 | 2026-09-07 | C | sí, pero de la tarea equivocada: el bloqueo es legítimo para el contrato que hay, no para el trabajo de quien lo recibe | `contrato-por-sesion` | no | no |
+| 0049 | 2026-10-29 | I | ninguna: es ruido del propio observador, no de la tarea | `observador-escritura` | sí | sí |
+| 0050 | 2026-10-28 | C | ninguna: todo verde, solo más lento | `check-sin-repetir` | sí | sí |
+| 0051 | 2026-09-18 | T | ninguna | `cruce-sin-argv` | sí | sí |
 
 ## Títulos
 
@@ -195,3 +204,6 @@ Anotado en cada incidente (`disparador`, docs/observacion.md §9.3). Sin dispara
 - **0046** · Verificador de contraste que parsea oklch() como si fuera rgb(): trece fallos imposibles (`~/tails/skills/tails/references/11-verify.md § 8`)
 - **0047** · Contraste de texto sobre fotografía medido contra el fondo CSS: verde falso en el elemento más visible (`~/tails/skills/tails/references/11-verify.md § 9`)
 - **0048** · Dos sesiones en el mismo repo comparten el contrato: una queda bloqueada por la tarea de la otra (`relato de la sesión rootml-0e (Opus 5) el 07-09-2026, mensaje entre sesiones; reproducido aquí mismo: la sesión que insertó el corpus recibió el bloqueo del contrato ROMPELO-CODEX-03, cerrado por Codex`)
+- **0049** · El observador contó cuatro lecturas (Read) de un fichero como «editado 4 veces sin un check en verde» (`visto en vivo en esta sesión (Fable, ~/rompelo): cuatro Read paralelos de bin/rompelo para leerlo entero; el PostToolUse respondió con el aviso de nivel 2 y escribió `ediciones-sin-verde` en el estado del repo. Cinco repos del estado llevaban ese patrón sin que nadie supiera si era real`)
+- **0050** · En un worktree, `rompelo init` estrenó ids gemelos y la suite de seis minutos corrió dos veces por check (`sesión de ClaveON del 28-10-2026 (worktree ClaveON_B2C-umland): evidencia de despliegue-preise-widerruf-rediseno con claveon.test (196,6 s, por obliga) y claveon_b2c-umland.test (161 s, del contrato), ambos `pnpm test`; José: «roba demasiado tiempo»`)
+- **0051** · `rompelo cruce` reimprimía el argv entero: un token del vault expandido en el comando salió al chat (`ClaveON, 18-09-2026 (docs/PROBLEMAS.md N96.14): `rompelo cruce -- bash -c "curl -H 'X-Api-Token: $T' …"` respondió «cruce OK: bash -c curl -H 'X-Api-Token: yICe…'»; hubo que rotar el token admin de Invoice Ninja`)

@@ -78,6 +78,15 @@ espera_paso "revisión cerrada + hallazgo dispuesto + checks: silencio" n3
 out="$("$ROMPELO" revisar --cerrar 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q '0 nuevo(s)' && ok "--cerrar otra vez sobre la misma huella: idempotente, no duplica el hallazgo" || bad "idempotencia (rc=$rc)" "$out"
 
+echo "── árbol sin cambios a nivel 2: no hay nada que revisar y la tarea puede cerrar (11-10-2026: bucle sin salida)"
+cp .rompelo/task.json "$T/task-R1.bak"; git add -A && git commit -qm "lo revisado" >/dev/null
+"$ROMPELO" init --force --id R0 --check ok >/dev/null || exit 2
+"$ROMPELO" check >/dev/null
+out="$("$ROMPELO" revisar 2>&1)"; printf '%s' "$out" | grep -q 'nada que revisar' && ok "revisar sin cambios: nada que revisar" || bad "revisar sin cambios" "$out"
+espera_paso "sin cambios respecto a la base: el gate no exige manifiesto" rv0
+"$ROMPELO" close >/dev/null 2>&1 && ok "y close cierra" || bad "close no cierra con el árbol igual a la base" "$("$ROMPELO" close 2>&1)"
+git reset -q --soft HEAD~1; cp "$T/task-R1.bak" .rompelo/task.json   # vuelta al estado anterior: R1 con su manifiesto cerrado y REV-1 dispuesto
+
 echo "── un cambio después de cerrar caduca la revisión"
 echo a3 > src/a.txt
 espera_bloqueo "cambio posterior: vuelve a pedir rompelo revisar" n4 'rompelo revisar'

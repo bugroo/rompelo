@@ -15,7 +15,9 @@ Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar c
    worktree (dos sesiones sobre la misma raíz comparten `.rompelo/task.json`, INC-0048). Si durante tu tarea
    otros fusionan PR en la rama y salen rutas ajenas como «fuera de scope», no las metas en el scope: `rompelo base`
    te dice qué entró y `rompelo base --mover --motivo '<qué PR se fusionó>'` adelanta la base (después, `rompelo
-   check` otra vez).
+   check` otra vez). Sin REF va a la base común con el upstream (`origin/main`), nunca absorbe rutas de tu scope
+   (eso vaciaría tu diff): tras un `git rebase`, es justo lo que hace falta. Un scope con corchetes literales
+   (`src/pages/[...slug].astro`) se escribe tal cual.
 3. **Abre el contrato** con lo que la tarea de verdad necesita:
 
    ```
@@ -34,34 +36,43 @@ Lo que viene después de `/rompelo` (o `$rompelo`) es la tarea. Antes de tocar c
    - `--prueba`: si cambias código, obliga a que el diff traiga un test cambiado.
 
 4. **Trabaja sin fricción.** Con el disparo `entrega` (defecto) la puerta calla mientras trabajas: no salta al final
-   de cada turno. Salta cuando ENTREGAS: un `git commit`, `git push`, `gh pr create`, `wrangler deploy` o un guion
-   de despliegue se deniega si el contrato no está cumplido, con los motivos y la línea `Siguiente:`. Y cuando el
-   usuario pide cerrar («termina», «sube esto», «haz el commit»…) la puerta juzga al acabar ese turno, y te
-   adelanta lo que falta al empezar. No intentes rodear el deny (otro comando, `--no-verify`, editar la evidencia):
-   cumple lo que pide y vuelve a lanzar el comando. El commit o el push van **solos** en su comando: un
-   `pnpm test && git commit` se deniega entero, y un `grep 'git commit'` también (la puerta juzga por tramos y no
-   distingue el texto citado); pon la preparación y las búsquedas en comandos aparte. Si el contrato ya está cerrado y has cambiado algo después, la
-   puerta no lo juzga por turnos: abre un contrato nuevo para ese cambio (`rompelo init --force`). El observador (`PostToolUse`) mira solo; a nivel 2 exigirá una
-   segunda pasada con manifiesto (punto 5) y, según el perfil, cruce o afirmaciones con fuente.
+   de cada turno ni al hacer commit, push a una rama o abrir un PR (José, 28-10-2026: rompelo entero se pasa **una vez,
+   antes de desplegar**). Salta cuando PUBLICAS: `gh pr merge`, `git push` a `main`/`master`, `wrangler deploy`,
+   `scripts/desplegar.sh` o un guion de despliegue se deniega si el contrato no está cumplido, con los motivos y la
+   línea `Siguiente:`. Y cuando el usuario pide desplegar o publicar («despliega», «a producción», «ship it»…) la
+   puerta juzga al acabar ese turno, y te adelanta lo que falta al empezar. No intentes rodear el deny (otro comando,
+   `--no-verify`, editar la evidencia): cumple lo que pide y vuelve a lanzar el comando. El comando que publica va
+   **solo**: un `pnpm test && gh pr merge` se deniega entero, y un `grep 'gh pr merge'` también (la puerta juzga por
+   tramos y no distingue el texto citado); pon la preparación y las búsquedas en comandos aparte. Si el contrato ya
+   está cerrado y has cambiado algo después, la puerta no lo juzga por turnos: abre un contrato nuevo para ese cambio
+   (`rompelo init --force`). El observador (`PostToolUse`) mira solo (y solo cuenta lo que ESCRIBE: leer un fichero
+   no es editarlo); a nivel 2 exigirá una segunda pasada con manifiesto (punto 5) y, según el perfil, cruce o
+   afirmaciones con fuente. En un worktree, `rompelo init` sin `--check` reutiliza los ids del repo principal
+   (`claveon.test`, no `claveon_b2c-umland.test`): no registres un id gemelo para el mismo comando.
 5. **Cierra de verdad**, en este orden y después del último cambio:
    - `rompelo check` (la suite entera puede pasar de 120 s: en Claude Code lánzala con timeout ≥ 300000
-     o itera con `rompelo check --id <uno>`). Un check cuyas rutas (`afecta`) no cambiaron dice «no aplica» y no
-     se ejecuta: no lo fuerces.
+     o itera con `rompelo check <id>`, o `rompelo check --pendientes` para saltar lo que ya tiene evidencia verde
+     sobre esta misma huella («vigente»)); dos ids con el mismo comando corren una vez. Un check cuyas rutas
+     (`afecta`) no cambiaron dice «no aplica» y no se ejecuta: no lo fuerces.
    - Si el bloqueo pide segunda pasada: `rompelo revisar` abre el manifiesto (cada fichero cambiado, cómo ver su
      diff, las reglas, el criterio). Revisa cada fichero de verdad (lee el diff; el fichero entero si hace falta;
-     quién lo llama), pon `revisado` o `saltado` + motivo, apunta los hallazgos con ruta, línea, categoría y
-     severidad, y `rompelo revisar --cerrar`. Los hallazgos pasan al contrato sin disposición: dales una.
+     quién lo llama) y márcalo **por subcomando, no editando el JSON**: `rompelo revisar --revisado <ruta>...`,
+     `rompelo revisar --saltado --motivo '<por qué>' <ruta>...`, `rompelo revisar --hallazgo <id> --path <ruta>
+     --linea <n> --categoria <bug|security|…> --severidad <critical|high|medium|low> --texto '<qué falla>'`; después
+     `rompelo revisar --cerrar`. Los hallazgos pasan al contrato sin disposición: dales una con `rompelo hallazgo`.
    - Si hay junta: `rompelo cruce --nota '<qué cruzas>' -- <comando real>` o `--id <check del registro>`.
      Una petición real por el camino real, no un mock.
    - `rompelo close`. Imprime el informe: qué se comprobó, qué no se pudo, qué queda a cargo del usuario.
      Un `close` en rojo declara el cierre: desde ahí la puerta juzga cada turno hasta que cierre en verde.
 6. **Si la puerta deniega o bloquea**, lee los motivos y resuélvelos con lo que piden (`check`, `revisar`, `cruce`,
    disposición del hallazgo). Lo que no puedas cumplir se declara, no se maquilla:
-   - una afirmación sobre el mundo exterior va en `afirmaciones` con estado `verificado` (fuente +
-     cita), `derivado` (de qué) o `no_verificado` (qué falta);
-   - un hallazgo se cierra con `confirmado` (+ `regresion`), `rechazado` (+ `motivo`; si es de `security`, `bug`,
-     `concurrency`, `memory`, `compat` o `data`, además `comprobado`: qué ejecutaste o leíste que lo refuta) o
-     `aceptado` (+ `nota`); «pendiente» no desbloquea;
+   - una afirmación sobre el mundo exterior se apunta con `rompelo afirmar '<texto>' verificado --fuente '…'
+     --cita '…'` | `derivado --de '…'` | `no_verificado --falta '…'`;
+   - un hallazgo se cierra con `rompelo hallazgo <id> confirmado --regresion <check del registro | prueba cambiada
+     en el diff>`, `rompelo hallazgo <id> rechazado --motivo '…' [--comprobado '…']` (obligatorio en `security`, `bug`,
+     `concurrency`, `memory`, `compat` y `data`: qué ejecutaste o leíste que lo refuta) o `rompelo hallazgo <id> aceptado
+     --nota '…'` (qué riesgo se asume y hasta cuándo); el subcomando solo escribe lo que el gate va a aceptar;
+     `rompelo hallazgo` a secas lista lo que falta. «pendiente» no desbloquea;
    - algo que no se puede comprobar aquí va en `excepciones: [{que, motivo, quien}]`, con nombre
      del responsable;
    - un motivo que empieza por «el repo está en nivel 2 desde <fecha>» o «el repo tiene perfil `junta` desde

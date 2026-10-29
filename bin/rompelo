@@ -108,13 +108,13 @@ EN = {
     "rompelo cruce --nota '<qué cruzas>' -- <comando real>": "rompelo cruce --nota '<what you cross>' -- <real command>",
     "obliga: la tarea cambia rutas de junta ({globs}), así que hace falta cruce real aunque el contrato diga toca_junta: false": "obliga: the task changes boundary paths ({globs}), so a real crossing is required even though the contract says toca_junta: false",
     " Lo exige obliga: {globs}": " Required by obliga: {globs}",
-    "[rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea {tid} no está verificada:\n": "[rompelo] This command DELIVERS (commit/push/deploy) and task {tid} is not verified:\n",
+    "[rompelo] Este comando ENTREGA (publica: merge, push a main, despliegue) y la tarea {tid} no está verificada:\n": "[rompelo] This command DELIVERS (publishes: merge, push to main, deploy) and task {tid} is not verified:\n",
     "\nCumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.": "\nMeet what is missing and run the command again. Whatever cannot be met is declared in the contract as NOT VERIFIED, not skipped.",
     "no sé cuándo tiene que saltar la puerta ({exc}); hasta arreglarlo no dejo entregar": "I do not know when the gate must fire ({exc}); until that is fixed I do not allow delivery",
     "disparo del contrato inválido ({exc})": "invalid contract trigger ({exc})",
     "disparo inválido ({exc}): hasta arreglarlo la puerta juzga en cada turno": "invalid trigger ({exc}): until it is fixed the gate judges every turn",
     "[rompelo] El usuario pide cerrar o entregar; la tarea {tid} no tiene nada pendiente ahora mismo. Si cambias algo, vuelve a `rompelo check` (y `rompelo cruce` si hay junta) y `rompelo close` antes de entregar.": "[rompelo] The user asks to close or deliver; task {tid} has nothing pending right now. If you change anything, run `rompelo check` (and `rompelo cruce` if there is a boundary) and `rompelo close` again before delivering.",
-    "[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará commit ni push sin evidencia. Ahora mismo falta:\n": "[rompelo] The user asks to close or deliver task {tid}: the gate will judge it at the end of this turn and will not allow commit or push without evidence. Missing right now:\n",
+    "[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará publicar (merge, push a main, despliegue) sin evidencia. Ahora mismo falta:\n": "[rompelo] The user asks to close or deliver task {tid}: the gate will judge it at the end of this turn and will not allow publishing (merge, push to main, deploy) without evidence. Missing right now:\n",
 }
 _IDIOMA = None
 
@@ -577,7 +577,12 @@ def ruta_limpia(p):
 
 def leer_contrato(root):
     _, f = rutas(root)
-    c = leer_json(f)
+    try:
+        c = leer_json(f)
+    except FileNotFoundError:
+        # Un repo (o un repo anidado: claveon-feedback dentro de ClaveON_B2C) sin contrato salía como
+        # «[Errno 2] No such file or directory: '…/task.json'»: el agente no sabía si era un fallo o un paso que faltaba.
+        raise FileNotFoundError(f"no hay contrato en {root} ({os.path.relpath(f, root)}): ábrelo con `rompelo init --id <ID> --scope <rutas> --check <ids>`")
     if not isinstance(c, dict):
         raise ValueError("task.json tiene que ser un objeto")
     faltan = [k for k in OBLIGATORIAS if k not in c]
@@ -780,9 +785,17 @@ def ahora():
 
 def casa(path, patron):
     patron = patron.rstrip("/")
+    if path == patron or path.startswith(patron + "/"):
+        return True  # un nombre literal casa siempre, lleve lo que lleve: `src/pages/[...slug].astro` es un fichero, no una clase
     if any(ch in patron for ch in "*?["):
-        return fnmatch.fnmatch(path, patron) or fnmatch.fnmatch(path, patron.replace("**/", ""))
-    return path == patron or path.startswith(patron + "/")
+        if fnmatch.fnmatch(path, patron) or fnmatch.fnmatch(path, patron.replace("**/", "")):
+            return True
+        if "[" in patron:
+            # Los corchetes de Astro/Next (`[...slug]`, `[id]`) son parte del nombre; fnmatch los lee como clase de
+            # caracteres y el scope «no casaba» con el fichero real (28-10-2026). Segundo intento con ellos escapados.
+            lit = re.sub(r"[\[\]]", lambda m: "[" + m.group(0) + "]", patron)
+            return fnmatch.fnmatch(path, lit) or fnmatch.fnmatch(path, lit.replace("**/", ""))
+    return False
 
 
 # ── veredicto ───────────────────────────────────────────────────────────────
@@ -811,7 +824,9 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
                 else _("por permiso, sin patrones") if info["nivel"] >= 3 else _("sin patrones"))
         detalle = f"{perf}; {pats}"
         if modo_segunda_pasada() == "revision":
-            if not revision_vigente(ev, hu):
+            # Sin ninguna ruta distinta de la base no hay nada que revisar: exigir un manifiesto que `rompelo revisar`
+            # no puede abrir («nada que revisar») dejaba el contrato sin salida (11-10-2026, ClaveON tras desplegar).
+            if cambiados and not revision_vigente(ev, hu):
                 acc["revisar"] = True
                 m.append(_("el repo está en nivel {nivel} {desde} ({detalle}): hace falta segunda pasada con manifiesto sobre el árbol actual: `rompelo revisar`, revisa cada fichero (o sáltalo con motivo), `rompelo revisar --cerrar`",
                            nivel=info["nivel"], desde=info["desde"], detalle=detalle))
@@ -928,25 +943,9 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     # una regresión que exista: un check del registro o una prueba cambiada en este diff.
     globs_prueba = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
     for h in c.get("hallazgos") or []:
-        hid = h.get("id") if isinstance(h, dict) else h
-        if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
-            m.append(_("hallazgo sin disposición: {h}", h=hid))
-            continue
-        d = str(h["disposicion"]).strip()
-        if d not in ("confirmado", "rechazado", "aceptado"):
-            m.append(_("hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)", h=hid, d=d))
-        elif d == "rechazado" and not str(h.get("motivo") or "").strip():
-            m.append(_("hallazgo {h} rechazado sin motivo", h=hid))
-        elif d == "rechazado" and str(h.get("categoria") or "").strip().lower() in PROTEGIDAS and not str(h.get("comprobado") or "").strip():
-            m.append(_("hallazgo {h} ({cat}) rechazado sin `comprobado`: una categoría protegida no se descarta de memoria; di qué ejecutaste o leíste que lo refuta", h=hid, cat=h.get("categoria")))
-        elif d == "aceptado" and not str(h.get("nota") or "").strip():
-            m.append(_("hallazgo {h} aceptado sin nota (qué riesgo se asume y hasta cuándo)", h=hid))
-        elif d == "confirmado":
-            r = str(h.get("regresion") or "").strip()
-            if not r:
-                m.append(_("hallazgo {h} confirmado sin regresión (un check del registro o una prueba de este diff)", h=hid))
-            elif not (r in reg or (r in suj and any(casa(r, g) for g in globs_prueba) and suj[r] != "D")):
-                m.append(_("hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff", h=hid, r=r))
+        mh = motivo_hallazgo(h, reg, suj, globs_prueba)
+        if mh:
+            m.append(mh)
 
     # Afirmaciones materiales sobre el mundo exterior (criterio de rootml-de, 04-09-2026):
     # cada una lleva estado. verificado = fuente de primera mano + cita textual que zanja;
@@ -955,19 +954,9 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     if c.get("toca_exterior") and not afs:
         m.append(_("toca_exterior: true y no hay ninguna afirmación con estado (verificado | derivado | no_verificado)"))
     for i, a in enumerate(afs, 1):
-        et = a.get("estado") if isinstance(a, dict) else None
-        tx = (a.get("texto") if isinstance(a, dict) else str(a)) or f"#{i}"
-        if et == "verificado":
-            if not (str(a.get("fuente") or "").strip() and str(a.get("cita") or "").strip()):
-                m.append(_("afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual", tx=tx))
-        elif et == "derivado":
-            if not str(a.get("de") or "").strip():
-                m.append(_("afirmación «{tx}» marcada derivado sin decir de qué se deduce", tx=tx))
-        elif et == "no_verificado":
-            if not str(a.get("falta") or "").strip():
-                m.append(_("afirmación «{tx}» marcada no_verificado sin decir qué falta", tx=tx))
-        else:
-            m.append(_("afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)", tx=tx))
+        ma = motivo_afirmacion(a, i)
+        if ma:
+            m.append(ma)
 
     if c.get("exige_prueba_en_diff"):
         globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
@@ -976,6 +965,51 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
             m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto.")
                      + (_(" Lo exige obliga: {globs}", globs=", ".join(info["prueba_por_obliga"])) if info.get("prueba_por_obliga") else ""))
     return m
+
+
+DISPOSICIONES = ("confirmado", "rechazado", "aceptado")
+ESTADOS_AFIRMACION = ("verificado", "derivado", "no_verificado")
+
+
+def motivo_hallazgo(h, reg, suj, globs_prueba):
+    """Lo que le falta a un hallazgo para estar adjudicado, o None. Lo usan el gate y `rompelo hallazgo` (que no
+    escribe una disposición que el gate fuera a rechazar)."""
+    hid = h.get("id") if isinstance(h, dict) else h
+    if not isinstance(h, dict) or not str(h.get("disposicion") or "").strip():
+        return _("hallazgo sin disposición: {h}", h=hid)
+    d = str(h["disposicion"]).strip()
+    if d not in DISPOSICIONES:
+        return _("hallazgo {h}: disposición «{d}» no vale (confirmado | rechazado | aceptado)", h=hid, d=d)
+    if d == "rechazado" and not str(h.get("motivo") or "").strip():
+        return _("hallazgo {h} rechazado sin motivo", h=hid)
+    if d == "rechazado" and str(h.get("categoria") or "").strip().lower() in PROTEGIDAS and not str(h.get("comprobado") or "").strip():
+        return _("hallazgo {h} ({cat}) rechazado sin `comprobado`: una categoría protegida no se descarta de memoria; di qué ejecutaste o leíste que lo refuta", h=hid, cat=h.get("categoria"))
+    if d == "aceptado" and not str(h.get("nota") or "").strip():
+        return _("hallazgo {h} aceptado sin nota (qué riesgo se asume y hasta cuándo)", h=hid)
+    if d == "confirmado":
+        r = str(h.get("regresion") or "").strip()
+        if not r:
+            return _("hallazgo {h} confirmado sin regresión (un check del registro o una prueba de este diff)", h=hid)
+        if not (r in reg or (r in suj and any(casa(r, g) for g in globs_prueba) and suj[r] != "D")):
+            return _("hallazgo {h}: la regresión «{r}» no es un check del registro ni una prueba cambiada en este diff", h=hid, r=r)
+    return None
+
+
+def motivo_afirmacion(a, i=0):
+    et = a.get("estado") if isinstance(a, dict) else None
+    tx = (a.get("texto") if isinstance(a, dict) else str(a)) or f"#{i}"
+    if et == "verificado":
+        if not (str(a.get("fuente") or "").strip() and str(a.get("cita") or "").strip()):
+            return _("afirmación «{tx}» marcada verificado sin fuente de primera mano o sin cita textual", tx=tx)
+    elif et == "derivado":
+        if not str(a.get("de") or "").strip():
+            return _("afirmación «{tx}» marcada derivado sin decir de qué se deduce", tx=tx)
+    elif et == "no_verificado":
+        if not str(a.get("falta") or "").strip():
+            return _("afirmación «{tx}» marcada no_verificado sin decir qué falta", tx=tx)
+    else:
+        return _("afirmación «{tx}» sin estado válido (verificado | derivado | no_verificado)", tx=tx)
+    return None
 
 
 # ── ejecución sin shell ─────────────────────────────────────────────────────
@@ -1041,8 +1075,13 @@ def ejecutar(argv, cwd, timeout=TIMEOUT_DEFECTO):
     return ev, salida.decode("utf-8", "replace")
 
 
+_EJECUTADOS = {}  # (argv, cwd) → (id que lo ejecutó, evidencia): dentro de una invocación, un mismo comando corre una vez
+
+
 def ejecutar_check(cid, root):
-    """El control prueba el mismo instrumento ANTES del caso real. Solo 1 autoriza seguir."""
+    """El control prueba el mismo instrumento ANTES del caso real. Solo 1 autoriza seguir. Dos ids con el mismo argv y
+    cwd (28-10-2026: `claveon.test` del obliga y `claveon_b2c-umland.test` del contrato eran el mismo `pnpm test`, ~6 min
+    cada vez) comparten la ejecución del comando; el control positivo es de cada id y se corre aparte."""
     argv, cwd = resolver_check(cid, root)
     reg = registro(root)[cid]
     plazo = reg.get("timeout", TIMEOUT_DEFECTO)
@@ -1054,13 +1093,27 @@ def ejecutar_check(cid, root):
              "n_args": len(argv) - 1, "cwd": cwd, "codigo": None, "segundos": 0, "lineas_salida": 0, "fecha": ahora(),
              "instrumento": {0: "ciego", 2: "no_pudo_mirar"}.get(cp["codigo"], "abortado")}
     else:
-        e, _salida = ejecutar(argv, cwd, timeout=plazo)
+        clave = (json.dumps(argv), cwd)
+        if clave in _EJECUTADOS:
+            de, e0 = _EJECUTADOS[clave]
+            e = {k: v for k, v in e0.items() if k not in ("id", "definicion", "control_positivo", "instrumento", "huella", "compartida_con")}
+            e["compartida_con"] = de
+        else:
+            e, _salida = ejecutar(argv, cwd, timeout=plazo)
+            _EJECUTADOS[clave] = (cid, dict(e))
         if cp is not None:
             e["instrumento"] = "operativo"
     if cp is not None:
         e["control_positivo"] = cp
     e.update(id=cid, definicion=hash_check(reg))
     return e
+
+
+def evidencia_vigente(cid, reg_e, e, hu_c):
+    """True si la evidencia guardada de ese check vale tal cual para el árbol de ahora: misma definición, misma huella
+    (la suya, con afecta/no_afecta), formato vigente y sin motivo de bloqueo. Es exactamente lo que acepta el gate."""
+    return bool(e) and e.get("definicion") == hash_check(reg_e) and huella_vigente(e.get("huella")) \
+        and e.get("huella") == hu_c and motivo_check(cid, reg_e, e) is None
 
 
 def motivo_check(cid, reg, e):
@@ -1118,12 +1171,33 @@ def es_nombre_de_check(sc):
     return sc in NOMBRES_CHECK or any(sc.startswith(n + ":") for n in NOMBRES_CHECK)
 
 
+def nombre_repo(root):
+    """Prefijo de los ids: el nombre del repositorio PRINCIPAL, no de la carpeta. En un worktree (`ClaveON_B2C-umland`)
+    `git rev-parse --git-common-dir` apunta al `.git` del repo (`ClaveON_B2C/.git`): el 28-10-2026 cada worktree
+    estrenaba ids propios (`claveon_b2c-umland.test`…) que duplicaban los del repo sin `afecta` ni control positivo."""
+    r = git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    comun = r.stdout.strip() if r.returncode == 0 else ""
+    carpeta = os.path.dirname(comun) if comun and os.path.basename(comun) == ".git" else root
+    return re.sub(r"[^a-z0-9._-]", "-", os.path.basename(carpeta).lower()) or "repo"
+
+
+def mismo_comando(a, b):
+    """`pnpm typecheck` y `pnpm run typecheck` ejecutan el mismo script: un id registrado a mano sin «run» es el
+    mismo check que el detectado con «run». Se compara el argv normalizado y el cwd."""
+    def norm(e):
+        argv = list(e.get("argv") or [])
+        if len(argv) >= 3 and argv[0] in ("pnpm", "npm", "yarn", "bun") and argv[1] == "run":
+            argv = [argv[0]] + argv[2:]
+        return (tuple(argv), e.get("cwd", "repo"))
+    return norm(a) == norm(b)
+
+
 def detectar_checks(root):
     """Checks que el repo ya trae, leídos de sus ficheros, no adivinados: scripts declarados (package.json,
     deno.json, composer.json), objetivos declarados (Makefile, justfile, Taskfile) y la suite propia de cada
     ecosistema cuando el fichero que la declara está (pytest, ruff, mypy, cargo, go, mix, rspec, gradle, maven,
     dotnet, swift). Devuelve {id: {argv, cwd, min_lineas, descripcion}} con ids `<repo>.<nombre>`."""
-    nombre = re.sub(r"[^a-z0-9._-]", "-", os.path.basename(root).lower()) or "repo"
+    nombre = nombre_repo(root)
     out = {}
 
     def existe(*p):
@@ -1240,11 +1314,26 @@ def cmd_init(root, args):
     if not checks and "--sin-detectar" not in args:
         detectados = detectar_checks(root)
         if detectados:
+            # Un comando que ya está en el registro bajo otro id (a mano, con su `afecta` y su control positivo) se
+            # reutiliza en vez de estrenar un id gemelo que lo ejecutaría otra vez sin ninguna de las dos cosas.
+            try:
+                existentes = registro(root)
+            except ValueError:
+                existentes = {}
+            reutilizados = {}
+            for k in sorted(detectados):
+                gemelo = next((e for e in sorted(existentes) if e != k and isinstance(existentes[e], dict) and mismo_comando(existentes[e], detectados[k])), None)
+                if gemelo:
+                    reutilizados[k] = gemelo
+            for k in reutilizados:
+                detectados.pop(k)
             nuevos = registrar_local(detectados)
-            checks = sorted(detectados)
+            checks = sorted(set(detectados) | set(reutilizados.values()))
             print("checks detectados en el repo (registrados en " + REGISTRO_LOCAL + "):")
-            for k in checks:
+            for k in sorted(detectados):
                 print(f"  {k}: {' '.join(detectados[k]['argv'])}" + ("" if k in nuevos else "  (ya estaba)"))
+            for k, g in sorted(reutilizados.items()):
+                print(f"  {g}: mismo comando que el detectado {k}; se reutiliza el id ya registrado (con su afecta y su control positivo)")
         else:
             print("no he detectado ningún check en el repo (package.json, pyproject, Cargo.toml, go.mod, Makefile). Añade los tuyos con --check <id> y el registro.")
     reg = registro(root)
@@ -1262,7 +1351,7 @@ def cmd_init(root, args):
         "toca_junta": "--junta" in args,
         "exige_prueba_en_diff": "--prueba" in args,
         "hallazgos": [],
-        "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
+        "_ayuda": "No se edita a mano: `rompelo hallazgo <id> confirmado|rechazado|aceptado …`, `rompelo afirmar …`, `rompelo revisar --revisado|--saltado|--hallazgo …`. Lo concede código, no el modelo.",
     }
     disparo = valor(args, "--disparo")
     if disparo is not None:
@@ -1279,14 +1368,19 @@ def cmd_init(root, args):
 
 
 def cmd_check(root, args):
-    # Solo se admite `--id ID` (repetible). Cualquier otro argumento es un error: antes se
-    # descartaba en silencio y `rompelo check no.existe` ejecutaba todo y decía «todos en verde»
-    # (verde ambiguo: la salida decía «hice lo que pediste» habiendo hecho otra cosa).
+    # Ids por `--id ID` o sueltos (`rompelo check claveon.test`: ocho veces en sesiones reales el agente los dio sueltos
+    # y salía con error). Un `--flag` desconocido sigue siendo error: antes se descartaba en silencio y
+    # `rompelo check no.existe` ejecutaba todo y decía «todos en verde» (verde ambiguo). Un id suelto que no está en el
+    # contrato también es error (abajo), nunca se ignora.
     pedidos = valores(args, "--id")
-    sobrantes = [a for i, a in enumerate(args) if a != "--id" and not (i > 0 and args[i - 1] == "--id")]
-    if sobrantes or ("--id" in args and not pedidos):
-        sys.exit(f"rompelo check: argumento(s) no reconocido(s): {' '.join(sobrantes) or '--id sin valor'}\n"
-                 "uso: rompelo check [--id ID]...   (sin --id ejecuta todos los checks exigidos por el contrato)")
+    sobrantes = []
+    for i, a in enumerate(args):
+        if a in ("--id", "--pendientes") or (i > 0 and args[i - 1] == "--id"):
+            continue
+        (sobrantes if a.startswith("-") else pedidos).append(a)
+    if sobrantes or ("--id" in args and not valores(args, "--id")):
+        sys.exit(f"rompelo check: argumento(s) no reconocido(s): {' '.join(sobrantes) or '--id sin valor'}\n{USO['check']}")
+    pendientes = "--pendientes" in args
     c, info = contrato_efectivo(root)
     ev = dir_evidencia(root, c)
     exigidos = info["checks"]  # los de nivel 3 se exigen aunque `checks` esté vacío (RMP-014)
@@ -1302,6 +1396,7 @@ def cmd_check(root, args):
                      f"({', '.join(sorted(conocidos)) or 'ninguno'})")
         exigidos = [(cid, n3) for cid, n3 in exigidos if cid in pedidos]
     origen = info.get("origen") or {}
+    _EJECUTADOS.clear()
     for i, (cid, n3) in enumerate(exigidos, 1):
         argv, cwd = resolver_check(cid, root)
         reg = registro(root)[cid]
@@ -1310,14 +1405,25 @@ def cmd_check(root, args):
         if not aplica(reg, antes, forzado):
             print(f"[{i}/{len(exigidos)}] {cid}: no aplica (ninguna ruta cambiada casa con afecta {reg['afecta']}); no se ejecuta")
             continue
+        hu_c = huella_check(antes, reg, forzado)
+        previa = leer_evidencia(ev, f"check-{cid}.json")
+        if pendientes and evidencia_vigente(cid, reg, previa, hu_c):
+            # `--pendientes`: lo verde sobre esta misma huella y con esta misma definición es lo que el gate acepta;
+            # repetirlo no añade información (28-10-2026: perseguir un rojo suelto repetía la suite de 6 min cada vez).
+            # Sin la opción, `rompelo check` ejecuta lo que se le pide: un control que se quedó ciego sin que cambiara
+            # el registro solo se descubre ejecutándolo otra vez (batería «control recién fallado»).
+            print(f"[{i}/{len(exigidos)}] {cid}: vigente (código {previa.get('codigo')} sobre esta huella, {previa.get('segundos')} s el {str(previa.get('fecha', ''))[:16]}); no se repite")
+            continue
         print(f"[{i}/{len(exigidos)}] {cid}{' (nivel 3)' if n3 else ''}{' (' + origen[cid] + ')' if cid in origen else ''}: {' '.join(argv)}")
         e = ejecutar_check(cid, root)
-        e["huella"] = huella_check(antes, reg, forzado)  # la huella de ANTES: lo que el check miró
+        e["huella"] = hu_c  # la huella de ANTES: lo que el check miró
         escribir_evidencia(ev, f"check-{cid}.json", e)
         motivo = motivo_check(cid, reg, e)
         if motivo:
             fallos += 1
             print("    " + motivo)
+        if e.get("compartida_con"):
+            print(f"    = mismo comando que `{e['compartida_con']}` (argv y cwd iguales): no se repite, la evidencia se comparte")
         print("    → " + resumen_check(reg, e))
         despues = sujetos(root, c.get("base"))
         tocados = sorted(p for p in set(antes) | set(despues) if antes.get(p) != despues.get(p))
@@ -1344,7 +1450,10 @@ def cmd_cruce(root, args):
     e["nota"] = valor(args, "--nota") or ""
     e["huella"] = huella_arbol(root, c.get("base"))
     escribir_evidencia(ev, "cruce.json", e)
-    print(("cruce OK" if e["codigo"] == 0 else f"cruce FALLÓ (código {e['codigo']})") + ": " + " ".join(argv))
+    # Programa y nº de argumentos, nunca el argv: el 18-09-2026 `cruce OK: bash -c curl -H 'X-Api-Token: …'` sacó al
+    # chat un token del vault que iba expandido en el comando (la evidencia ya no lo guardaba desde RMP-007; la
+    # pantalla sí). Lo que el agente tecleó ya lo tiene delante; no hace falta repetirlo.
+    print(("cruce OK" if e["codigo"] == 0 else f"cruce FALLÓ (código {e['codigo']})") + f": {e['programa']} ({e['n_args']} argumentos)")
     if e["codigo"] != 0:
         print("".join(salida.splitlines(True)[-15:]), end="")
     return 0 if e["codigo"] == 0 else 1
@@ -1474,6 +1583,78 @@ def cmd_close(root, args):
         fh.write(informe)
     print(informe)
     print(f"tarea {c['id']} cerrada sobre la huella {hu} · informe en {os.path.join(ev, 'INFORME.md')}")
+    print(f"el contrato cerrado está en {os.path.relpath(f, root)}: añádelo al commit (si ya habías hecho `git add`, vuelve a añadirlo)")
+    return 0
+
+
+def cmd_hallazgo(root, args):
+    """`rompelo hallazgo` lista los hallazgos del contrato y qué les falta. `rompelo hallazgo <id> confirmado --regresion X |
+    rechazado --motivo M [--comprobado C] | aceptado --nota N` escribe la disposición de forma atómica y SOLO si el gate la
+    va a aceptar (mismo criterio: `motivo_hallazgo`). Hasta el 29-10-2026 el agente editaba task.json a mano: cinco
+    contratos acabaron ilegibles (JSONDecodeError) y «hallazgo sin disposición» fue el bloqueo más repetido (46 veces)."""
+    c = leer_contrato(root)
+    hall = [h for h in (c.get("hallazgos") or []) if isinstance(h, dict)]
+    cambiados = ficheros_cambiados(root, c.get("base"))
+    suj = sujetos(root, cambiados=cambiados)
+    reg = registro(root)
+    globs_prueba = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
+    if not args or args[0].startswith("-"):
+        if args and args[0] not in ("-h", "--help"):
+            sys.exit(f"rompelo hallazgo: argumento(s) no reconocido(s): {' '.join(args)}\n{USO['hallazgo']}")
+        if not hall:
+            print("el contrato no tiene hallazgos")
+            return 0
+        for h in hall:
+            mh = motivo_hallazgo(h, reg, suj, globs_prueba)
+            print(f"  {h.get('id')}  [{h.get('categoria') or '-'}/{h.get('severidad') or '-'}] {str(h.get('texto') or '')[:80]}")
+            print("      " + (mh if mh else f"{h['disposicion']} ✓"))
+        return 0
+    hid, resto = args[0], args[1:]
+    if not resto or resto[0] not in DISPOSICIONES:
+        sys.exit(f"rompelo hallazgo: la disposición tiene que ser {' | '.join(DISPOSICIONES)}, no {resto[0] if resto else 'nada'!r}\n{USO['hallazgo']}")
+    h = next((x for x in hall if str(x.get("id")) == hid), None)
+    if h is None:
+        sys.exit(f"rompelo hallazgo: no hay ningún hallazgo con id {hid!r} en el contrato ({', '.join(str(x.get('id')) for x in hall) or 'ninguno'})")
+    nuevo = dict(h)
+    nuevo["disposicion"] = resto[0]
+    for k in ("regresion", "motivo", "comprobado", "nota"):
+        v = valor(resto, "--" + k)
+        if v is not None:
+            nuevo[k] = v
+    for k in ("regresion", "motivo", "comprobado", "nota"):
+        if not str(nuevo.get(k) or "").strip():
+            nuevo.pop(k, None)  # un `--motivo ''` no deja un campo vacío que el gate leería como presente
+    mh = motivo_hallazgo(nuevo, reg, suj, globs_prueba)
+    if mh:
+        sys.exit(f"rompelo hallazgo: no se escribe, el gate lo rechazaría: {mh}")
+    c["hallazgos"] = [nuevo if x is h else x for x in (c.get("hallazgos") or [])]
+    _, f = rutas(root)
+    escribir_json_atomico(f, c)
+    print(f"hallazgo {hid}: {resto[0]} ✓ (escrito en {os.path.relpath(f, root)})")
+    pendientes = [str(x.get("id")) for x in c["hallazgos"] if isinstance(x, dict) and motivo_hallazgo(x, reg, suj, globs_prueba)]
+    if pendientes:
+        print(f"quedan sin adjudicar: {', '.join(pendientes)}")
+    return 0
+
+
+def cmd_afirmar(root, args):
+    """`rompelo afirmar '<texto>' verificado --fuente F --cita C | derivado --de D | no_verificado --falta F`: añade al
+    contrato una afirmación sobre el mundo exterior con su estado y respaldo, validada con el mismo criterio del gate."""
+    if len(args) < 2 or args[0].startswith("-") or args[1] not in ESTADOS_AFIRMACION:
+        sys.exit(f"uso: {USO['afirmar']}")
+    a = {"texto": args[0], "estado": args[1], "fecha": ahora()}
+    for k in ("fuente", "cita", "de", "falta"):
+        v = valor(args[2:], "--" + k)
+        if v is not None and str(v).strip():
+            a[k] = v
+    ma = motivo_afirmacion(a)
+    if ma:
+        sys.exit(f"rompelo afirmar: no se escribe, el gate lo rechazaría: {ma}")
+    c = leer_contrato(root)
+    c.setdefault("afirmaciones", []).append(a)
+    _, f = rutas(root)
+    escribir_json_atomico(f, c)
+    print(f"afirmación {a['estado']} ✓: {a['texto'][:80]} ({len(c['afirmaciones'])} en el contrato)")
     return 0
 
 
@@ -1645,9 +1826,11 @@ def cmd_revisar(root, args):
     suj = sujetos(root, cambiados=cambiados)
     hu = huella_de(suj)
     f = os.path.join(ev, "revision.json")
+    if args and args[0] in ("--revisado", "--saltado", "--hallazgo"):
+        return marcar_revision(root, ev, f, cambiados, hu, args)
     sobrantes = [a for a in args if a != "--cerrar"]
     if sobrantes:
-        sys.exit(f"rompelo revisar: argumento(s) no reconocido(s): {' '.join(sobrantes)}\nuso: rompelo revisar [--cerrar]")
+        sys.exit(f"rompelo revisar: argumento(s) no reconocido(s): {' '.join(sobrantes)}\n{USO['revisar']}")
     if "--cerrar" in args:
         return cerrar_revision(root, c, ev, f, cambiados, hu)
     if not cambiados:
@@ -1680,6 +1863,59 @@ def cmd_revisar(root, args):
     print(reglas_para(root, cambiados))
     print(CRITERIO_REVISION)
     print(f"manifiesto: {f}\n  rellena `estado` (revisado | saltado + motivo) en cada fichero y `hallazgos`; después: rompelo revisar --cerrar")
+    return 0
+
+
+def marcar_revision(root, ev, f, cambiados, hu, args):
+    """Rellena el manifiesto sin editar JSON a mano: `--revisado <ruta>...`, `--saltado --motivo M <ruta>...` y
+    `--hallazgo ID --path P [--linea N] [--categoria C] [--severidad S] --texto T`. Cada ruta tiene que estar en el
+    manifiesto (es decir, en el diff): marcar algo que no cambió no es revisar. La huella tiene que ser la del manifiesto."""
+    rv = leer_evidencia(ev, "revision.json")
+    if not isinstance(rv, dict):
+        sys.exit("rompelo revisar: no hay manifiesto; ábrelo primero con `rompelo revisar`")
+    if rv.get("huella") != hu:
+        sys.exit(f"rompelo revisar: el manifiesto es de otro árbol ({rv.get('huella')} ≠ {hu}); vuelve a `rompelo revisar`")
+    if rv.get("cerrada"):
+        sys.exit("rompelo revisar: el manifiesto ya está cerrado sobre esta huella; nada que marcar")
+    modo = args[0]
+    if modo == "--hallazgo":
+        hid = args[1] if len(args) > 1 and not args[1].startswith("-") else None
+        if not hid:
+            sys.exit(f"uso: {USO['revisar']}")
+        h = {"id": hid}
+        for k in ("path", "linea", "categoria", "severidad", "texto"):
+            v = valor(args[2:], "--" + k)
+            if v is not None:
+                h[k] = int(v) if k == "linea" and str(v).isdigit() else v
+        if not str(h.get("texto") or "").strip():
+            sys.exit("rompelo revisar --hallazgo: falta --texto (qué falla)")
+        if h.get("categoria") and str(h["categoria"]).lower() not in CATEGORIAS:
+            sys.exit(f"rompelo revisar --hallazgo: categoría «{h['categoria']}» no vale ({' | '.join(CATEGORIAS)})")
+        if h.get("severidad") and str(h["severidad"]).lower() not in SEVERIDADES:
+            sys.exit(f"rompelo revisar --hallazgo: severidad «{h['severidad']}» no vale ({' | '.join(SEVERIDADES)})")
+        if any(str(x.get("id")) == hid for x in rv.get("hallazgos") or [] if isinstance(x, dict)):
+            sys.exit(f"rompelo revisar --hallazgo: ya hay un hallazgo {hid} en el manifiesto")
+        rv.setdefault("hallazgos", []).append(h)
+        escribir_evidencia(ev, "revision.json", rv)
+        print(f"hallazgo {hid} apuntado en el manifiesto ({len(rv['hallazgos'])} en total)")
+        return 0
+    estado = modo[2:]
+    motivo = valor(args, "--motivo") if estado == "saltado" else ""
+    rutas_ = [a for i, a in enumerate(args[1:], 1) if not a.startswith("-") and args[i - 1] != "--motivo"]
+    if not rutas_:
+        sys.exit(f"uso: {USO['revisar']}")
+    if estado == "saltado" and not str(motivo or "").strip():
+        sys.exit("rompelo revisar --saltado: hace falta --motivo (por qué no se revisa)")
+    fich = {str(x.get("path")): x for x in (rv.get("ficheros") or []) if isinstance(x, dict)}
+    fuera_man = [p for p in rutas_ if p not in fich]
+    if fuera_man:
+        sys.exit(f"rompelo revisar: no están en el manifiesto (no cambiaron respecto a la base): {', '.join(fuera_man)}")
+    for p in rutas_:
+        fich[p]["estado"] = estado
+        fich[p]["motivo"] = motivo or ""
+    escribir_evidencia(ev, "revision.json", rv)
+    faltan = [p for p, x in fich.items() if not str(x.get("estado") or "").strip()]
+    print(f"{len(rutas_)} fichero(s) → {estado}" + (f"; sin estado todavía: {', '.join(faltan)}" if faltan else "; manifiesto completo: rompelo revisar --cerrar"))
     return 0
 
 
@@ -1753,7 +1989,8 @@ def cerrar_revision(root, c, ev, f, cambiados, hu):
     escribir_json_atomico(tf, c)
     print(f"revisión cerrada sobre {hu}: {n_rev} revisado(s), {n_salt} saltado(s), {len(hall)} hallazgo(s) ({nuevos} nuevo(s) en el contrato)")
     if nuevos:
-        print("Siguiente: cada hallazgo nuevo del contrato necesita disposición (confirmado + regresión | rechazado + motivo [+ comprobado] | aceptado + nota); después rompelo check (si tocaste código) y rompelo close")
+        print("Siguiente: cada hallazgo nuevo del contrato necesita disposición: `rompelo hallazgo <id> confirmado --regresion <check|prueba del diff>` | "
+              "`rechazado --motivo '…' [--comprobado '…']` | `aceptado --nota '…'`; después rompelo check (si tocaste código) y rompelo close")
     return 0
 
 
@@ -1802,6 +2039,8 @@ LECTURAS = {"grep", "rg", "ag", "cat", "bat", "ls", "find", "fd", "head", "tail"
             "git log", "git diff", "git status", "git show", "git grep", "git branch", "git rev-parse", "git ls-files", "shasum", "md5", "sort", "uniq", "cut", "column"}
 # Ficheros cuya edición repetida no pide un check verde (D2 ediciones sin verde): documentación e imágenes.
 SIN_CHECK = (".md", ".mdx", ".txt", ".rst", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf", ".ico")
+# Herramientas que escriben un fichero (Claude Code y Codex): las únicas cuyo `file_path` cuenta como edición o toque.
+ESCRIBEN = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "ApplyPatch", "edit", "write", "multi_edit", "notebook_edit"}
 
 
 def es_check(cmd):
@@ -2062,9 +2301,13 @@ def evento_desde_hook(ent, agente="claude"):
                 sin_codigo = True
     stderr = limpiar_stderr(stderr)
     ficheros = []
-    for k in ("file_path", "path", "notebook_path"):
-        if isinstance(ti.get(k), str):
-            ficheros.append(ti[k])
+    # Solo las herramientas que ESCRIBEN dejan ruta: un Read, un Grep o un Glob sobre un fichero no es editarlo ni
+    # tocar su perfil de riesgo. El 29-10-2026 cuatro Read paralelos de bin/rompelo contaron como «editado 4 veces
+    # sin un check en verde» y subieron el patrón al estado del repo.
+    if tool in ESCRIBEN:
+        for k in ("file_path", "path", "notebook_path"):
+            if isinstance(ti.get(k), str):
+                ficheros.append(ti[k])
     texto_parche = parche or (cmd if (cmd.startswith("apply_patch") or "*** Begin Patch" in cmd) else "")
     if texto_parche:
         ficheros += re.findall(r"^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$", texto_parche, re.M)
@@ -2529,6 +2772,18 @@ def cmd_nivel(root, args):
     return 0
 
 
+def ref_por_defecto(root, base, h):
+    """A dónde mueve `--mover` sin REF: la base común de HEAD con el upstream (o con origin/main|master) si va por
+    delante de la base; es el punto hasta donde está lo ajeno fusionado, sin absorber lo propio que sigue encima
+    (tras un rebase, HEAD lleva los commits de la tarea). Sin upstream ni origin/main: HEAD, como siempre."""
+    for ref in ("@{upstream}", "origin/main", "origin/master"):
+        r = git(root, "merge-base", h, ref)
+        mb = r.stdout.strip() if r.returncode == 0 else ""
+        if mb and mb != base and git(root, "merge-base", "--is-ancestor", base, mb).returncode == 0:
+            return mb
+    return "HEAD"
+
+
 def cmd_base(root, args):
     """Contra qué commit se mide la tarea. Sin argumentos: dónde está la base y qué ha entrado en HEAD desde
     entonces. `--mover [REF] --motivo TXT` la adelanta (REF por defecto HEAD): solo hacia delante y solo dentro
@@ -2561,7 +2816,8 @@ def cmd_base(root, args):
     if not motivo:
         sys.exit("uso: rompelo base --mover [REF] --motivo '<por qué>' (el motivo queda en el contrato; sin él no se mueve)")
     i = args.index("--mover")
-    ref = args[i + 1] if i + 1 < len(args) and not args[i + 1].startswith("--") else "HEAD"
+    explicito = i + 1 < len(args) and not args[i + 1].startswith("--")
+    ref = args[i + 1] if explicito else ref_por_defecto(root, base, h)
     r = git(root, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}")
     if r.returncode != 0 or not r.stdout.strip():
         sys.exit(f"rompelo base: {ref!r} no es un commit de este repo")
@@ -2577,6 +2833,13 @@ def cmd_base(root, args):
         absorbidas = sorted(_nul(git_ok(root, "diff", "--name-only", "-z", "--no-renames", base, nuevo, "--", *EXCL)))
     except GitError as exc:
         sys.exit(f"rompelo base: no pude medir qué se absorbe: {exc}")
+    propias = [p for p in absorbidas if any(casa(p, s) for s in c.get("scope_paths") or [])]
+    if propias and not explicito:
+        # Sin REF, absorber rutas del scope es absorber el trabajo de la tarea: el diff se vacía y a nivel 2 no hay
+        # nada que revisar ni cerrar (19-10-2026: dos `reset --soft` para deshacerlo). Solo con REF explícito.
+        sys.exit(f"rompelo base: mover a {nuevo[:12]} absorbería {len(propias)} ruta(s) del scope de la tarea ({', '.join(propias[:6])}"
+                 f"{' …' if len(propias) > 6 else ''}): el diff propio desaparecería. Si lo ajeno está fusionado debajo, da el REF de ese "
+                 f"commit (p. ej. `rompelo base --mover origin/main --motivo …`); para absorberlo a propósito, `rompelo base --mover HEAD --motivo …`")
     c.setdefault("base_movida", []).append({"de": base, "a": nuevo, "fecha": ahora(), "motivo": motivo, "commits": commits, "rutas_absorbidas": absorbidas})
     c["base"] = nuevo
     escribir_json_atomico(f, c)
@@ -2669,9 +2932,65 @@ def cmd_doctor(root, args):
 
 
 def cmd_repos(args):
-    for p in repos_permitidos():
-        print(p)
+    """Lista la allowlist. `--podar` quita las rutas que ya no existen (worktrees borrados: el 29-10-2026 había 21
+    entradas y 8 apuntaban a carpetas desaparecidas). Nunca toca una ruta que existe."""
+    if args and args != ["--podar"]:
+        sys.exit(f"uso: {USO['repos']}")
+    if not args:
+        for p in repos_permitidos():
+            print(p)
+        return 0
+    with cerrojo(ALLOWLIST):
+        d = leer_json_estricto(ALLOWLIST, {"repos": []})
+        vivos, muertos = [], []
+        for p in d.get("repos", []):
+            (vivos if os.path.isdir(os.path.expanduser(str(p))) else muertos).append(p)
+        if muertos:
+            d["repos"] = vivos
+            escribir_json_atomico(ALLOWLIST, d)
+    for p in muertos:
+        print(f"quitada (no existe): {p}")
+    print(f"{len(muertos)} ruta(s) quitada(s), {len(vivos)} se quedan")
     return 0
+
+
+PODA_DIAS = 30
+
+
+def podar_estado(ahora_ts=None):
+    """Poda automática, como mucho una vez al día (marca `state/.poda`): libros de sesión, cachés de Codex y marcas del
+    tope con más de PODA_DIAS días. Nunca `state/repos` (nivel, perfiles, permisos) ni la evidencia de los repos. El
+    29-10-2026 había 489 libros (25 MB) y 63 marcas desde septiembre: `state prune` existía y nadie lo lanzaba."""
+    t = ahora_ts or time.time()
+    sello = os.path.join(ESTADO, ".poda")
+    try:
+        if t - os.path.getmtime(sello) < 86400:
+            return 0
+    except OSError:
+        pass
+    n = 0
+    limite = t - PODA_DIAS * 86400
+    for sub_, patron in (("sesiones", ".jsonl"), ("marcas", ""), ("codex", ".json")):
+        d = os.path.join(ESTADO, sub_)
+        try:
+            nombres = os.listdir(d)
+        except OSError:
+            continue
+        for nombre in nombres:
+            f = os.path.join(d, nombre)
+            try:
+                if nombre.endswith(patron) and os.path.isfile(f) and os.path.getmtime(f) < limite:
+                    os.remove(f)
+                    n += 1
+            except OSError:
+                continue
+    try:
+        os.makedirs(ESTADO, exist_ok=True)
+        with open(sello, "w") as fh:
+            fh.write(f"{ahora()} {n}\n")
+    except OSError:
+        pass
+    return n
 
 
 # ── disparo: cuándo juzga la puerta (docs/disparo.md) ────────────────────────
@@ -2747,7 +3066,7 @@ def tramos_de(cmd):
 
 
 def tramo_que_entrega(cmd, conf):
-    """El primer tramo del comando que entrega (commit, push, deploy… según config), o None. Se juzga tramo a
+    """El primer tramo del comando que entrega (merge, push a main, deploy… según config), o None. Se juzga tramo a
     tramo: un `--dry-run` solo exime al tramo que lo lleva (`git push --dry-run && git push` entrega)."""
     for tramo in tramos_de(cmd):
         if "--dry-run" in tramo:
@@ -2758,7 +3077,7 @@ def tramo_que_entrega(cmd, conf):
 
 
 def es_entrega(cmd, conf):
-    """¿El comando entrega (commit, push, deploy…)? Un `--dry-run` no entrega nada (en su tramo)."""
+    """¿El comando entrega (merge, push a main, deploy…)? Un `--dry-run` no entrega nada (en su tramo)."""
     return tramo_que_entrega(cmd, conf) is not None
 
 
@@ -2846,7 +3165,7 @@ def salida_deny(texto):
 
 
 def hook_pretool(agente, ent, root):
-    """PreToolUse: solo mira comandos de shell que ENTREGAN (commit, push, deploy… según config/disparo.json). Con el
+    """PreToolUse: solo mira comandos de shell que ENTREGAN (publican: merge, push a main, deploy… según config/disparo.json; hasta el 28-10-2026 también commit y push a ramas). Con el
     contrato sin cumplir los deniega con los motivos y la línea Siguiente; lo demás pasa en silencio y rápido.
     Mismo JSON de respuesta en Claude Code y Codex (docs oficiales leídas 16-09-2026). Sin tope: denegar un commit
     no atrapa al agente en un bucle, solo le impide guardar sin evidencia."""
@@ -2880,7 +3199,7 @@ def hook_pretool(agente, ent, root):
         m += mj
     if not m:
         return 0
-    texto = _("[rompelo] Este comando ENTREGA (commit/push/deploy) y la tarea {tid} no está verificada:\n", tid=tid) + "\n".join("- " + x for x in m)
+    texto = _("[rompelo] Este comando ENTREGA (publica: merge, push a main, despliegue) y la tarea {tid} no está verificada:\n", tid=tid) + "\n".join("- " + x for x in m)
     if sig:
         texto += "\n" + sig
     texto += _("\nCumple lo que falta y vuelve a lanzar el comando. Lo que no se pueda cumplir se declara en el contrato como NO VERIFICADO, no se omite.")
@@ -2919,11 +3238,11 @@ def hook_prompt(agente, ent, root):
         # Un contrato cerrado ya se entregó: no se declara cierre sobre él (la marca quedaría huérfana y juzgaría
         # cada turno un contrato que quizá cerró otra sesión en otro árbol). Lo que haya cambiado después lo frena
         # el deny al entregar; el camino es un contrato nuevo, o repetir check y close si el cambio es de esta tarea.
-        ctx = (_("[rompelo] El usuario pide cerrar o entregar, pero la tarea {tid} ya está cerrada y hay cambios posteriores. El commit y el push se denegarán hasta resolverlo: abre un contrato nuevo para lo que has cambiado (`rompelo init --force --id … --scope …`) o, si es de esta misma tarea, vuelve a `rompelo check` y `rompelo close`. Ahora mismo falta:\n", tid=tid)
+        ctx = (_("[rompelo] El usuario pide cerrar o entregar, pero la tarea {tid} ya está cerrada y hay cambios posteriores. Publicar (merge, push a main, despliegue) se denegará hasta resolverlo: abre un contrato nuevo para lo que has cambiado (`rompelo init --force --id … --scope …`) o, si es de esta misma tarea, vuelve a `rompelo check` y `rompelo close`. Ahora mismo falta:\n", tid=tid)
                + "\n".join("- " + x for x in m))
     else:
         declarar_cierre(root, tid, f"{agente}:prompt")
-        ctx = (_("[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará commit ni push sin evidencia. Ahora mismo falta:\n", tid=tid)
+        ctx = (_("[rompelo] El usuario pide cerrar o entregar la tarea {tid}: la puerta la juzgará al terminar este turno y no dejará publicar (merge, push a main, despliegue) sin evidencia. Ahora mismo falta:\n", tid=tid)
                + "\n".join("- " + x for x in m) + ("\n" + sig if sig else ""))
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": ctx}}, ensure_ascii=False))
     return 0
@@ -2950,6 +3269,10 @@ def cmd_hook(agente, args):
         return hook_pretool(agente, ent, root)
     if evento == "UserPromptSubmit":
         return hook_prompt(agente, ent, root)
+    try:
+        podar_estado()  # Stop es el momento barato: una vez al día, antes de juzgar nada
+    except Exception:
+        pass
     cobertura = None
     if agente == "codex":
         try:
@@ -3012,30 +3335,62 @@ def cmd_hook(agente, args):
     print(json.dumps({"decision": "block", "reason": texto + _("\nNo declares la tarea terminada. Resuelve cada punto (rompelo check / rompelo cruce / disposición del hallazgo) y vuelve a intentarlo. Si algo no se puede cumplir, dilo como NO VERIFICADO y déjalo escrito en el contrato.")}, ensure_ascii=False))
     return 0
 
+USO = {
+    "init": "rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar] [--disparo entrega|turno]\n"
+            "    sin --check, detecta los checks del repo (package.json, pyproject, Cargo.toml, go.mod, Makefile…) y los registra en\n"
+            "    registry.local.json con el prefijo del repo PRINCIPAL (un worktree no estrena ids); un comando ya registrado bajo otro id se reutiliza\n"
+            "    sin --disparo manda config/disparo.json (defecto `entrega`)",
+    "check": "rompelo check [--pendientes] [ID | --id ID]...\n"
+             "    sin ids ejecuta todos los checks exigidos por el contrato; con ids (sueltos o con --id) solo esos. Con --pendientes\n"
+             "    salta los que ya tienen evidencia verde sobre esta misma huella (dice «vigente»): es lo que el gate acepta. Dos ids\n"
+             "    con el mismo argv y cwd corren una sola vez. Un --flag desconocido es error. Una suite entera puede pasar de 120 s,\n"
+             "    el timeout por defecto de la herramienta Bash de Claude Code: lánzala con timeout ≥ 300000 o en segundo plano",
+    "cruce": "rompelo cruce [--nota TXT] (--id ID | -- <argv>)\n"
+             "    el cruce real de la junta, DESPUÉS del último cambio. Nunca con secretos expandidos en el argv: un guion que lea el vault por dentro",
+    "revisar": "rompelo revisar                       abre el manifiesto (cada fichero cambiado, diff, reglas, criterio)\n"
+               "rompelo revisar --revisado <ruta>...  marca ficheros como revisados (después de leer su diff de verdad)\n"
+               "rompelo revisar --saltado --motivo TXT <ruta>...\n"
+               "rompelo revisar --hallazgo ID --path P [--linea N] [--categoria C] [--severidad S] --texto TXT\n"
+               "rompelo revisar --cerrar              exige cobertura completa sobre la misma huella y pasa los hallazgos al contrato",
+    "hallazgo": "rompelo hallazgo                                   lista los hallazgos del contrato y qué les falta\n"
+                "rompelo hallazgo ID confirmado --regresion <check del registro | prueba cambiada en el diff>\n"
+                "rompelo hallazgo ID rechazado --motivo TXT [--comprobado TXT]   (comprobado obligatorio en security, bug, concurrency, memory, compat, data)\n"
+                "rompelo hallazgo ID aceptado --nota TXT             qué riesgo se asume y hasta cuándo\n"
+                "    escribe la disposición solo si el gate la va a aceptar; no se edita task.json a mano",
+    "afirmar": "rompelo afirmar '<texto>' verificado --fuente F --cita C | derivado --de D | no_verificado --falta F",
+    "base": "rompelo base [--mover [REF] --motivo TXT]\n"
+            "    contra qué commit se mide la tarea; --mover la adelanta (solo hacia delante, dentro de la historia de HEAD). Sin REF va a la\n"
+            "    base común con el upstream (origin/main) si está por delante; si no, a HEAD. Sin REF nunca absorbe rutas del scope\n"
+            "    (eso vacía el diff propio): da el REF de lo ajeno, o HEAD a propósito",
+    "status": "rompelo status                 tarea, huella, nivel, cambiados y el veredicto de verify",
+    "verify": "rompelo verify [--json] [--ci [--estricto]]   el veredicto sin cerrar; --ci reejecuta los checks sin creer la evidencia",
+    "close": "rompelo close                  cierra si no falta nada; imprime y guarda el informe en llano",
+    "repos": "rompelo repos [--podar]        lista la allowlist; --podar quita las rutas que ya no existen",
+    "nivel": "rompelo nivel [bajar --motivo TXT]",
+    "permiso": "rompelo permiso <patron> si|no [--recordar]",
+    "state": "rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (el Stop poda solo lo de más de 30)",
+    "doctor": "rompelo doctor                 diagnóstico de solo lectura: versiones, rutas, registro elegido, allowlist, hooks conectados",
+}
+
 AYUDA = __doc__ + f"""
 uso:
-  rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar] [--disparo entrega|turno]
-      sin --check, detecta los checks del repo (package.json, pyproject, Cargo.toml, go.mod, Makefile) y los registra en registry.local.json
-      sin --disparo manda config/disparo.json (defecto `entrega`)
-  rompelo status | verify [--json] [--ci [--estricto]] | close | repos
-  rompelo check [--id ID]...     sin --id ejecuta todos los checks del contrato; con --id solo esos (para iterar);
-                                 cualquier otro argumento es error. Una suite entera puede pasar de 120 s, el
-                                 timeout por defecto de la herramienta Bash de Claude Code: lánzala con timeout
-                                 ≥ 300000 o en segundo plano, o el agente creerá que falló
-  rompelo cruce [--nota TXT] (--id ID | -- <argv>)
-  rompelo revisar [--cerrar]     segunda pasada con manifiesto (nivel ≥ 2): abre el manifiesto con cada fichero cambiado, diffs,
-                                 reglas (ocr delegate si está) y criterio; --cerrar exige cobertura completa sobre la misma huella y
-                                 pasa los hallazgos al contrato sin disposición. `segunda_pasada: texto` en observacion.json vuelve al campo libre
+  {USO['init']}
+  rompelo status | verify [--json] [--ci [--estricto]] | close | repos [--podar]
+  {USO['check']}
+  {USO['cruce']}
+  {USO['revisar']}
+  {USO['hallazgo']}
+  {USO['afirmar']}
   rompelo hook claude|codex      (lo llaman los hooks PreToolUse, UserPromptSubmit y Stop; JSON por stdin; decide por hook_event_name)
-disparo:  `entrega` (defecto): la puerta salta al ENTREGAR (PreToolUse deniega commit/push/deploy con el contrato sin cumplir) y en
-          Stop solo con el cierre declarado (frase del usuario, o `rompelo close` en rojo); `turno`: Stop juzga en cada turno.
-          Patrones y defecto en config/disparo.json (`por_repo` por ruta); el contrato puede fijar `disparo`.
+disparo:  `entrega` (defecto): la puerta salta al ENTREGAR (PreToolUse deniega lo que PUBLICA: merge de PR, push a main, despliegue; con el
+          contrato sin cumplir) y en Stop solo con el cierre declarado (frase del usuario, o `rompelo close` en rojo); `turno`: Stop
+          juzga en cada turno. Patrones y defecto en config/disparo.json (`por_repo` por ruta); el contrato puede fijar `disparo`.
   rompelo observe claude|codex   (lo llaman los hooks PostToolUse y PostToolUseFailure; JSON por stdin; nunca bloquea)
-  rompelo nivel [bajar --motivo TXT] | permiso <patron> si|no [--recordar]
-  rompelo base [--mover [REF] --motivo TXT]   contra qué commit se mide la tarea; --mover la adelanta (solo hacia delante, dentro de
-                                 la historia de HEAD) cuando lo que otros fusionaron sale como «fuera de scope»; queda escrito
-  rompelo state prune --dias N [--dry-run]   borra libros de sesión y marcas con más de N días (nunca estado ni evidencia)
-  rompelo doctor                 diagnóstico de solo lectura: versiones, rutas, registro elegido, allowlist, hooks conectados
+  {USO['nivel']} | {USO['permiso']}
+  {USO['base']}
+  {USO['state']}
+  {USO['doctor']}
+  rompelo <subcomando> --help    la ayuda de ese subcomando
 contrato: `checks_nivel3` lista checks que solo se exigen a nivel 3 (tras `rompelo permiso … si`)
 registro: por check, `no_afecta: [globs]` = rutas cuyo cambio NO invalida su evidencia (docs, imágenes…): editar el
           README después de la suite no obliga a repetirla. `rompelo check` avisa si un check cambia el árbol.
@@ -3050,6 +3405,9 @@ def main(argv):
         print(AYUDA)
         return 0
     sub, args = argv[0], argv[1:]
+    if sub in USO and args and args[0] in ("-h", "--help"):
+        print(USO[sub])  # antes: «rompelo revisar: argumento(s) no reconocido(s): --help» (cuatro veces en sesiones reales)
+        return 0
     if sub == "hook":
         return cmd_hook(args[0] if args else "claude", args[1:])
     if sub == "observe":
@@ -3065,7 +3423,7 @@ def main(argv):
         sys.exit("rompelo: no estás dentro de un repositorio git")
     tabla = {"init": cmd_init, "status": cmd_status, "verify": cmd_verify, "check": cmd_check,
              "cruce": cmd_cruce, "close": cmd_close, "permiso": cmd_permiso, "nivel": cmd_nivel, "revisar": cmd_revisar,
-             "base": cmd_base}
+             "base": cmd_base, "hallazgo": cmd_hallazgo, "afirmar": cmd_afirmar}
     if sub not in tabla:
         sys.exit(f"rompelo: subcomando desconocido '{sub}'\n{AYUDA}")
     try:

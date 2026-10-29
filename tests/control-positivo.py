@@ -15,7 +15,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 
 
 def correr(argv, **kw):
-    return subprocess.run(argv, capture_output=True, text=True, timeout=300, **kw)
+    return subprocess.run(argv, capture_output=True, text=True, timeout=900, **kw)  # la batería del gate ya pasa de 300 s (29-10-2026)
 
 
 def variable_pegada(tmp):
@@ -57,7 +57,8 @@ def gate(tmp):
         return 2
     fallos = sorted(linea.strip() for linea in r.stdout.splitlines() if linea.strip().startswith("❌"))
     esperados = sorted(["❌ fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/x.md»)",
-                        "❌ commit ajeno después de la base: fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/ajeno.md»)"])
+                        "❌ commit ajeno después de la base: fuera de scope (esperaba bloqueo con «fuera de scope_paths: docs/ajeno.md»)",
+                        "❌ corchetes casan con cualquier cosa"])  # 29-10: el control del scope con corchetes también depende de `if fuera:`
     print(f"1 mutación de scope confirmada; batería PASS={pasa} FAIL={falla}")
     if r.returncode == 0 and falla == 0 and pasa > 0:
         return 0

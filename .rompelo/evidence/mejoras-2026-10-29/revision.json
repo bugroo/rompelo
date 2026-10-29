@@ -1,0 +1,89 @@
+{
+  "huella": "v2:befa87195d576550",
+  "base": "eda56281efdaf9560ab28ae352d4bb92929325b3",
+  "cerrada": true,
+  "abierta": "2026-10-29T16:07:09+00:00",
+  "ficheros": [
+    {
+      "path": "CHANGELOG.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "README.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "adapters/skill/SKILL.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "bin/rompelo",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "corpus/TABLA.md",
+      "estado": "saltado",
+      "motivo": "generado por bin/rompelo-corpus.py desde los tres incidentes nuevos; el CI exige que coincida"
+    },
+    {
+      "path": "docs/OCR.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "docs/README-completo.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "docs/disparo.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "incidents/INC-2026-0049.yaml",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "incidents/INC-2026-0050.yaml",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "incidents/INC-2026-0051.yaml",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/control-positivo.py",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-observe-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-revisar-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-stop-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-10-29T16:07:31+00:00",
+  "n_revisados": 14,
+  "n_saltados": 1,
+  "n_hallazgos": 0
+}

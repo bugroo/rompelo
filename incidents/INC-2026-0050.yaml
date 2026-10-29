@@ -1,0 +1,15 @@
+id: INC-2026-0050
+titulo: "En un worktree, `rompelo init` estrenó ids gemelos y la suite de seis minutos corrió dos veces por check"
+fecha: 2026-10-28
+fuente: "sesión de ClaveON del 28-10-2026 (worktree ClaveON_B2C-umland): evidencia de despliegue-preise-widerruf-rediseno con claveon.test (196,6 s, por obliga) y claveon_b2c-umland.test (161 s, del contrato), ambos `pnpm test`; José: «roba demasiado tiempo»"
+tipo: ambito
+evidencia_verde: "las dos evidencias en verde, legítimas; el coste no se veía: el mismo comando dos veces, y el id del worktree sin `afecta` ni control positivo (lo que sí tenía claveon.test)"
+lo_que_faltaba: "que el prefijo de los ids saliera del repo principal (git-common-dir) y no de la carpeta; que un comando ya registrado bajo otro id se reutilizara; que `rompelo check` no repitiera un argv+cwd ya ejecutado en la misma pasada ni una evidencia verde sobre la misma huella"
+gate: check-sin-repetir
+gate_descripcion: "init: `nombre_repo` por git-common-dir y `mismo_comando` (pnpm run X ≡ pnpm X); check: `_EJECUTADOS` por (argv, cwd) con `compartida_con` en la evidencia, y «vigente» cuando la evidencia ya vale (`--todo` repite)"
+existe_hoy: "sí"
+spike_cubre: "sí"
+regresion: "tests/rompelo-stop-test.sh «lo vigente no se repite, lo idéntico no se duplica» y «init en un worktree»"
+clase: C
+senal_al_stop: "ninguna: todo verde, solo más lento"
+disparador: "dos ids del contrato efectivo con el mismo argv y cwd; evidencia verde con la huella actual al lanzar check"
