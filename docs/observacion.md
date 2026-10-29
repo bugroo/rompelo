@@ -211,6 +211,12 @@ heredoc antes de evaluar D1, con caso en rojo primero.
 
 ### 12.1 · Segundo cruce y control negativo con sesiones reales (05-09, mañana)
 
+> 29-10-2026: los cinco transcripts de septiembre ya no existían en el Mac (Claude Code los borra pasados unos 30
+> días) y el check llevaba semanas saliendo con 2. Ids fijados de nuevo a cinco sesiones TERMINADAS (`04faba5d,
+> 3cb7c6ef, 460c9a22, 7ac1d17a, d2c3609d`) con 8 alarmas medidas, visto fallar con 7. Cuando vuelvan a caducar, el
+> guion lo dice y explica cómo refijarlos (`--sesiones 5` sin `--ids`, sobre sesiones terminadas, y el recuento al
+> registro). Es un check de esta máquina: `solo_local`.
+
 **El observador nunca había visto fallar un comando en Claude Code.** Un `ls` a una ruta
 inexistente, ejecutado a propósito, no dejó línea en el libro. La doc oficial lo dice: `PostToolUse`
 «fires after a tool has already executed successfully»; el fallo llega por `PostToolUseFailure`,

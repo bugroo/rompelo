@@ -85,7 +85,8 @@ def main():
         if len(elegidos) >= a.sesiones:
             break
     if not elegidos:
-        print("no hay sesiones que cumplan el mínimo", file=sys.stderr)
+        print("no hay sesiones que cumplan el mínimo" + (f" (ids fijados: {a.ids}; los transcripts de Claude Code caducan: vuelve a fijar ids y "
+              "alarmas con `python3 tests/control-negativo-sesiones.py --sesiones 5` sobre sesiones TERMINADAS y apunta el recuento en checks/registry.json)" if a.ids else ""), file=sys.stderr)
         return 2
 
     tmp = tempfile.mkdtemp(prefix="rompelo-cn-")

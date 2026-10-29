@@ -96,9 +96,9 @@
    "--max-eventos",
    "600",
    "--ids",
-   "49be3266,7ae11a81,9b2dd868,22029fbd,26f64f68",
+   "04faba5d,3cb7c6ef,460c9a22,7ac1d17a,d2c3609d",
    "--alarmas-esperadas",
-   "2"
+   "8"
   ],
   "cwd": "rompelo",
   "min_lineas": 10,
@@ -109,7 +109,8 @@
    "*.md",
    "corpus/**",
    "incidents/**"
-  ]
+  ],
+  "descripcion": " · 29-10-2026: ids fijados a cinco sesiones TERMINADAS (las de septiembre ya no existían en el Mac) y 8 alarmas medidas (grep/git grep sin salida ×5, un guion de check sin salida, el mismo error dos veces ×2); si los transcripts caducan el guion sale con 2 y dice cómo volver a fijarlos"
  },
  "rompelo.instrumento-tests": {
   "argv": [

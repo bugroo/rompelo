@@ -1,0 +1,44 @@
+{
+  "huella": "v2:1065520e5db91832",
+  "base": "00a8c6e95fb24573fc6136f4c0f86e0d47d961be",
+  "cerrada": true,
+  "abierta": "2026-10-29T18:21:25+00:00",
+  "ficheros": [
+    {
+      "path": "CHANGELOG.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "bin/rompelo",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "checks/registry.json",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "docs/observacion.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/control-negativo-sesiones.py",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-observe-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-10-29T18:21:26+00:00",
+  "n_revisados": 6,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}

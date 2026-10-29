@@ -5,6 +5,14 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **29-10-2026 (noche) · un check citado no es un check; el control de sesiones reales vuelve a mirar.** `es_check`
+  miraba el texto entero del comando: `echo "… rompelo check …"` dos veces sin salida contaba como «check verde
+  ambiguo» (sesión real); ahora se juzga por tramos y los portadores de texto (echo, printf, grep, cat, git commit,
+  gh pr…) no cuentan; el libro anota el programa del tramo que es check (`printf … && pnpm test` = `pnpm test`).
+  `rompelo.control-negativo-sesiones` (solo local) apuntaba a cinco transcripts de septiembre que Claude Code ya había
+  borrado y salía con 2 desde entonces: ids fijados a cinco sesiones terminadas con 8 alarmas medidas (todas por
+  diseño: búsquedas sin salida, un guion de check mudo, el mismo error dos veces), visto fallar con 7, y el mensaje
+  de «no hay sesiones» dice cómo volver a fijarlos cuando caduquen.
 - **29-10-2026 (tarde) · nada de rompelo antes de desplegar.** José: «rompelo se mete en el medio de cada tarea:
   demasiada fricción». Dos fuentes que quedaban: el observador interrumpía al agente a mitad de tarea con
   `additionalContext` al subir a nivel 2, con un texto que leía como orden de parar (ahora `"aviso": "nota"` por
