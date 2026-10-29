@@ -72,8 +72,38 @@ out="$("$ASSURE" check --id canario 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && [ ! -e "$CANARY" ] && ok "check --id de un check fuera del contrato: error y no lo ejecuta" || bad "check --id ejecutó un check ajeno al contrato" "$out"
 out="$("$ASSURE" check --id hay-a 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q '^\[1/1\] hay-a' && ! printf '%s' "$out" | grep -q '\] ok' && ok "check --id ejecuta solo el pedido (1/1)" || bad "check --id no acotó" "$out"
+out="$("$ASSURE" check hay-a 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q '^\[1/1\] hay-a' && ! printf '%s' "$out" | grep -q '\] ok' && ok "check <id> posicional vale igual que --id (29-10)" || bad "check posicional" "$out"
+out="$("$ASSURE" check hay-a 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q 'código 0 en' && ok "check sin --pendientes repite aunque la evidencia esté vigente (un control que se quedó ciego solo se ve ejecutando)" || bad "check repite" "$out"
+out="$("$ASSURE" check --fuerza 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] && ok "check con un --flag desconocido: error" || bad "check aceptó --fuerza" "$out"
+out="$("$ASSURE" check --help 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q 'rompelo check' && ok "check --help explica el subcomando" || bad "check --help" "$out"
+out="$("$ASSURE" revisar --help 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q 'revisar' && ok "revisar --help explica el subcomando (antes: argumento no reconocido)" || bad "revisar --help" "$out"
 espera_bloqueo "checks hechos, falta el cruce" s2c "no hay cruce real"
 "$ASSURE" cruce --nota "p" -- true >/dev/null && ok "rompelo cruce por argv OK" || bad "cruce"
+
+echo "── check: lo vigente no se repite, lo idéntico no se duplica (28-10-2026: la suite de 6 min corrió dos veces bajo dos ids)"
+rm -f "$CANARY"
+"$ASSURE" check --pendientes >"$T/check2.txt" 2>&1; rc=$?
+[ "$rc" -eq 0 ] && grep -q 'vigente' "$T/check2.txt" && ! grep -q 'código 0 en' "$T/check2.txt" && ok "rompelo check --pendientes sin cambios: todo vigente, nada se ejecuta" || bad "check --pendientes repitió lo vigente" "$(cat "$T/check2.txt")"
+echo w2 > src/a.txt; "$ASSURE" check --pendientes >"$T/check2b.txt" 2>&1; rc=$?
+[ "$rc" -eq 0 ] && grep -c 'código 0 en' "$T/check2b.txt" | grep -q '^2$' && ok "--pendientes con el árbol cambiado: los dos se ejecutan (control positivo)" || bad "--pendientes no vio el cambio" "$(cat "$T/check2b.txt")"
+git checkout -q -- src/a.txt   # el árbol como estaba: el cruce de arriba sigue valiendo
+python3 - "$ROMPELO_HOME/checks/registry.json" "$CANARY" <<'PYC'
+import json,sys;f=sys.argv[1];r=json.load(open(f))
+r['cuenta-a']={'argv':['sh','-c','echo x >> "$0"; echo hecho','%s'%sys.argv[2]],'min_lineas':1}
+r['cuenta-b']={'argv':['sh','-c','echo x >> "$0"; echo hecho','%s'%sys.argv[2]],'min_lineas':1,'no_afecta':['docs/**']}
+json.dump(r,open(f,'w'))
+PYC
+contrato 'checks=["cuenta-a","cuenta-b"]'
+"$ASSURE" check >"$T/check3.txt" 2>&1; rc=$?
+[ "$rc" -eq 0 ] && [ "$(wc -l < "$CANARY" | tr -d ' ')" = 1 ] && grep -q 'mismo comando que `cuenta-a`' "$T/check3.txt" && ok "dos ids con el mismo argv y cwd: una sola ejecución, evidencia para los dos" || bad "comando duplicado se ejecutó $(wc -l < "$CANARY" 2>/dev/null | tr -d ' ') veces" "$(cat "$T/check3.txt")"
+[ -f .rompelo/evidence/T1/check-cuenta-b.json ] && python3 -c "import json;e=json.load(open('.rompelo/evidence/T1/check-cuenta-b.json'));assert e['codigo']==0 and e['id']=='cuenta-b' and e.get('compartida_con')=='cuenta-a',e" && ok "la evidencia del segundo dice de quién la comparte" || bad "evidencia compartida"
+espera_paso "y el gate la acepta para los dos" s2z
+contrato 'checks=["hay-a","ok"]'; rm -f "$CANARY"; "$ASSURE" check >/dev/null   # la evidencia de hay-a/ok, sobre el árbol original
 
 echo "── VERDE DE PARTIDA"
 espera_paso "todo cumplido: deja parar" s3
@@ -124,6 +154,23 @@ contrato 'hallazgos=[{"id":"H6","texto":"inyección","categoria":"security","dis
 out="$(hook claude s7d "$R")"; printf '%s' "$out" | grep -q 'H6' && bad "protegida con comprobado aún bloquea" "$out" || ok "categoría protegida rechazada CON comprobado pasa"
 contrato 'hallazgos=[{"id":"H7","texto":"nombre feo","categoria":"style","disposicion":"rechazado","motivo":"es el estilo de la casa"}]'
 out="$(hook claude s7e "$R")"; printf '%s' "$out" | grep -q 'H7' && bad "categoría no protegida exigió comprobado" "$out" || ok "categoría no protegida se rechaza solo con motivo"
+echo "── rompelo hallazgo / afirmar: la disposición se escribe por subcomando, no editando el JSON a mano (29-10)"
+contrato 'hallazgos=[{"id":"H8","texto":"x","categoria":"bug"},{"id":"H9","texto":"y"}]'
+out="$("$ASSURE" hallazgo 2>&1)"; printf '%s' "$out" | grep -q 'H8' && printf '%s' "$out" | grep -q 'sin disposición' && ok "hallazgo sin argumentos lista los hallazgos y su estado" || bad "hallazgo lista" "$out"
+"$ASSURE" hallazgo H8 rechazado --motivo 'no aplica' >/dev/null 2>&1 && bad "rechazar un bug sin comprobado debía fallar" || ok "hallazgo H8 (bug) rechazado sin --comprobado: rechazado y no escribe"
+python3 -c "import json;c=json.load(open('.rompelo/task.json'));assert 'disposicion' not in c['hallazgos'][0],c['hallazgos'][0]" && ok "el contrato sigue intacto" || bad "escribió una disposición inválida"
+"$ASSURE" hallazgo H8 rechazado --motivo 'no aplica' --comprobado 'leído src/a.txt: la ruta no existe' >/dev/null 2>&1 && ok "hallazgo H8 rechazado con motivo y comprobado" || bad "hallazgo rechazado"
+"$ASSURE" hallazgo H9 confirmado --regresion no.existe >/dev/null 2>&1 && bad "regresión inexistente debía fallar" || ok "confirmado con regresión inexistente: rechazado"
+"$ASSURE" hallazgo H9 confirmado --regresion ok >/dev/null 2>&1 && ok "hallazgo H9 confirmado con un check del registro" || bad "hallazgo confirmado"
+"$ASSURE" hallazgo H10 aceptado --nota 'riesgo asumido' >/dev/null 2>&1 && bad "un id que no existe debía fallar" || ok "hallazgo con id desconocido: error"
+"$ASSURE" hallazgo H9 arreglado >/dev/null 2>&1 && bad "disposición inventada debía fallar" || ok "disposición inventada: error"
+espera_paso "los dos hallazgos quedan adjudicados por subcomando: verde" s7f
+"$ASSURE" afirmar 'el servicio responde 200' verificado --fuente 'curl -sI https://x' >/dev/null 2>&1 && bad "verificado sin cita debía fallar" || ok "afirmar verificado sin --cita: error"
+"$ASSURE" afirmar 'el servicio responde 200' verificado --fuente 'curl -sI https://x' --cita 'HTTP/2 200' >/dev/null 2>&1 && ok "afirmar verificado con fuente y cita" || bad "afirmar verificado"
+"$ASSURE" afirmar 'la versión es la 5' no_verificado --falta 'acceso al servidor' >/dev/null 2>&1 && ok "afirmar no_verificado con falta" || bad "afirmar no_verificado"
+python3 -c "import json;c=json.load(open('.rompelo/task.json'));a=c['afirmaciones'];assert len(a)==2 and a[0]['estado']=='verificado' and a[0]['cita']=='HTTP/2 200' and a[1]['falta']=='acceso al servidor',a" && ok "las afirmaciones quedan en el contrato con su respaldo" || bad "afirmaciones en el contrato" "$(grep -A12 afirmaciones .rompelo/task.json)"
+espera_paso "y el gate las acepta" s7g
+contrato 'afirmaciones=[]'
 contrato 'hallazgos=[{"id":"H1","disposicion":"rechazado","motivo":"x"},{"id":"H2","disposicion":"aceptado","nota":"y"}]'
 
 echo "── mutación D: fichero fuera de scope"
@@ -131,6 +178,14 @@ mkdir -p docs && echo x > docs/x.md
 espera_bloqueo "fuera de scope" s7 "fuera de scope_paths: docs/x.md"
 rm docs/x.md && rmdir docs; "$ASSURE" check >/dev/null; "$ASSURE" cruce -- true >/dev/null
 espera_paso "deshecha D: verde" s7b
+
+echo "── scope con corchetes literales (28-10-2026: src/pages/ratgeber/[...slug].astro salía como fuera de scope)"
+mkdir -p src/pages && echo s > 'src/pages/[...slug].astro'
+contrato 'scope_paths=["src/a.txt","src/pages/[...slug].astro","tests/**"]'
+out="$(hook claude sc1 "$R")"; printf '%s' "$out" | grep -q 'fuera de scope' && bad "un scope con corchetes literales no casa con el fichero" "$out" || ok "el scope casa con el fichero aunque lleve corchetes"
+contrato 'scope_paths=["src/a.txt","src/pages/[id].astro","tests/**"]'
+out="$(hook claude sc2 "$R")"; printf '%s' "$out" | grep -q 'fuera de scope_paths: src/pages/\[...slug\].astro' && ok "control positivo: otro nombre con corchetes no casa" || bad "corchetes casan con cualquier cosa" "$out"
+rm -f 'src/pages/[...slug].astro'; contrato 'scope_paths=["src/**","tests/**"]'
 
 echo "── afirmaciones con estado (criterio de ir a la fuente)"
 contrato 'toca_exterior=true'
@@ -298,6 +353,24 @@ assert r["repo2.typecheck"]["argv"]==["pnpm","run","typecheck"], r["repo2.typech
 assert "repo2.dev" not in r
 PY2
 [ $? -eq 0 ] && ok "detecta test y typecheck con pnpm, ignora dev, no duplica make test" || bad "detección"
+# Worktree del mismo repo (28-10-2026: en ClaveON_B2C-umland salieron ids claveon_b2c-umland.* duplicando claveon.*, sin afecta
+# ni control positivo, y la suite corrió dos veces): el prefijo es el del repo principal y un comando ya registrado se reutiliza.
+(cd "$R2" && git worktree add -q "$T/repo2-wt" -b wt >/dev/null 2>&1) || exit 2
+# registro local limpio con un solo id a mano, sin «run»: el que el worktree tiene que reutilizar
+printf '{"demo.typecheck": {"argv": ["pnpm", "typecheck"], "cwd": "repo", "afecta": ["src/**"], "control_positivo": {"argv": ["false"]}}}' > "$ROMPELO_HOME/checks/registry.local.json"
+(cd "$T/repo2-wt" && "$ASSURE" init --id W1 > "$T/initw.txt" 2>&1) && ok "init en un worktree no falla" || bad "init worktree" "$(cat "$T/initw.txt")"
+python3 - "$T/repo2-wt/.rompelo/task.json" "$ROMPELO_HOME/checks/registry.local.json" <<'PYW2'
+import json,sys
+c=json.load(open(sys.argv[1])); r=json.load(open(sys.argv[2]))
+assert not any(k.startswith("repo2-wt.") for k in r), sorted(r)                 # el prefijo es el del repo, no el de la carpeta del worktree
+assert c["checks"]==["demo.typecheck","repo2.test"], c["checks"]               # pnpm typecheck ≡ pnpm run typecheck: se reutiliza el id a mano (con su afecta y control)
+assert "repo2.typecheck" not in r, sorted(r)
+PYW2
+[ $? -eq 0 ] && ok "en el worktree: prefijo del repo principal y el id ya registrado con el mismo comando se reutiliza (afecta y control incluidos)" || bad "worktree/reutilización" "$(cat "$ROMPELO_HOME/checks/registry.local.json"; cat "$T/repo2-wt/.rompelo/task.json")"
+grep -q 'demo.typecheck' "$T/initw.txt" && grep -qi 'mismo comando' "$T/initw.txt" && ok "y lo dice" || bad "init no explica la reutilización" "$(cat "$T/initw.txt")"
+(cd "$R2" && git worktree remove -f "$T/repo2-wt" >/dev/null 2>&1; git branch -q -D wt >/dev/null 2>&1)
+out="$("$ASSURE" repos --podar 2>&1)"; printf '%s' "$out" | grep -q 'repo2-wt' && ! grep -q 'repo2-wt' "$ROMPELO_HOME/config/repos.json" && ok "repos --podar quita de la allowlist las rutas que ya no existen y lo dice" || bad "repos --podar" "$out"
+grep -q "$R2" "$ROMPELO_HOME/config/repos.json" && ok "y conserva las que existen" || bad "podó una ruta viva"
 rm -f "$ROMPELO_HOME/checks/registry.local.json"
 (cd "$R2" && rm -rf .rompelo && "$ASSURE" init --id D2 --sin-detectar > /dev/null 2>&1 && python3 -c 'import json;assert json.load(open(".rompelo/task.json"))["checks"]==[]') && ok "--sin-detectar deja los checks vacíos" || bad "--sin-detectar"
 # Varios ecosistemas a la vez: solo lo declarado, y con el comando que ejecuta el script (bun run test, no bun test).
@@ -601,6 +674,8 @@ out="$(hook claude pr1 "$R")"; printf '%s' "$out" | grep -q 'CANARIO_' && bad "c
 "$ASSURE" cruce -- sh -c 'echo CANARIO_SALIDA_CRUCE_6' -- --header 'X: CANARIO_ARGV_8' >/dev/null; "$ASSURE" close >"$T/close.txt" 2>&1
 grep -q 'CANARIO_' "$T/close.txt" .rompelo/evidence/E1/INFORME.md && bad "canario en el informe" || ok "el informe de cierre tampoco lleva argumentos"
 grep -q 'cruce real de la junta: sh' .rompelo/evidence/E1/INFORME.md && ok "el informe sí dice el programa y la nota" || bad "informe sin programa" "$(grep cruce .rompelo/evidence/E1/INFORME.md)"
+out="$("$ASSURE" cruce --nota n -- sh -c 'echo hola' -- --header 'X: CANARIO_ARGV_9' 2>&1)"; printf '%s' "$out" | grep -q 'CANARIO_' && bad "rompelo cruce reimprime el argv en el terminal (incidente 18-09-2026: un token del vault salió al chat)" "$out" || ok "rompelo cruce no reimprime el argv (solo programa y nº de argumentos)"
+printf '%s' "$out" | grep -q 'cruce OK: sh (5 argumentos)' && ok "y dice programa y nº de argumentos" || bad "cruce sin programa/nº de argumentos" "$out"
 contrato 'checks=["ok"]' 'toca_junta=false'
 
 echo "── no_afecta (registro, 11-09): lo que un check declara ajeno no invalida su evidencia; lo demás sí"
@@ -678,13 +753,13 @@ echo "── base del contrato (17-09-2026): lo que otros fusionan durante la ta
 "$ASSURE" init --force --id BASE1 --scope 'src/**' --check ok >/dev/null || exit 2
 "$ASSURE" check >/dev/null
 BASE0="$(git rev-parse HEAD)"
-mkdir -p docs && echo ajeno > docs/ajeno.md && git add -A && git commit -qm "PR ajeno fusionado"
+mkdir -p docs && echo ajeno > docs/ajeno.md && git add docs && git commit -qm "PR ajeno fusionado"   # solo docs/: lo propio (src/a.txt) sigue sin commitear
 espera_bloqueo "commit ajeno después de la base: fuera de scope" b1 "fuera de scope_paths: docs/ajeno.md"
 out="$("$ASSURE" base 2>&1)"; printf '%s' "$out" | grep -q '1 commit' && printf '%s' "$out" | grep -q 'docs/ajeno.md' && ok "rompelo base dice cuántos commits van por delante y qué rutas traen" || bad "rompelo base" "$out"
 "$ASSURE" base --mover >/dev/null 2>&1 && bad "mover sin --motivo debía fallar" || ok "mover sin --motivo: rechazado"
 grep -q "\"base\": \"$BASE0\"" .rompelo/task.json && ok "y la base no cambió" || bad "la base cambió sin motivo" "$(grep '"base"' .rompelo/task.json)"
 "$ASSURE" base --mover "$BASE0~1" --motivo x >/dev/null 2>&1 && bad "mover hacia atrás debía fallar" || ok "mover hacia atrás: rechazado"
-RAMA="$(git rev-parse --abbrev-ref HEAD)"; git checkout -q -b otra "$BASE0" && echo z > src/z.txt && git add -A && git commit -qm otra; OTRA="$(git rev-parse HEAD)"; git checkout -q "$RAMA"
+RAMA="$(git rev-parse --abbrev-ref HEAD)"; git checkout -q -b otra "$BASE0" && echo z > src/z.txt && git add src/z.txt && git commit -qm otra; OTRA="$(git rev-parse HEAD)"; git checkout -q "$RAMA"   # solo z.txt: task.json (BASE1, sin commitear) no debe viajar a la otra rama
 "$ASSURE" base --mover "$OTRA" --motivo x >/dev/null 2>&1 && bad "mover a un commit fuera de la historia de HEAD debía fallar" || ok "mover fuera de la historia de HEAD: rechazado"
 grep -q "\"base\": \"$BASE0\"" .rompelo/task.json && ok "tres rechazos y la base sigue igual" || bad "la base cambió con un rechazo" "$(grep '"base"' .rompelo/task.json)"
 "$ASSURE" base --mover --motivo 'PR ajeno fusionado' >/dev/null && ok "mover a HEAD con motivo" || bad "mover a HEAD"
@@ -697,6 +772,35 @@ echo w > src/a.txt
 espera_bloqueo "un cambio propio después sigue contando" b4 'se ejecutó sobre otro árbol'
 "$ASSURE" base --mover --motivo otra >/dev/null 2>&1 && bad "mover con la base ya en HEAD debía decir que no hay nada que mover" || ok "base ya en HEAD: nada que mover (rc≠0, sin escribir)"
 python3 -c "import json;c=json.load(open('.rompelo/task.json'));assert len(c['base_movida'])==1" && ok "y no añade una entrada vacía" || bad "entrada vacía en base_movida"
+echo "── base --mover sin REF tras un rebase (19-10-2026): la base va a la base común con el upstream, no a HEAD; absorber el scope exige REF"
+git add -A && git commit -qm "trabajo propio" >/dev/null   # src/a.txt (en scope) commiteado: HEAD lleva trabajo de la tarea
+"$ASSURE" init --force --id BASE2 --scope 'src/**' --check ok >/dev/null || exit 2
+BASE1="$(git rev-parse HEAD)"
+git checkout -q -b remoto-main "$BASE1" && mkdir -p docs && echo r > docs/remoto.md && git add -A && git commit -qm "PR ajeno en main" >/dev/null; REMOTO="$(git rev-parse HEAD)"
+git checkout -q "$RAMA" && echo propio > src/propio.txt && git add -A && git commit -qm "commit propio" >/dev/null
+git rebase -q remoto-main >/dev/null 2>&1 || exit 2; git branch -q --set-upstream-to=remoto-main >/dev/null 2>&1
+"$ASSURE" base --mover --motivo 'rebase sobre main' >"$T/mover.txt" 2>&1 && ok "mover sin REF con upstream: acepta" || bad "mover sin REF con upstream" "$(cat "$T/mover.txt")"
+grep -q "\"base\": \"$REMOTO\"" .rompelo/task.json && ok "la base es la base común con el upstream ($REMOTO), no HEAD: el diff propio sigue vivo" || bad "la base no es la base común" "$(grep '"base"' .rompelo/task.json) esperaba $REMOTO"
+"$ASSURE" check >/dev/null; "$ASSURE" revisar 2>&1 | grep -q 'src/propio.txt' && ok "revisar sigue viendo el fichero propio" || bad "el diff propio se vació"
+"$ASSURE" base --mover --motivo 'otra vez' >"$T/mover2.txt" 2>&1 && bad "mover sin REF hasta HEAD absorbiendo src/ (scope) debía negarse" || ok "mover sin REF que absorbería rutas del scope: se niega y lo dice"
+grep -q 'scope' "$T/mover2.txt" && ok "el motivo nombra el scope" || bad "motivo sin scope" "$(cat "$T/mover2.txt")"
+"$ASSURE" base --mover HEAD --motivo 'absorber a propósito' >/dev/null 2>&1 && ok "con REF explícito (HEAD) sí mueve" || bad "mover HEAD explícito"
+git branch -q --unset-upstream; git branch -q -D remoto-main
+
+echo "── repo anidado sin contrato: mensaje claro, no un traceback de ruta"
+mkdir -p anidado && (cd anidado && git init -q && git config user.email t@t && git config user.name t && echo x > f && git add -A && git commit -qm base)
+out="$(cd anidado && "$ASSURE" status 2>&1)"; printf '%s' "$out" | grep -q 'rompelo init' && ! printf '%s' "$out" | grep -q 'Errno' && ok "status en un repo sin contrato dice que falta rompelo init" || bad "status sin contrato" "$out"
+rm -rf anidado
+
+echo "── poda automática del estado (29-10-2026: 489 libros y 63 marcas de septiembre sin borrar)"
+mkdir -p "$ROMPELO_HOME/state/sesiones" "$ROMPELO_HOME/state/marcas"
+: > "$ROMPELO_HOME/state/sesiones/claude-viejo.jsonl"; touch -t 202601010000 "$ROMPELO_HOME/state/sesiones/claude-viejo.jsonl"
+: > "$ROMPELO_HOME/state/marcas/stop-claude-viejo-X"; touch -t 202601010000 "$ROMPELO_HOME/state/marcas/stop-claude-viejo-X"
+: > "$ROMPELO_HOME/state/marcas/stop-claude-nuevo-X"; rm -f "$ROMPELO_HOME/state/.poda"   # la poda es como mucho una vez al día
+hook claude poda1 "$R" >/dev/null
+[ ! -e "$ROMPELO_HOME/state/sesiones/claude-viejo.jsonl" ] && [ ! -e "$ROMPELO_HOME/state/marcas/stop-claude-viejo-X" ] && ok "un Stop poda libros y marcas con más de 30 días" || bad "no podó" "$(ls "$ROMPELO_HOME/state/sesiones" "$ROMPELO_HOME/state/marcas")"
+[ -e "$ROMPELO_HOME/state/marcas/stop-claude-nuevo-X" ] && ok "y deja lo reciente" || bad "borró una marca reciente"
+[ -e "$ROMPELO_HOME/state/.poda" ] && ok "y apunta cuándo podó (no se repite en cada Stop)" || bad "sin marca de poda"
 
 rm -rf "$T"
 resumen

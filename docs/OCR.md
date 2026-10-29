@@ -19,7 +19,7 @@ gh release download vX.Y.Z --repo alibaba/open-code-review -p opencodereview-dar
 shasum -a 256 -c <(grep 'opencodereview-darwin-arm64$' sha256sum.txt)   # tiene que decir OK
 install -m 755 opencodereview-darwin-arm64 ~/bin/ocr
 ocr config set provider anthropic
-ocr config set providers.anthropic.api_key_cmd 'pass show external/anthropic/api-key | tail -n1'   # la clave es la última línea; nada en claro en disco
+ocr config set providers.anthropic.api_key_cmd 'pass show external/anthropic/api-key | head -1'   # la clave es la PRIMERA línea; nada en claro en disco
 ocr config set model claude-sonnet-5
 ocr llm test
 ```

@@ -1,0 +1,15 @@
+id: INC-2026-0051
+titulo: "`rompelo cruce` reimprimía el argv entero: un token del vault expandido en el comando salió al chat"
+fecha: 2026-09-18
+fuente: "ClaveON, 18-09-2026 (docs/PROBLEMAS.md N96.14): `rompelo cruce -- bash -c \"curl -H 'X-Api-Token: $T' …\"` respondió «cruce OK: bash -c curl -H 'X-Api-Token: yICe…'»; hubo que rotar el token admin de Invoice Ninja"
+tipo: herramienta
+evidencia_verde: "cruce OK, y verdad: la junta estaba cruzada. La evidencia ya no guardaba el argv (RMP-007), pero la línea de confirmación en pantalla sí lo repetía, y la pantalla es el chat y el transcript"
+lo_que_faltaba: "que la confirmación dijera programa y nº de argumentos, como la evidencia y el informe; la disciplina de salida de la casa cubría echo, -x y ${VAR:-} pero no «una herramienta que repite el comando»"
+gate: cruce-sin-argv
+gate_descripcion: "`cmd_cruce` imprime `programa (N argumentos)`; batería «privacidad» con un canario en el argv que no puede aparecer en la salida de `rompelo cruce`"
+existe_hoy: "sí"
+spike_cubre: "sí"
+regresion: "tests/rompelo-stop-test.sh «rompelo cruce no reimprime el argv»"
+clase: T
+senal_al_stop: "ninguna"
+disparador: "un cruce con `bash -c` y una variable de entorno expandida en el argumento"

@@ -5,6 +5,27 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **29-10-2026 · recopilación de los fallos reales de seis semanas y arreglo de raíz** (47 sesiones de Claude Code con
+  salida de rompelo, memorias, PROBLEMAS.md de ClaveON, el estado del observador y la evidencia del 28-10):
+  - `rompelo cruce` ya no reimprime el argv (programa y nº de argumentos): el 18-09 un token del vault expandido en
+    `bash -c` salió al chat y hubo que rotarlo (INC-0051). Batería «privacidad» con canario en la salida.
+  - El observador solo cuenta como edición o toque lo que ESCRIBE (Edit, Write, MultiEdit, NotebookEdit,
+    apply_patch); un Read, Grep o Glob no (INC-0049: cuatro Read de un fichero = «editado 4 veces sin check»).
+  - `rompelo check --pendientes`: salta un check ya verde sobre la misma huella («vigente»); dos ids con el
+    mismo argv y cwd corren una vez (`compartida_con`); acepta ids sueltos; `--help`. INC-0050 (28-10: la suite de
+    6 min dos veces por pasada en un worktree).
+  - `rompelo init`: prefijo del repo principal también en worktrees (git-common-dir) y reutilización de un id ya
+    registrado con el mismo comando (`pnpm typecheck` ≡ `pnpm run typecheck`), con su `afecta` y su control.
+  - `rompelo hallazgo`, `rompelo afirmar`, `rompelo revisar --revisado|--saltado|--hallazgo`: disposiciones,
+    afirmaciones y manifiesto por subcomando, validados con el criterio del gate antes de escribir; nada de editar
+    JSON a mano (cinco contratos ilegibles por `JSONDecodeError`; «hallazgo sin disposición» 46 veces).
+  - Nivel 2 con el árbol igual a la base: no exige manifiesto (11-10: bucle sin salida tras desplegar).
+  - `rompelo base --mover` sin REF: base común con el upstream, y nunca absorbe rutas del scope sin REF explícito
+    (19-10: el diff propio desaparecía tras un rebase).
+  - Scope con corchetes literales (`[...slug].astro`) casa con el fichero.
+  - Repo sin contrato: «no hay contrato en …: rompelo init», no un `[Errno 2]`.
+  - Poda automática del estado (una vez al día en Stop, >30 días) y `rompelo repos --podar`.
+  - Textos y docs al día con el disparo del 28-10 (lo que publica, no commit/push a rama); `--help` por subcomando.
 - **Batería del disparo: un rótulo con comillas invertidas ejecutaba `rompelo close` (17-09).** `echo "… \`rompelo close\` …"`
   intentaba correr el comando dentro del repo de prueba (visto por Codex como «rompelo: command not found»; con
   `rompelo` en el PATH habría cerrado un contrato de verdad). Rótulo sin comillas invertidas; la batería sigue en 67.

@@ -110,6 +110,26 @@ import json;f='.rompelo/task.json';c=json.load(open(f));c['afirmaciones']=[{"tex
 PY
 "$ROMPELO" check >/dev/null; out="$(hook $SID)"; [ -z "$out" ] && ok "con afirmación verificada: silencio" || bad "exterior cumplido" "$out"
 
+echo "── una lectura no es una edición ni un toque (29-10-2026: cuatro Read de un fichero contaron como 4 ediciones)"
+read_ev() { observar "${AGENTE:-claude}" "$(python3 - "$1" "$R" "$2" "${3:-Read}" <<'PY'
+import json,sys
+sid,cwd,path,tool=sys.argv[1:5]
+print(json.dumps({"session_id":sid,"cwd":cwd,"hook_event_name":"PostToolUse","tool_name":tool,"tool_input":{"file_path":path},"tool_response":{"ok":True}}))
+PY
+)"; }
+reset_estado; nueva_sesion
+for i in 1 2 3 4 5; do o="$(read_ev $SID src/a.ts)"; done
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "cinco Read del mismo fichero: silencio (leer no es editar)" || bad "Read contó como edición" "$o"
+for i in 1 2 3; do o="$(read_ev $SID functions/api/x.ts)"; done
+[ -z "$o" ] && [ "$(nivel)" = 0 ] && ok "tres Read de functions/api/: silencio (leer no toca la junta)" || bad "Read contó como toque de junta" "$o"
+for i in 1 2 3; do o="$(read_ev $SID src/a.ts Grep)"; done; [ -z "$o" ] && ok "Grep tampoco cuenta" || bad "Grep contó" "$o"
+for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done
+o="$(edit_ev $SID src/a.ts)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "control positivo: cuatro Edit sí avisan" || bad "Edit no contó" "$o"
+reset_estado; nueva_sesion
+for i in 1 2 3; do o="$(read_ev $SID src/a.ts Write)"; done
+o="$(read_ev $SID src/a.ts Write)"; printf '%s' "$o" | grep -q 'editado 4 veces' && ok "Write cuenta como edición" || bad "Write no contó" "$o"
+reset_estado
+
 echo "── D2 ediciones sin verde (thrashing) y su reinicio con un check verde"
 reset_estado; nueva_sesion
 for i in 1 2 3; do edit_ev $SID src/a.ts >/dev/null; done

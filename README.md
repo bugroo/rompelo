@@ -59,24 +59,33 @@ cd your-repo
 rompelo init --id T-42 --scope 'src/**' --check my-app.test --junta   # contract + enroll the repo
 # ... the agent works ...
 rompelo check                                  # runs the checks and stores evidence (may take minutes)
-rompelo cruce --nota "real request" -- curl -sf https://…   # the real crossing, AFTER the last change
+rompelo check my-app.test                      # one check; `--pendientes` skips the ones already green on this same tree ("vigente")
+rompelo revisar && rompelo revisar --revisado src/a.ts && rompelo revisar --cerrar   # second pass (level 2), no JSON by hand
+rompelo hallazgo H1 rechazado --motivo "…" --comprobado "…"   # dispositions are subcommands too (and `rompelo afirmar`)
+rompelo cruce --nota "real request" -- bash cruce.sh   # the real crossing, AFTER the last change; secrets stay inside the script
 rompelo close                                  # refuses if anything is missing; prints the report
 ```
 
 Every block ends with a `Next:` line carrying the exact commands that unblock, in order
 (`rompelo check --id …`, `rompelo revisar …`, `rompelo cruce …`, `rompelo close`); `rompelo check` warns when a
 check itself changed the tree. Two sessions on the same root share one `.rompelo/task.json`: `init --force`
-replaces the other session's contract, so give each session its own worktree.
+replaces the other session's contract, so give each session its own worktree (`init` there reuses the main
+repo's check ids, it does not mint `repo-worktree.test` twins). Two ids with the same command run once.
+`rompelo cruce` prints the program and the number of arguments, never the argv (a vault token went to the
+chat that way on 2026-09-18).
 
 ## When the gate fires
 
 By default (`entrega`, since 2026-09-16) the gate stays silent while the agent works and fires when the work
 is **delivered**:
 
-- `PreToolUse` denies a `git commit`, `git push`, `gh pr create`, `wrangler deploy`, `scripts/desplegar.sh`…
-  while the contract is unmet, with the reasons and the `Next:` line. Any other command passes untouched.
-- `UserPromptSubmit` recognises the user asking to finish ("termina", "sube esto", "haz el commit", "ship it",
-  "to production"…), declares the close and tells the agent what is still missing before it starts.
+- `PreToolUse` denies what **publishes**: `gh pr merge`, `git push` to `main`/`master`, `wrangler deploy`,
+  `scripts/desplegar.sh`… while the contract is unmet, with the reasons and the `Next:` line. Any other
+  command passes untouched, including `git commit`, `git push` to a branch and `gh pr create` (since
+  2026-10-28: the whole gate runs once, before deploying, not on every task; the per-task test and CI do
+  the rest).
+- `UserPromptSubmit` recognises the user asking to deploy or publish ("despliega", "a producción", "ship it",
+  "release"…), declares the close and tells the agent what is still missing before it starts.
 - `Stop` judges only once the close is declared (by the user, or by a failed `rompelo close`), and goes quiet
   again once the task really closes.
 

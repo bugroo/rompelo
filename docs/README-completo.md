@@ -67,9 +67,10 @@ in two lines) and does not ask; spending on external checks (level 3) does: `rom
 
 ## When the gate fires (2026-09-16)
 
-By default the gate is silent while the agent works and fires on delivery: `PreToolUse` denies commit, push
-and deploy commands while the contract is unmet, `UserPromptSubmit` declares the close when the user asks to
-finish, and `Stop` judges only once the close is declared. The previous per-turn behaviour is `turno`. Paths
+By default the gate is silent while the agent works and fires on delivery: `PreToolUse` denies the commands
+that publish (PR merge, push to main, deploy; commit, push to a branch and PR creation pass since 2026-10-28)
+while the contract is unmet, `UserPromptSubmit` declares the close when the user asks to deploy or publish,
+and `Stop` judges only once the close is declared. The previous per-turn behaviour is `turno`. Paths
 add obligations on their own (`config/obliga.json`, `.rompelo/obliga.json`), checks apply only to their paths
 (`afecta`), the level-2 second pass is a manifest (`rompelo revisar`), and security/bug/concurrency/memory/
 compat/data findings cannot be rejected from memory. All of it in [docs/disparo.md](disparo.md) (Spanish).

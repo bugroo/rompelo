@@ -15,7 +15,7 @@ versionar, pisa clave a clave) y el campo `disparo` del contrato (`rompelo init 
 
 | Modo | PreToolUse (Bash) | UserPromptSubmit | Stop |
 |---|---|---|---|
-| `entrega` (defecto) | deniega los comandos que **entregan** (commit, push, merge, `gh pr`, deploy…) si el contrato no está cumplido; lo demás pasa sin mirar nada | si el prompt del usuario pide cerrar/entregar («termina», «sube esto», «haz el commit», «a producción»…), declara el cierre y le dice al agente qué falta antes de que empiece | juzga **solo** con el cierre declarado (marca en `state/marcas/cerrando-<repo>`), o si `rompelo close` falló; con todo cumplido retira la marca y calla |
+| `entrega` (defecto) | deniega los comandos que **publican** (`gh pr merge`, `git push` a main/master, `wrangler deploy`, `scripts/desplegar`, deploy…) si el contrato no está cumplido; lo demás pasa sin mirar nada. Hasta el 28-10-2026 también commit, push a una rama y `gh pr create`: José («utiliza rompelo solamente a la hora de desplegar, no cada vez que haces una tarea») los sacó de la lista | si el prompt del usuario pide desplegar o publicar («despliega», «a producción», «ship it», «release»…), declara el cierre y le dice al agente qué falta antes de que empiece | juzga **solo** con el cierre declarado (marca en `state/marcas/cerrando-<repo>`), o si `rompelo close` falló; con todo cumplido retira la marca y calla |
 | `turno` | igual | igual | juzga al final de cada turno (comportamiento hasta el 16-09-2026) |
 
 - El deny de PreToolUse no cuenta para el tope de 3 bloqueos: denegar un commit no atrapa al agente en un
@@ -112,6 +112,24 @@ el presupuesto deja ficheros en `warnings` y el envoltorio lo lee como 2 (no pud
 Sigue `OCR_MAX_LINEAS` (1500) como tope previo. Medido: una corrida de `verify --ci` con ocr en el contrato
 costó 1,3 M tokens (≈ 1,8 $) el 16-09-2026.
 
+## 6b. Lo que se escribe por subcomando (29-10-2026)
+
+Hasta el 29-10 el agente editaba `task.json` y `revision.json` a mano: cinco contratos quedaron ilegibles
+(`JSONDecodeError` en el hook, bloqueo sin salida) y «hallazgo sin disposición» fue el bloqueo más repetido
+(46 veces en 47 sesiones). Ahora:
+
+- `rompelo hallazgo` lista los hallazgos y qué les falta; `rompelo hallazgo <id> confirmado --regresion X |
+  rechazado --motivo M [--comprobado C] | aceptado --nota N` escribe la disposición de forma atómica y **solo si el
+  gate la va a aceptar** (mismo criterio, `motivo_hallazgo`): lo que falta se dice en el momento, no en el Stop.
+- `rompelo afirmar '<texto>' verificado --fuente F --cita C | derivado --de D | no_verificado --falta F`.
+- `rompelo revisar --revisado <ruta>...`, `--saltado --motivo M <ruta>...`, `--hallazgo ID --path P [--linea N]
+  [--categoria C] [--severidad S] --texto T` rellenan el manifiesto; una ruta que no está en el diff no se puede
+  marcar (marcar lo que no cambió no es revisar).
+- `rompelo check <id>` acepta los ids sueltos (ocho veces en sesiones reales el agente los dio así y salía con
+  error); un `--flag` desconocido sigue siendo error. `rompelo <subcomando> --help` existe.
+- A nivel 2, un contrato cuyo árbol no difiere de la base **no** exige manifiesto: no hay nada que revisar
+  (11-10-2026: «nada que revisar» y `close` pidiendo una segunda pasada imposible).
+
 ## 7. Base del contrato: `rompelo base --mover`
 
 El contrato mide la tarea contra `base`, el commit que `init` escribió. En una tarea larga otros fusionan sus PR
@@ -128,6 +146,35 @@ con motivo obligatorio, y queda escrito en el contrato (`base_movida`: de, a, fe
 absorbidas). La huella cambia con la base, así que la evidencia anterior caduca y hay que repetir `rompelo check`
 (y `close`). No esconde trabajo sin juzgar: lo que el agente pudo commitear ya pasó por la puerta (PreToolUse
 deniega el commit con el contrato sin cumplir, y con el contrato cerrado un cambio posterior también).
+
+### 7b. `--mover` sin REF (29-10-2026)
+
+Tras un `git rebase origin/main`, HEAD lleva lo ajeno **y** los commits propios: `--mover` a HEAD vaciaba el diff y a
+nivel 2 ya no había nada que revisar ni cerrar (19-10-2026, dos `reset --soft`). Sin REF, la base va ahora a la base
+común de HEAD con el upstream (`@{upstream}`, si no `origin/main`, `origin/master`) cuando está por delante de la base;
+sin upstream, a HEAD como antes. Y sin REF **nunca** se absorben rutas del `scope_paths` (eso es absorber el trabajo
+de la tarea): se niega y dice qué REF dar; `--mover HEAD` explícito sí lo hace, a propósito.
+
+## 8. `rompelo check`: vigente y compartido (29-10-2026)
+
+El 28-10-2026, en un worktree de ClaveON, `rompelo init` estrenó `claveon_b2c-umland.test` (mismo `pnpm test` que
+`claveon.test`, que entraba por obliga) y la suite de seis minutos corrió dos veces por pasada; y perseguir un rojo
+suelto la repetía entera cada vez. Tres cambios:
+
+- `init` nombra los ids por el repo **principal** (`git rev-parse --git-common-dir`), no por la carpeta del worktree,
+  y un comando ya registrado bajo otro id (`pnpm typecheck` ≡ `pnpm run typecheck`) se reutiliza con su `afecta` y
+  su control positivo en vez de estrenar un gemelo sin nada.
+- `rompelo check --pendientes` no repite un check cuya evidencia ya es verde sobre esta misma huella (su huella, con
+  `afecta`/`no_afecta`) y con esta misma definición: dice «vigente … no se repite». Es exactamente lo que el gate
+  acepta. Sin la opción, `rompelo check` ejecuta lo que se le pide: un control positivo que se quedó ciego sin que
+  cambiara el registro solo se descubre ejecutándolo (batería «control recién fallado»). La línea `Siguiente:` del
+  bloqueo ya nombra solo los ids que faltan.
+- Dos ids con el mismo argv y cwd corren una vez por pasada; la evidencia del segundo dice `compartida_con`. El
+  control positivo es de cada id y se ejecuta aparte.
+
+El estado se poda solo: en cada Stop, como mucho una vez al día (`state/.poda`), se borran libros de sesión, cachés
+de Codex y marcas con más de 30 días (había 489 libros y 63 marcas de septiembre). `rompelo repos --podar` quita de la
+allowlist las rutas que ya no existen (worktrees borrados).
 
 ## Baterías y controles
 

@@ -1,58 +1,55 @@
 {
   "schema": 1,
-  "id": "disparo-solo-al-desplegar",
+  "id": "mejoras-2026-10-29",
   "estado": "cerrada",
-  "base": "4fd39ab71526be633eb67f7597fdebb362666582",
-  "descripcion": "disparo.json: la puerta salta solo al publicar (merge de PR, push a main, despliegues), no en cada commit; orden de José 28-10-2026",
+  "base": "eda56281efdaf9560ab28ae352d4bb92929325b3",
+  "descripcion": "Optimización de rompelo tras recopilar los errores reales (28-10 checks duplicados, lecturas contadas como ediciones, JSON a mano, cruce que imprime argv…)",
   "scope_paths": [
-    "config/disparo.json"
+    "bin/rompelo",
+    "tests/**",
+    "docs/**",
+    "README.md",
+    "CHANGELOG.md",
+    "adapters/**",
+    "config/**",
+    ".rompelo/**",
+    ".gitignore",
+    "corpus/**",
+    "incidents/**",
+    "checks/**"
   ],
   "checks": [
     "rompelo.tests",
     "rompelo.observe-tests",
-    "rompelo.revisar-tests",
     "rompelo.disparo-tests",
-    "rompelo.obliga-tests"
+    "rompelo.obliga-tests",
+    "rompelo.revisar-tests",
+    "rompelo.instrumento-tests",
+    "rompelo.portabilidad-tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": false,
   "hallazgos": [],
   "_ayuda": "hallazgos: [{id, texto, disposicion: confirmado|rechazado|aceptado, nota}]. Lo concede código, no el modelo.",
-  "afirmaciones": [
-    {
-      "texto": "José ordenó usar rompelo solo al desplegar",
-      "estado": "verificado",
-      "fuente": "chat de José, 28-10-2026",
-      "cita": "utilices rompelo solamente a la hora de desplegar, no cada vez que haces una tarea, porque roba demasiado tiempo"
-    },
-    {
-      "texto": "José dio el GO para subir el cambio",
-      "estado": "verificado",
-      "fuente": "chat de José, 28-10-2026",
-      "cita": "go"
-    }
-  ],
-  "segunda_pasada": "revisión con manifiesto sobre v2:cf781d9fabb18d30: 1 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
+  "segunda_pasada": "revisión con manifiesto sobre v2:befa87195d576550: 14 revisado(s), 1 saltado(s) (corpus/TABLA.md), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
     "nivel": 2,
-    "nivel_desde": null,
-    "perfiles": [
-      "auth",
-      "junta",
-      "secretos"
-    ],
+    "nivel_desde": "2026-10-29T15:23:07+00:00",
+    "perfiles": [],
     "permisos": [],
     "checks": [
       "rompelo.tests",
       "rompelo.observe-tests",
-      "rompelo.revisar-tests",
       "rompelo.disparo-tests",
-      "rompelo.obliga-tests"
+      "rompelo.obliga-tests",
+      "rompelo.revisar-tests",
+      "rompelo.instrumento-tests",
+      "rompelo.portabilidad-tests"
     ],
-    "toca_junta": true,
+    "toca_junta": false,
     "toca_exterior": false,
     "exige_prueba_en_diff": false,
     "obliga": {},
-    "fecha": "2026-10-28T15:25:48+00:00"
+    "fecha": "2026-10-29T16:16:28+00:00"
   }
 }
