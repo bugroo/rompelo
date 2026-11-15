@@ -143,7 +143,7 @@ ROMPELO_HOME = os.environ.get("ROMPELO_HOME") or os.path.join(os.path.expanduser
 REGISTRO = os.path.join(ROMPELO_HOME, "checks", "registry.json")
 REGISTRO_LOCAL = os.path.join(ROMPELO_HOME, "checks", "registry.local.json")
 ALLOWLIST = os.path.join(ROMPELO_HOME, "config", "repos.json")
-PRUEBAS_POR_DEFECTO = ["tests/**", "test/**", "**/*.test.*", "**/*.spec.*", "**/*_test.*"]
+PRUEBAS_POR_DEFECTO = ["tests/**", "test/**", "**/*.test.*", "**/*.spec.*", "**/*_test.*", "**/test_*.py"]
 # Categorías de hallazgo que no se rechazan de memoria (criterio del filtro de open-code-review, leído el 16-09-2026: donde
 # descartar un acierto cuesta más que conservar un fallo, y donde la confianza propia es menos fiable): `rechazado` exige
 # `comprobado` (qué se ejecutó o leyó que lo refuta), además del motivo.
@@ -1306,6 +1306,26 @@ def registrar_local(nuevos):
     return anadidos
 
 
+def base_de_inicio(root, args):
+    """Base del contrato nuevo y, si no es HEAD, la frase que lo explica.
+
+    Hasta el 15-11-2026 era siempre HEAD. Con el trabajo ya commiteado, el contrato salía vacío o sin la prueba y,
+    como la base solo avanza, no había arreglo dentro del contrato: hubo que rehacer rama y PR. Ahora, si HEAD lleva
+    commits propios respecto a origin/main (o master), la base es el punto donde la rama sale de main. `--base-head`
+    conserva lo de antes. Sin remoto, o sin commits propios, HEAD como siempre."""
+    h = head(root)
+    if "--base-head" in args or h == SIN_HEAD:
+        return h, ""
+    for ref in ("origin/main", "origin/master"):
+        r = git(root, "merge-base", h, ref)
+        mb = r.stdout.strip() if r.returncode == 0 else ""
+        if mb and mb != h:
+            n = git(root, "rev-list", "--count", f"{mb}..{h}").stdout.strip() or "?"
+            return mb, (f"base: donde la rama sale de {ref} ({mb[:12]}); entran {n} commit(s) de la rama ya hechos. "
+                        "Para empezar desde HEAD: --base-head")
+    return h, ""
+
+
 def cmd_init(root, args):
     d, f = rutas(root)
     if os.path.exists(f) and "--force" not in args:
@@ -1341,11 +1361,12 @@ def cmd_init(root, args):
     desconocidos = [x for x in checks if x not in reg]
     if desconocidos:
         sys.exit(f"checks que no están en el registro {REGISTRO}: {desconocidos}. Añádelos ahí primero (argv, no cadena).")
+    base, nota_base = base_de_inicio(root, args)
     c = {
         "schema": 1,
         "id": valor(args, "--id") or "TAREA-" + datetime.date.today().isoformat(),
         "estado": "abierta",
-        "base": head(root),
+        "base": base,
         "descripcion": valor(args, "--desc") or "",
         "scope_paths": valores(args, "--scope") or ["**"],
         "checks": checks,
@@ -1366,6 +1387,8 @@ def cmd_init(root, args):
     permitir_repo(root)
     retirar_cierre(root)  # tarea nueva: el cierre declarado de la anterior ya no vale
     print(f"contrato creado: {f}\nrepo alistado en {ALLOWLIST}")
+    if nota_base:
+        print(nota_base)
 
 
 def cmd_check(root, args):
@@ -3386,7 +3409,8 @@ def cmd_hook(agente, args):
     return 0
 
 USO = {
-    "init": "rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar] [--disparo entrega|turno]\n"
+    "init": "rompelo init [--id ID] [--desc TXT] [--scope GLOB]... [--check ID]... [--junta] [--prueba] [--force] [--sin-detectar] [--disparo entrega|turno] [--base-head]\n"
+            "    base: si la rama ya lleva commits propios respecto a origin/main, el punto donde sale de main (entran en el contrato); --base-head la deja en HEAD\n"
             "    sin --check, detecta los checks del repo (package.json, pyproject, Cargo.toml, go.mod, Makefile…) y los registra en\n"
             "    registry.local.json con el prefijo del repo PRINCIPAL (un worktree no estrena ids); un comando ya registrado bajo otro id se reutiliza\n"
             "    sin --disparo manda config/disparo.json (defecto `entrega`)",

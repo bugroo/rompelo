@@ -253,6 +253,22 @@
    "incidents/**"
   ]
  },
+ "rompelo.init-base-tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-init-base-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "triestado": true,
+  "descripcion": "init con el trabajo ya commiteado: la base es la salida de la rama respecto a origin/main (--base-head deja HEAD) y test_*.py cuenta como prueba; vista en rojo con 3 mutaciones (15-11-2026)",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
+ },
  "rompelo.revisar-tests": {
   "argv": [
    "bash",
