@@ -5,6 +5,13 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **15-11-2026 · `init` con el trabajo ya commiteado.** La base era siempre HEAD: con los commits ya hechos el
+  contrato salía vacío o sin la prueba, y como la base solo avanza había que rehacer rama y PR (medido en uso real,
+  claveon-admin #101 → #103). Ahora, si HEAD lleva commits propios respecto a origin/main (o master), la base es el
+  punto donde la rama sale de main e `init` dice cuántos commits entran; `--base-head` deja lo de antes; sin remoto o
+  sin commits propios, HEAD como siempre. `test_*.py` (convención de pytest) cuenta ya como prueba. Batería
+  `tests/rompelo-init-base-test.sh` (`rompelo.init-base-tests`), 8 casos, vista en rojo con tres mutaciones; las demás
+  baterías siguen en verde con el binario nuevo.
 - **29-10-2026 (noche) · un check citado no es un check; el control de sesiones reales vuelve a mirar.** `es_check`
   miraba el texto entero del comando: `echo "… rompelo check …"` dos veces sin salida contaba como «check verde
   ambiguo» (sesión real); ahora se juzga por tramos y los portadores de texto (echo, printf, grep, cat, git commit,
