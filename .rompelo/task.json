@@ -1,33 +1,38 @@
 {
   "schema": 1,
-  "id": "init-base-rama",
+  "id": "PRUEBAS-POR-REPO",
   "estado": "cerrada",
-  "base": "711c738eefe892c8ce7209c76a9b2bd577c5f566",
-  "descripcion": "init: base = salida de la rama respecto a origin/main si ya hay commits propios (--base-head para lo de antes); test_*.py cuenta como prueba",
+  "base": "49c73223a8dcb7f5be159c0c7bcf9521c438b056",
+  "descripcion": ".rompelo/pruebas.json: cada repo declara dónde viven sus pruebas",
   "scope_paths": [
     "bin/rompelo",
-    "tests/**",
     "checks/registry.json",
+    "docs/disparo.md",
     "CHANGELOG.md",
-    "README.md",
-    ".rompelo/**"
+    "tests/rompelo-pruebas-repo-test.sh"
   ],
   "checks": [
     "rompelo.tests",
     "rompelo.revisar-tests",
     "rompelo.disparo-tests",
     "rompelo.obliga-tests",
-    "rompelo.portabilidad-tests"
+    "rompelo.portabilidad-tests",
+    "rompelo.pruebas-repo-tests",
+    "rompelo.init-base-tests"
   ],
   "toca_junta": false,
   "exige_prueba_en_diff": true,
   "hallazgos": [],
   "_ayuda": "No se edita a mano: `rompelo hallazgo <id> confirmado|rechazado|aceptado …`, `rompelo afirmar …`, `rompelo revisar --revisado|--saltado|--hallazgo …`. Lo concede código, no el modelo.",
-  "segunda_pasada": "revisión con manifiesto sobre v2:ba05d58c4a3edb3e: 4 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
+  "segunda_pasada": "revisión con manifiesto sobre v2:10db8ee1343162d0: 5 revisado(s), 0 saltado(s), 0 hallazgo(s) (evidence/revision.json)",
   "obligaciones_efectivas": {
-    "nivel": 0,
-    "nivel_desde": null,
-    "perfiles": [],
+    "nivel": 2,
+    "nivel_desde": "2026-09-16T13:21:10+00:00",
+    "perfiles": [
+      "auth",
+      "junta",
+      "secretos"
+    ],
     "permisos": [],
     "checks": [
       "rompelo.tests",
@@ -35,14 +40,16 @@
       "rompelo.disparo-tests",
       "rompelo.obliga-tests",
       "rompelo.portabilidad-tests",
+      "rompelo.pruebas-repo-tests",
+      "rompelo.init-base-tests",
       "rompelo.observe-tests"
     ],
-    "toca_junta": false,
+    "toca_junta": true,
     "toca_exterior": false,
     "exige_prueba_en_diff": true,
     "obliga": {
       "rompelo.observe-tests": "obliga: bin/rompelo"
     },
-    "fecha": "2026-11-15T10:56:46+00:00"
+    "fecha": "2026-11-16T10:18:03+00:00"
   }
 }
