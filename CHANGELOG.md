@@ -5,6 +5,12 @@ no verificado de cada versión está en el relevo enlazado.
 
 ## Sin publicar
 
+- **16-11-2026 · cada repo dice dónde están sus pruebas.** `.rompelo/pruebas.json` (`{"pruebas_glob": [...]}`,
+  versionado) se suma a las rutas de prueba de siempre; antes había que escribir `pruebas_glob` a mano en cada contrato
+  de claveon-admin, cuyas pruebas de pantalla son `scripts/qa/ui/*-e2e.mjs`. Sin fichero, exactamente lo de antes;
+  `pruebas_glob` del contrato sigue mandando; malformado bloquea. Batería `tests/rompelo-pruebas-repo-test.sh`
+  (`rompelo.pruebas-repo-tests`), 12 casos, vista en rojo con 4 mutaciones.
+
 - **15-11-2026 · `init` con el trabajo ya commiteado.** La base era siempre HEAD: con los commits ya hechos el
   contrato salía vacío o sin la prueba, y como la base solo avanza había que rehacer rama y PR (medido en uso real,
   claveon-admin #101 → #103). Ahora, si HEAD lleva commits propios respecto a origin/main (o master), la base es el

@@ -292,5 +292,21 @@
    "corpus/**",
    "incidents/**"
   ]
+ },
+ "rompelo.pruebas-repo-tests": {
+  "argv": [
+   "bash",
+   "tests/rompelo-pruebas-repo-test.sh"
+  ],
+  "cwd": "rompelo",
+  "min_lineas": 10,
+  "triestado": true,
+  "descripcion": "pruebas del repo en .rompelo/pruebas.json: se suman a las de siempre, el contrato manda, malformado bloquea, borrar no cubre; vista en rojo con 4 mutaciones (16-11-2026)",
+  "no_afecta": [
+   "docs/**",
+   "*.md",
+   "corpus/**",
+   "incidents/**"
+  ]
  }
 }

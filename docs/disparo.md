@@ -71,6 +71,19 @@ exige cruce real y `prueba` exige un test cambiado en el diff. El contrato escri
 de dónde viene: ``(obliga: *.sh) check `claveon.shellcheck` sin ejecutar``. Un check obligado que no está en
 el registro bloquea sin ejecutar nada; un `obliga.json` corrupto o malformado bloquea.
 
+### Qué cuenta como prueba (16-11-2026)
+
+`prueba` (y `--prueba` en `init`, y la regresión de un hallazgo `confirmado`) busca un fichero cambiado que case con
+`tests/**`, `test/**`, `**/*.test.*`, `**/*.spec.*`, `**/*_test.*` o `**/test_*.py`. Si las pruebas de un repo viven
+en otro sitio, el repo lo declara en `.rompelo/pruebas.json` (versionado: CI lo ve), y se SUMA a lo de siempre:
+
+```json
+{"pruebas_glob": ["scripts/qa/ui/*-e2e.mjs"]}
+```
+
+`pruebas_glob` escrito en el contrato sigue sustituyendo a todo. Un `pruebas.json` corrupto o malformado bloquea.
+Borrar una prueba no cuenta como cubrir.
+
 ## 3. Afecta: un check solo aplica y solo caduca por sus rutas
 
 En el registro, por check: `"afecta": ["*.sh", "scripts/**"]`. Si ninguna ruta cambiada casa, el check **no

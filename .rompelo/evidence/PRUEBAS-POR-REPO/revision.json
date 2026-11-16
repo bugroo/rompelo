@@ -1,0 +1,39 @@
+{
+  "huella": "v2:10db8ee1343162d0",
+  "base": "49c73223a8dcb7f5be159c0c7bcf9521c438b056",
+  "cerrada": true,
+  "abierta": "2026-11-16T10:17:52+00:00",
+  "ficheros": [
+    {
+      "path": "CHANGELOG.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "bin/rompelo",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "checks/registry.json",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "docs/disparo.md",
+      "estado": "revisado",
+      "motivo": ""
+    },
+    {
+      "path": "tests/rompelo-pruebas-repo-test.sh",
+      "estado": "revisado",
+      "motivo": ""
+    }
+  ],
+  "hallazgos": [],
+  "_ayuda": "estado: revisado | saltado (+ motivo). hallazgos: [{id, path, linea, categoria, severidad, texto}]. Luego `rompelo revisar --cerrar`.",
+  "fecha": "2026-11-16T10:17:58+00:00",
+  "n_revisados": 5,
+  "n_saltados": 0,
+  "n_hallazgos": 0
+}
