@@ -519,6 +519,27 @@ def reglas_obliga(root):
     return reglas
 
 
+PRUEBAS_REPO = os.path.join(".rompelo", "pruebas.json")
+
+
+def pruebas_de(root, c):
+    """Qué cuenta como prueba en el diff (exige_prueba_en_diff y la regresión de un hallazgo «confirmado»). Por orden:
+    `pruebas_glob` del contrato (sustituye a todo, como antes); si no, las de siempre MÁS las que el repo declara en
+    .rompelo/pruebas.json ({"pruebas_glob": [...]}, versionado: CI lo ve). Así un repo cuyas pruebas viven fuera de
+    test/ (claveon-admin: scripts/qa/ui/*-e2e.mjs) no tiene que reescribirlas a mano en cada contrato (José,
+    16-11-2026). Sin fichero: exactamente PRUEBAS_POR_DEFECTO. Ilegible o malformado: ValueError (bloqueo), nunca {}."""
+    if c.get("pruebas_glob"):
+        return c["pruebas_glob"]
+    f = os.path.join(root, PRUEBAS_REPO)
+    d = leer_json_estricto(f, None)
+    if d is None:
+        return list(PRUEBAS_POR_DEFECTO)
+    extra = d.get("pruebas_glob") if isinstance(d, dict) else None
+    if not isinstance(extra, list) or not extra or not all(isinstance(g, str) and g.strip() for g in extra):
+        raise ValueError(f"{f}: tiene que ser {{\"pruebas_glob\": [\"<glob>\", ...]}} con al menos un glob no vacío")
+    return list(PRUEBAS_POR_DEFECTO) + [g for g in extra if g not in PRUEBAS_POR_DEFECTO]
+
+
 def obligaciones_por_ruta(root, cambiados):
     """Lo que las rutas cambiadas obligan: {checks: {cid: [globs]}, junta: [globs], prueba: [globs]}."""
     out = {"checks": {}, "junta": [], "prueba": []}
@@ -942,7 +963,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
     # Un hallazgo se adjudica con un estado y su respaldo, no con una cadena no vacía (RMP-012): «pendiente»
     # no desbloquea; rechazado lleva motivo; aceptado lleva nota (qué riesgo y hasta cuándo); confirmado lleva
     # una regresión que exista: un check del registro o una prueba cambiada en este diff.
-    globs_prueba = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
+    globs_prueba = pruebas_de(root, c)
     for h in c.get("hallazgos") or []:
         mh = motivo_hallazgo(h, reg, suj, globs_prueba)
         if mh:
@@ -960,7 +981,7 @@ def motivos_bloqueo(root, para_cerrar=False, ci=None, acciones=None):
             m.append(ma)
 
     if c.get("exige_prueba_en_diff"):
-        globs = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
+        globs = pruebas_de(root, c)
         prueba = [p for p in cambiados if any(casa(p, g) for g in globs) and suj[p] != "D"]  # borrar un test no es cubrir
         if [p for p in cambiados if p not in prueba] and not prueba:
             m.append(_("el diff cambia código y ninguna prueba (exige_prueba_en_diff). Verde no es cubierto.")
@@ -1621,7 +1642,7 @@ def cmd_hallazgo(root, args):
     cambiados = ficheros_cambiados(root, c.get("base"))
     suj = sujetos(root, cambiados=cambiados)
     reg = registro(root)
-    globs_prueba = c.get("pruebas_glob") or PRUEBAS_POR_DEFECTO
+    globs_prueba = pruebas_de(root, c)
     if not args or args[0].startswith("-"):
         if args and args[0] not in ("-h", "--help"):
             sys.exit(f"rompelo hallazgo: argumento(s) no reconocido(s): {' '.join(args)}\n{USO['hallazgo']}")
